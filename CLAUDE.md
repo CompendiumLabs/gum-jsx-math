@@ -1,0 +1,151 @@
+# `@gum-jsx/math`
+
+LaTeX math for [gum.jsx](https://github.com/CompendiumLabs/gum.jsx): the `Latex`/`Tex` elements
+and the math layout elements behind them, the KaTeX faces, standalone `mathToSvg`/`mathToPng`,
+and the `gum-tex` CLI. It is an add-on to `@gum-jsx/core`: importing `@gum-jsx/math` registers
+the math elements with core's element registry (so `<Latex>` works in evaluated JSX) and the 18
+KaTeX faces with its font registry.
+
+## Layout
+
+- `src/index.ts` - Package entry: re-exports the elements, fonts, and `mathToElement`/`mathToSvg`; importing it registers everything
+- `src/elems.ts` - The math elements (`MathSpan`, `MathSymbol`, `MathArray`, `MathStretch`, `SupSub`, `Frac`, `Sqrt`, `Bracket`, `Latex`, `Tex`, `TextMode`, …) and the katex tree converter; ends with `registerElements(MATH_ELEMS)`
+- `src/fonts.ts` - The KaTeX faces out of the `katex` package (`MATH_FONT_PATHS`, `MATH_FONT_FACES`, `MATH_FONTS`, `loadMathFonts`); registers them with core on import
+- `src/symbols.ts` - katex's symbol table (de-flowed)
+- `src/math.ts` - Standalone LaTeX → SVG (`mathToElement`, `mathToSvg`), browser-safe
+- `src/render.ts` - `mathToPng`, `mathToKitty` via `@gum-jsx/core/render` (node only)
+- `src/types/katex.d.ts` - Types for katex's parser (`__parse`) and tree nodes
+- `scripts/tex.ts` - The `gum-tex` CLI
+- `scripts/compare.ts` - Renders TeX with gum, katex-in-Chromium, and pdflatex side by side
+- `scripts/katex.ts` - Older katex comparison helper
+- `scripts/test.ts` - Runs `test/code/*.jsx` through core's strict-mode runner (`@gum-jsx/core/test`)
+- `docs/katex.md` - How the katex parse tree is converted, the gotchas, and which test covers what
+- `docs/design.md` - Design notes and roadmap for math rendering
+
+Core is reached through its subpath exports: `@gum-jsx/core` (public API), `@gum-jsx/core/lib/*`
+and `@gum-jsx/core/elems/*` (internals: `Context`, `spec_split`, `rawTextMetrics`, `THEME`,
+`strictError`, …), `@gum-jsx/core/fonts` (the font registry), `@gum-jsx/core/render`, and
+`@gum-jsx/core/test`. While unpublished, core is linked: `bun link` in `../gum.jsx`, then this
+package's `devDependencies` has `"@gum-jsx/core": "link:@gum-jsx/core"` (the peer dependency is
+marked optional so `bun install` does not look for it on npm).
+
+## Commands
+
+### Math CLI (`gum-tex`)
+
+The LaTeX pipeline is exposed standalone via `src/math.ts` (`mathToElement`, `mathToSvg`; exported from `@gum-jsx/math`, browser-safe) and `src/render.ts` (`mathToPng`, `mathToKitty`; exported as `@gum-jsx/math/render`, node only) and the `gum-tex` CLI (`scripts/tex.ts`). By default output is sized naturally to the math at `font_size` pixels per em (with `padding` in em); `size` instead fits the math into an overall box:
+
+```bash
+# Render LaTeX to SVG/PNG (or kitty terminal image if no output/format given)
+gum-tex '\frac{1}{2}' -o half.svg
+bun scripts/tex.ts -S 32 -t dark -o eq.png < eq.tex
+gum-tex 'E = mc^2' -s 400 -o emc.png   # fit into a 400px box
+```
+
+
+### Comparing against katex
+
+`scripts/compare.ts` renders the same TeX three ways at the same pixels per em — gum
+(`mathToPng`), katex's own HTML pipeline in headless Chromium (`renderToString` +
+`katex.min.css`, which pulls in the KaTeX fonts), and real LaTeX (`pdflatex` with the
+`standalone` class, rasterized by `pdftoppm` at `font_size · 72.27 / 10` dpi so a 10 pt em is
+`font_size` px) — trims each to its ink, and stacks them in one PNG (or shows it in a kitty
+terminal when no `-o` is given). It needs a Chromium binary on `PATH` (or `--chrome`/
+`$GUM_CHROME`) and a TeX install (`--no-latex` skips that panel; it is skipped with a note if
+`pdflatex` is missing, and shows the compile error when LaTeX rejects a katex-only command);
+the trims and composite are node-canvas. This is the ground truth for layout questions the
+metrics checks cannot see, like widths and stroke weights:
+
+```bash
+bun scripts/compare.ts '\xrightarrow{f} \quad \frac{a}{b}' -o cmp.png
+bun scripts/compare.ts -i -S 64 -F eq.tex --packages amsmath,amssymb,mathtools   # inline; extra LaTeX packages
+```
+
+Note `katex.min.css` sets `.katex { font-size: 1.21em }`; the script divides the page font size
+by 1.21 so both renders share a scale.
+
+
+### Testing
+
+```bash
+bun tsc --noEmit      # typecheck (follows the link into core's sources)
+bun scripts/test.ts   # render every test/code example in strict mode
+bun scripts/test.ts --report   # also write test/data/<test>/<light|dark>/<name>.svg + manifest.json
+```
+
+Strict mode (`@gum-jsx/core/lib/strict`) turns the permissive rendering fallbacks into thrown
+errors: unparseable TeX (`parse`), a katex node with no gum equivalent (`node`), an unknown
+command name drawn verbatim (`symbol`), a TeX font command with no gum face mapped (`font`), and
+a character missing from the resolved face (`glyph`). An example that deliberately exercises a
+fallback opts out with a `@nostrict` comment. `docs/katex.md` lists which `test/code/math_*.jsx`
+file covers what.
+
+## Math Elements
+
+We use `katex` to parse LaTeX strings into an AST. This is then converted into gum.jsx elements and rendered to SVG. The `Latex` element is a wrapper that parses the LaTeX string and positions the element at the center of the rectangle.
+
+`MathArray` implements katex's `array` node, which backs every tabular environment:
+`matrix`/`pmatrix`/`bmatrix`/`vmatrix`/`Vmatrix`/`Bmatrix` (and their starred variants),
+`smallmatrix`, `array`, `darray`, `cases`/`dcases`/`rcases`/`drcases`, `aligned`, `gathered`,
+and `\substack` — plus `\\` row breaks, `\hline`/`\hdashline`, and `|`/`:` column
+separators. It follows LaTeX's own metrics (`\arraystretch`, `\arraycolsep`, `\jot`, and
+the per-row strut), so its height and depth match katex's to within a hundredth of an em.
+From JSX it takes a flat list of cells plus `ncol` and reshapes them, the way `Grid` does,
+since the JSX evaluator flattens nested array children.
+
+`MathStretch` draws the stretchy decorations — `\overbrace`/`\underbrace`, the stretchy
+over-accents (`\overrightarrow` and friends), all of `accentUnder`, and the `\x...`
+extensible arrows. No font carries stretchable versions of any of these, so gum draws
+them from a shape table keyed by katex's own label, using katex's `katexImagesData`
+heights and minimum widths. The arrows are gum's own `Arrow`/`ArrowHead`/`Line`/`Arc`,
+stroked in em: `MathShape.inner` (the base of every drawn shape) rebases the context's stroke
+unit to its box's pixels per em (`ctx.clone({ unit })`), so `stroke_width: TEX.rule` is a TeX
+rule at any font size and script-size arrows get proportionally thinner strokes. Heads are `ArrowHead`'s
+open two-barb form with `arc: 92` (head depth/half-height = cot(arc/2) = 0.97, as measured on
+Computer Modern's →) and `curve: 0.7` — `ArrowHead`'s barbs are circular arcs that leave the tip
+turned toward the shaft by `curve * arc/2` and flare out (`curve = 1` is tangent to the shaft,
+0 is straight; Computer Modern is about 0.7) — and `ArrowHead` takes `barb: 'left' | 'right'`
+for harpoons. Note `Arrow`'s own `curve` bends the *shaft* (spline), while `arrow_curve` reaches
+the heads via the `arrow_` prefix. Under-decorations get `STRETCH_UNDER_KERN` (0.1 em) of
+clearance below the body; katex uses 0, which lets barb tips touch serif feet. Delimiters
+(`fit_delim`, and the radical in `fit_radical`, both on `fit_glyph` over `SIZE_FONTS`) follow
+TeX's rule: the first of Main, Size1…4 whose natural extent covers the requirement is used
+unscaled, so they overshoot like TeX rather than being stretched (which would thicken the
+glyph); only beyond Size4 is the glyph scaled, standing in for TeX's
+extensible pieces. `Bracket` also takes `height`, a fixed total delimiter height in em that
+ignores the body (TeX Rule 15e): the genfrac branch passes `TEX.delim1`/`delim2` for `\binom`
+and friends, whose parentheses do not fit their contents. Braces,
+groups and the `\utilde` tilde are still filled outlines (a centerline offset along its
+normals in both directions). Two traps: a `Polygon`/`Line` maps its points through its
+*own* context, so point-based pieces need the em `coord` explicitly — but `ArrowHead` and
+`Arc` draw in their own unit box and are placed by `pos`/`size`, so they must *not* get
+it. `\widehat`/`\widetilde`/`\widecheck` are stretchy to katex but do have glyphs, so the
+converter only takes the drawn path for labels present in the shape table. Every drawn math
+shape extends `MathShape` and resolves its colour with `shape_ink`: an explicit `fill`, else
+the `color` in force, else the theme's ink (`MathShape` in `THEME_DARK`), so they follow the
+text in dark mode; `MathArray`'s rules use the same rule.
+
+`\operatorname` sets its body upright as a single Op atom, passing the upright face down
+directly since gum cannot express katex's `withFont("mathrm")` through `TEX_FONT_FAMILY`.
+
+Font commands flow down as `font_family` in the converter's `attr`: `TEX_FONT_FAMILY` is katex's
+`fontMap` (`\mathbf` → `KaTeX_Main-Bold`, `\mathcal` → `KaTeX_Caligraphic`, …) and
+`text_font_family` composes the `\text*` family/weight/shape, carried separately as `text_face` in
+the `ConvertCtx` so it reaches only text-mode symbols (math inside `\text{}` keeps its face);
+`TextMode` is the JSX element for literal `\text{}` (`family`/`bold`/`italic`), built as text-mode symbols without the parser. `MathSymbol` only honours
+the requested face where it has the glyph (`resolve_font_override`), falling back to the symbol's
+own face as katex does, which is also how `\boldsymbol` gets Math-BoldItalic letters and Main-Bold
+operators. `\color` flows the same way as `color`; every `MathShape` takes it as a `fill` alias
+so drawn shapes follow it.
+
+A math box may draw outside the box it is laid out by: `hrange` is the horizontal ink range when
+it differs from `[0, advance]` (`\rlap`, the cancel strokes) and `vink` the vertical one when it
+differs from `vrange` (`\smash`, `\cancel` on a single character). `metrics_rect` gives the ink
+rect, `metrics_bounds` the layout bounds, and `place_items`/`layout_math_row` place children by the
+former while stacking by the latter (`hull_overhang`). `MathOval` (the `\oiint` ring) and
+`MathCancel` are `MathShape`s like `MathStretch`; `enclose_box` builds `\boxed`/`\fbox`/
+`\colorbox` from a `MathBox` plus `array_rules`. `\tiny` … `\Huge` scale relative to the size
+in force, carried as `size` in the `ConvertCtx` (`{ attr, style, size }`) that `convert_tree`
+threads through the conversion.
+
+The goal is not always perfectly replicating what LaTeX/KaTeX do. We want the implementation to be simple and easy to understand, and to be able to use the full power of gum.jsx to create complex layouts.
