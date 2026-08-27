@@ -1537,8 +1537,9 @@ class MathStretch extends MathShape {
         const height = Math.max(height0 ?? entry.height, 2 * thickness)
         const advance = Math.max(advance0 ?? entry.min_width, entry.min_width, 2 * thickness)
 
-        // compute layout metrics
-        const metrics: MathMetrics = { advance, vrange: [ 0, height ], vanchor: 0 }
+        // the shape is centered on its anchor (the math axis), like MathRule
+        // and MathOval, so on its own it sits where a relation would
+        const metrics: MathMetrics = { advance, vrange: [ 0, height ], vanchor: 0.5 * height }
         const coord: Rect = [ 0, 0, advance, height ]
 
         // the children draw in em within this coord (a Polygon maps its points
@@ -2662,11 +2663,12 @@ function place_stretch(body: WithMath, label: string, over: boolean, kern: numbe
     const items = [ body, deco, note?.item ].filter(item => item != null)
     const width = max(items.map(item => item.math.advance)) ?? 0
 
-    // stack outward from the body, whose anchor the whole group keeps
+    // stack outward from the body, whose anchor the whole group keeps; the
+    // decoration is anchored at its middle, so it is placed by its far edge
     const edge = over ? blo - kern - height : bhi + kern
     const placed: Placed[] = [
         { item: body, x: 0, y: 0, width, align: 'center' },
-        { item: deco, x: 0, y: edge, width, align: 'center' },
+        { item: deco, x: 0, y: edge + 0.5 * height, width, align: 'center' },
     ]
     if (note != null) {
         const [ nlo, nhi ] = metrics_bounds(note.item.math)
@@ -2696,8 +2698,8 @@ function convert_xarrow(tree: TreeXArrow, ctx: ConvertCtx): WithMath {
     const height = metrics_height(arrow.math)
     const width = max([ arrow.math.advance, wide ]) ?? 0
 
-    // the arrow straddles the axis, which is where the anchor already sits
-    const placed: Placed[] = [ { item: arrow, x: 0, y: -0.5 * height, width, align: 'center' } ]
+    // the arrow straddles the axis, which is where its anchor already sits
+    const placed: Placed[] = [ { item: arrow, x: 0, y: 0, width, align: 'center' } ]
 
     // the label above hangs from its baseline, so an ordinary descender drops
     // into the gap; only a deep one is pushed clear (amsmath's rule)
