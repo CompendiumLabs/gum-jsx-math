@@ -1,6 +1,6 @@
 # KaTeX coverage
 
-What of KaTeX's command surface `src/elems.ts` renders, how, and what is still missing. gum parses TeX with katex's parser (`__parse`, katex 0.16.33 from `node_modules`) and converts the parse tree into gum math elements; this file is the map of that conversion. The test corpus that pins it down is listed at the end.
+What of KaTeX's command surface `src/elems.ts` renders, how, and what is still missing. gum parses TeX with katex's parser (`__parse`, katex 0.16.33 from `node_modules`) and converts the parse tree into gum math elements; this file is the map of that conversion. The test corpus that pins it down (`test/code/math_*.jsx` in the `gum-jsx` package) is listed at the end.
 
 **Coverage.** 41 of katex's 57 parse-node types convert (nine more never leave the parser); all 33 environments lay out; every KaTeX face is loaded; 1480 of the 1487 entries in katex's math symbol table and 745 of the 749 text entries draw strictly (counting command names and their unicode aliases separately; big operators go through `MathOp`, `\oiint`/`\oiiint` through the oval overlay), the misses being glyphs no KaTeX face carries — `\origof`/`⊶`, `\imageof`/`⊷`, and thorn/eth in either mode. The gaps are `\middle`, `\tag`, the arrows of the `CD` environment, and three exotic enclosures — see *Outstanding* below. The suite runs 119 passed, 0 failed.
 
@@ -20,7 +20,7 @@ What of KaTeX's command surface `src/elems.ts` renders, how, and what is still m
 
 **Arrays.** Every tabular environment is the one `array` node, implemented as `MathArray` with LaTeX's own metrics (`\arraystretch`, `\arraycolsep`, `\jot`, the per-row strut), and matches katex's height and depth to within 0.008 em across all of them. `\substack`, `\\` row breaks and `\\[len]`, `\hline`/`\hdashline`, `|`/`:`/`||` separators and `l`/`c`/`r` columns come with it.
 
-**Strict mode** (`src/lib/strict.ts`). Every fallback is silent by default: parse errors become red text, an unhandled node an empty spacer, an unknown command name is drawn verbatim, a missing glyph is measured as `.notdef`. `strict: true` (on `evaluateGum`, `mathToSvg`/`mathToElement`/`mathToPng`/`mathToKitty`, and `--strict` on `gum`/`gum-tex`) throws a `StrictError` of kind `parse`, `node`, `symbol`, `font` or `glyph` instead. `scripts/test.ts` renders strictly to decide pass/fail and permissively for the report; an example that means to exercise a fallback opts out with `@nostrict` (`math_parse_error.jsx` is the only one).
+**Strict mode** (`src/lib/strict.ts`). Every fallback is silent by default: parse errors become red text, an unhandled node an empty spacer, an unknown command name is drawn verbatim, a missing glyph is measured as `.notdef`. `strict: true` (on `evaluateGum`, `mathToSvg`/`mathToElement`, and `--strict` on `gum`/`gum-tex`) throws a `StrictError` of kind `parse`, `node`, `symbol`, `font` or `glyph` instead. `scripts/test.ts` renders strictly to decide pass/fail and permissively for the report; an example that means to exercise a fallback opts out with `@nostrict` (`math_parse_error.jsx` is the only one).
 
 ## Gotchas
 

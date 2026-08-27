@@ -22,19 +22,18 @@ In the browser, `await loadMathFonts()` (from `@gum-jsx/math`) before evaluating
 
 ## Math Rendering
 
-The LaTeX pipeline is also available standalone as a lightweight alternative to MathJax/KaTeX for server-side math rendering. By default the output is sized naturally to the math at `font_size` pixels per em (plus optional `padding` in em); alternatively pass `size` (a number or `[width, height]`) to fit the math into a box of that size:
+The LaTeX pipeline is also available standalone as a lightweight alternative to MathJax/KaTeX for server-side math rendering. It is browser-safe: no node-only dependencies. By default the output is sized naturally to the math at `font_size` pixels per em (plus optional `padding` in em); alternatively pass `size` (a number or `[width, height]`) to fit the math into a box of that size:
 
 ```javascript
 import { mathToSvg } from '@gum-jsx/math'
-import { mathToPng, mathToKitty } from '@gum-jsx/math/render'
 const svg = mathToSvg('\\int_0^\\infty e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}', { font_size: 24 })
-const png = mathToPng('e^{i\\pi} + 1 = 0', { font_size: 32, inline: true, padding: 0.5, background: 'white', scale: 2 })
+const inl = mathToSvg('e^{i\\pi} + 1 = 0', { font_size: 32, inline: true, padding: 0.5, background: 'white' })
 const fit = mathToSvg('E = mc^2', { size: 400 })  // fit into a 400×400 box
 ```
 
-Options: `inline` (text style rather than display style), `font_size` (px per em), `size` (overall box, overrides `font_size`), `padding` (em), `color`, `background`, `theme` (`light`/`dark`), and `scale` (raster scale factor for PNG). There is also `mathToElement`, which returns the `Svg` element itself.
+Options: `inline` (text style rather than display style), `font_size` (px per em), `size` (overall box, overrides `font_size`), `padding` (em), `color`, `background`, and `theme` (`light`/`dark`). There is also `mathToElement`, which returns the `Svg` element itself. The output is SVG only — rasterizing it to PNG needs a node runtime, which the `gum-jsx` package provides (`mathToPng`/`mathToKitty` from `gum-jsx/render`).
 
-The same is available from the command line with `gum-tex`:
+The same is available from the command line with `gum-tex`, shipped by the batteries-included `gum-jsx` package:
 
 ```bash
 gum-tex '\sum_{n=1}^\infty \frac{1}{n^2} = \frac{\pi^2}{6}' -o sum.svg
