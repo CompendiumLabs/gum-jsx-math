@@ -1,6 +1,6 @@
 # `@gum-jsx/math`
 
-LaTeX math for [gum.jsx](https://github.com/CompendiumLabs/gum.jsx): the `Latex`/`Tex` elements
+LaTeX math for [gum.jsx](https://github.com/CompendiumLabs/gum-jsx): the `Latex`/`Tex` elements
 and the math layout elements behind them, the KaTeX faces, and standalone `mathToSvg`.
 A pure, browser-safe library with no node-only dependencies (rasterizing, the `gum-tex` CLI,
 the katex comparison script, and the math test examples all live in the batteries-included
