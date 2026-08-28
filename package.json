@@ -10,6 +10,9 @@
     "url": "git+https://github.com/CompendiumLabs/gum-jsx-math.git"
   },
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "files": [
     "src",
     "docs"
