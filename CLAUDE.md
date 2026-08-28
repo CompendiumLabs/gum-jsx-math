@@ -12,9 +12,9 @@ KaTeX faces with its font registry.
 
 - `src/index.ts` - Package entry: re-exports the elements, fonts, and `mathToElement`/`mathToSvg`; importing it registers everything
 - `src/elems.ts` - The math elements (`MathSpan`, `MathSymbol`, `MathArray`, `MathStretch`, `SupSub`, `Frac`, `Sqrt`, `Bracket`, `Latex`, `Tex`, `TextMode`, …) and the katex tree converter; ends with `registerElements(MATH_ELEMS)`
-- `src/fonts.ts` - The KaTeX faces out of the `katex` package (`MATH_FONT_PATHS`, `MATH_FONT_FACES`, `MATH_FONTS`, `loadMathFonts`); registers them with core on import
+- `src/fonts.ts` - The KaTeX faces out of the `katex` package (`MATH_FONT_PATHS`, `MATH_FONT_FACES`, `MATH_FONTS`, `loadMathFonts`, plus the `MATH_BASE_FONTS`/`MATH_EXTRA_FONTS` tiers and `loadBaseMathFonts`); registers them with core on import but fetches nothing
 - `src/symbols.ts` - katex's symbol table (de-flowed)
-- `src/math.ts` - Standalone LaTeX → SVG (`mathToElement`, `mathToSvg`), browser-safe
+- `src/math.ts` - Standalone LaTeX → SVG (`mathToElement`, `mathToSvg`), browser-safe; `mathToElementAsync`/`mathToSvgAsync` load the base faces and fetch the extra ones on a `FontNotLoadedError` (browser on-demand loading)
 - `src/types/katex.d.ts` - Types for katex's parser (`__parse`) and tree nodes
 - `docs/katex.md` - How the katex parse tree is converted, the gotchas, and which test (`test/code/math_*.jsx` in `gum-jsx`) covers what
 - `docs/design.md` - Design notes and roadmap for math rendering

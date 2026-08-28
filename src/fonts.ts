@@ -60,11 +60,23 @@ const MATH_FONT_FACES: Record<string, FontFace> = {
 
 const MATH_FONTS: string[] = Object.keys(MATH_FONT_PATHS)
 
+// what ordinary math needs: letters, digits, operators, \mathbb, delimiters and
+// large operators (~190 kB); the rest sit behind the font commands (\mathbf,
+// \mathit, \boldsymbol, \mathcal, \mathfrak, \mathscr, \mathsf, \mathtt,
+// \text*; ~290 kB) and can be fetched on demand (see mathToElementAsync)
+const MATH_BASE_FONTS: string[] = [ 'KaTeX_Math', 'KaTeX_Main', 'KaTeX_AMS', 'KaTeX_Size1', 'KaTeX_Size2', 'KaTeX_Size3', 'KaTeX_Size4' ]
+const MATH_EXTRA_FONTS: string[] = MATH_FONTS.filter(name => !MATH_BASE_FONTS.includes(name))
+
 registerFonts(MATH_FONT_PATHS, MATH_FONT_FACES)
 
-// all 18 faces (~500 kB): enough for Latex/Tex and gum/math in the browser
+// all 18 faces (~480 kB): enough for anything Latex/Tex can set
 function loadMathFonts(): Promise<void> {
     return loadFonts(MATH_FONTS)
 }
 
-export { MATH_FONT_PATHS, MATH_FONT_FACES, MATH_FONTS, loadMathFonts }
+// the base faces only (~190 kB)
+function loadBaseMathFonts(): Promise<void> {
+    return loadFonts(MATH_BASE_FONTS)
+}
+
+export { MATH_FONT_PATHS, MATH_FONT_FACES, MATH_FONTS, MATH_BASE_FONTS, MATH_EXTRA_FONTS, loadMathFonts, loadBaseMathFonts }

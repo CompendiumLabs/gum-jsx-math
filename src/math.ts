@@ -11,13 +11,14 @@ import { none } from '@gum-jsx/core/lib/const'
 import { setTheme, type ThemeName } from '@gum-jsx/core/lib/theme'
 import { setStrict } from '@gum-jsx/core/lib/strict'
 import type { Size } from '@gum-jsx/core/lib/types'
-import { is_browser } from '@gum-jsx/core/lib/utils'
-import { loadMathFonts } from './fonts'
+import { FontNotLoadedError } from '@gum-jsx/core/fonts'
+import { loadMathFonts, loadBaseMathFonts } from './fonts'
 
-// math layout only needs the KaTeX faces; in the browser start that download
-// on import (without blocking), hosts must still `await loadMathFonts()` before
-// calling mathToSvg; in node the fonts are loaded from disk on first use
-if (is_browser()) loadMathFonts().catch(() => {})
+// math layout only needs the KaTeX faces. In node they are read from disk on
+// first use, so mathToSvg just works. In the browser they must be fetched
+// first: either `await loadMathFonts()` (all 18) and use the sync mathToSvg,
+// or use mathToSvgAsync, which loads the base faces and fetches the rest only
+// when the math asks for them.
 
 //
 // types
@@ -90,8 +91,32 @@ function mathToSvg(tex: string, args: MathArgs = {}): string {
 }
 
 //
+// async variants: load fonts on demand (browser)
+//
+
+// lay out with the base faces; if the math sets a face that is not loaded yet
+// (\mathbf, \mathcal, ...), fetch the remaining faces in one go and lay out
+// again (layout is cheap). A FontNotLoadedError after that is a non-math font
+// (e.g. a host-supplied font_family) and is left to the caller.
+async function mathToElementAsync(tex: string, args: MathArgs = {}): Promise<Svg> {
+  await loadBaseMathFonts()
+  try {
+    return mathToElement(tex, args)
+  } catch (e) {
+    if (!(e instanceof FontNotLoadedError)) throw e
+    await loadMathFonts()
+    return mathToElement(tex, args)
+  }
+}
+
+async function mathToSvgAsync(tex: string, args: MathArgs = {}): Promise<string> {
+  const elem = await mathToElementAsync(tex, args)
+  return elem.svg()
+}
+
+//
 // exports
 //
 
-export { mathToElement, mathToSvg, loadMathFonts }
+export { mathToElement, mathToSvg, mathToElementAsync, mathToSvgAsync, loadMathFonts, loadBaseMathFonts }
 export type { MathArgs }

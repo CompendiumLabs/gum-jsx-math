@@ -18,7 +18,7 @@ import { evaluateGum } from '@gum-jsx/core/eval'
 const svg = evaluateGum('<Latex>{"\\int_0^1 x^2 \\, dx"}</Latex>').svg()
 ```
 
-In the browser, `await loadMathFonts()` (from `@gum-jsx/math`) before evaluating; in node the fonts are read from disk on first use.
+In the browser, `await loadMathFonts()` (from `@gum-jsx/math`) before evaluating; in node the fonts are read from disk on first use. Nothing is fetched on import.
 
 ## Math Rendering
 
@@ -31,7 +31,16 @@ const inl = mathToSvg('e^{i\\pi} + 1 = 0', { font_size: 32, inline: true, paddin
 const fit = mathToSvg('E = mc^2', { size: 400 })  // fit into a 400×400 box
 ```
 
-Options: `inline` (text style rather than display style), `font_size` (px per em), `size` (overall box, overrides `font_size`), `padding` (em), `color`, `background`, and `theme` (`light`/`dark`). There is also `mathToElement`, which returns the `Svg` element itself. The output is SVG only — rasterizing it to PNG needs a node runtime, which the `gum-jsx` package provides (`mathToPng`/`mathToKitty` from `gum-jsx/render`).
+Options: `inline` (text style rather than display style), `font_size` (px per em), `size` (overall box, overrides `font_size`), `padding` (em), `color`, `background`, and `theme` (`light`/`dark`). There is also `mathToElement`, which returns the `Svg` element itself.
+
+In the browser the fonts have to be fetched before layout. The simple route is `await loadMathFonts()` once (all 18 KaTeX faces, ~480 kB) and then the sync `mathToSvg`. The lighter route is `mathToSvgAsync` / `mathToElementAsync`: they load the 7 base faces (~190 kB, enough for ordinary math) and fetch the other 11 only if the math uses a font command such as `\mathbf` or `\mathcal`, so most formulas never pay for them:
+
+```javascript
+import { mathToSvgAsync } from '@gum-jsx/math'
+const svg = await mathToSvgAsync('\\mathbf{x}^\\top A \\mathbf{x}', { font_size: 24 })
+```
+
+Loading is memoized per face, so calling these repeatedly costs nothing after the first time. The same tiers are available directly as `loadBaseMathFonts()` / `loadMathFonts()` and the name lists `MATH_BASE_FONTS` / `MATH_EXTRA_FONTS` / `MATH_FONTS`. Either way the SVG names the faces the way CSS does (`KaTeX_Main`, `KaTeX_Main` + `font-weight="700"`, …), so for the glyphs to draw the page also needs those faces — e.g. `new FontFace(family, FONT_DATA[name], { weight, style })` from the bytes already fetched (the mapping is `fontFace()` in `@gum-jsx/core/fonts`). The output is SVG only — rasterizing it to PNG needs a node runtime, which the `gum-jsx` package provides (`mathToPng`/`mathToKitty` from `gum-jsx/render`).
 
 The same is available from the command line with `gum-tex`, shipped by the batteries-included `gum-jsx` package:
 

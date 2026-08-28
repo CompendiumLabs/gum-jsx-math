@@ -5,6 +5,7 @@ import { THEME } from '@gum-jsx/core/lib/theme'
 import { none, black, red, maxis, d2r } from '@gum-jsx/core/lib/const'
 import { EMPTY_VRANGE, DEFAULT_VRANGE, textHasGlyphs, rawTextMetrics, type TextMetrics } from '@gum-jsx/core/lib/text'
 import { StrictError, strictError } from '@gum-jsx/core/lib/strict'
+import { FontNotLoadedError } from '@gum-jsx/core/fonts'
 import { is_array, is_scalar, is_string, is_boolean, is_object, check_singleton, check_array, check_string, ensure_vector, merge_limits, prefix_split, join_limits, sum, max, range, rotate_aspect, pad_rect } from '@gum-jsx/core/lib/utils'
 import symbols from './symbols'
 import { registerElements } from '@gum-jsx/core/lib/registry'
@@ -1615,9 +1616,10 @@ function parse_math(tex: string, attr: Attrs = {}, style: MathStyle = 'display')
         const tree = parse_tex(tex, { displayMode: style_size(style) == 'display', strict: parse_strict })
         return convert_tree(tree, { attr, style, size: 1 })
     } catch (e) {
-        // a strict failure from convert_tree is already reported; don't re-wrap
-        // it as a parse error on the way out
-        if (e instanceof StrictError) throw e
+        // a strict failure from convert_tree is already reported, and a font
+        // that is not loaded yet is the host's to handle (see mathToElementAsync);
+        // don't re-wrap either as a parse error on the way out
+        if (e instanceof StrictError || e instanceof FontNotLoadedError) throw e
         strictError('parse', `${(e as Error).message.split('\n')[0]}`)
         return new MathSpan({ children: [ tex ], color: red, font_family: 'KaTeX_Main' })
     }

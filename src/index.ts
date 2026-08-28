@@ -5,6 +5,6 @@
 // registers the KaTeX faces with the core font registry.
 
 export * from './elems'
-export { MATH_FONT_PATHS, MATH_FONT_FACES, MATH_FONTS, loadMathFonts } from './fonts'
-export { mathToElement, mathToSvg } from './math'
+export { MATH_FONT_PATHS, MATH_FONT_FACES, MATH_FONTS, MATH_BASE_FONTS, MATH_EXTRA_FONTS, loadMathFonts, loadBaseMathFonts } from './fonts'
+export { mathToElement, mathToSvg, mathToElementAsync, mathToSvgAsync } from './math'
 export type { MathArgs } from './math'
