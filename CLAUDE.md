@@ -21,9 +21,10 @@ KaTeX faces with its font registry.
 
 Core is reached through its subpath exports: `@gum-jsx/core` (public API), `@gum-jsx/core/lib/*`
 and `@gum-jsx/core/elems/*` (internals: `Context`, `spec_split`, `rawTextMetrics`, `THEME`,
-`strictError`, …), `@gum-jsx/core/fonts` (the font registry), and `@gum-jsx/core/test`. While
-unpublished, core is linked: `bun link` in `../gum.jsx`, then this package's `devDependencies` has `"@gum-jsx/core": "link:@gum-jsx/core"` (the peer dependency is
-marked optional so `bun install` does not look for it on npm).
+`strictError`, …), `@gum-jsx/core/fonts` (the font registry), and `@gum-jsx/core/test`. Core is a peer dependency
+(`^1.7.0`, versioned in lockstep): exactly one copy of core may exist in a host, since this package
+registers into its element and font registries. It is also a `devDependency` so the package
+typechecks on its own; in the `gum-org` bun workspace both resolve to `../gum-jsx-core`.
 
 ## Commands
 
@@ -64,7 +65,7 @@ by 1.21 so both renders share a scale.
 ### Testing
 
 ```bash
-bun tsc --noEmit      # typecheck (follows the link into core's sources)
+bun tsc --noEmit      # typecheck (follows the workspace symlink into core's sources)
 ```
 
 The math examples (`test/code/math_*.jsx`) live in `gum-jsx` (`../gum-jsx`) and run with the rest
