@@ -573,6 +573,12 @@ interface MathShapeSpec extends GroupArgs {
     klass?: MathClass
 }
 
+// a context whose stroke unit is this box's pixels per em, so a stroke_width
+// in em (TEX.rule, say) is a TeX rule at any font size
+function em_context(ctx: Context): Context {
+    return ctx.clone({ unit: Math.abs(ctx.resizex(1, false)) })
+}
+
 // a drawn math shape (rule, brace, arrow, oval, strike): `metrics` is its math
 // box and `coord` the em frame its pieces draw in. Strokes in here are given in
 // em, so the stroke unit is rebased to this box's pixels per em and the rules
@@ -580,13 +586,15 @@ interface MathShapeSpec extends GroupArgs {
 class MathShape extends Group {
     math: MathSpec
 
-    constructor({ metrics, klass = 'mord', ...attr }: MathShapeSpec) {
+    constructor(args: MathShapeSpec) {
+        const { metrics, klass = 'mord', ...attr } = args
         super({ aspect: metrics_aspect(metrics), upright: true, ...attr })
+        this.args = args  // so a clone keeps its metrics (subclasses overwrite this with their own args)
         this.math = make_math({ left: klass, right: klass, ...metrics })
     }
 
     inner(ctx: Context): string {
-        return super.inner(ctx.clone({ unit: Math.abs(ctx.resizex(1, false)) }))
+        return super.inner(em_context(ctx))
     }
 }
 
@@ -1010,22 +1018,18 @@ interface MathArrayArgs extends Omit<GroupArgs, 'children'> {
     fill?: string                  // rule color
 }
 
-// a horizontal or vertical rule inside an array, as a filled shape in array
-// coordinates; a dashed rule is drawn as a run of short filled segments so it
-// scales with the font like every other rule
-function array_rules(x1: number, y1: number, x2: number, y2: number, dashed: boolean, fill: string): Element[] {
-    if (!dashed) return [ new Rectangle({ rect: [ x1, y1, x2, y2 ], fill, stroke: none }) ]
-    const horiz = (x2 - x1) >= (y2 - y1)
-    const span = horiz ? x2 - x1 : y2 - y1
-    const step = 2 * ARRAY_DASH
-    const count = Math.max(1, Math.round(span / step))
-    const size = span / (2 * count - 1)
-    return range(count).map(i => {
-        const lo = (horiz ? x1 : y1) + 2 * i * size
-        const hi = lo + size
-        const rect: Rect = horiz ? [ lo, y1, Math.min(hi, x2), y2 ] : [ x1, lo, x2, Math.min(hi, y2) ]
-        return new Rectangle({ rect, fill, stroke: none })
-    })
+// a horizontal or vertical rule inside an array, as a line stroked in em (the
+// array rebases its stroke unit, see em_context) between the given endpoints,
+// which sit on the rule's centerline. A dashed rule picks its dash length so
+// that the pattern ends on a dash at both ends
+function array_rule(p1: Point, p2: Point, thickness: number, dashed: boolean, stroke: string, coord: Rect): Line {
+    const attr: Attrs = { stroke, stroke_width: thickness, stroke_linecap: 'butt' }
+    if (dashed) {
+        const span = Math.hypot(p2[0] - p1[0], p2[1] - p1[1])
+        const count = Math.max(1, Math.round(span / (2 * ARRAY_DASH)))
+        attr.stroke_dasharray = span / (2 * count - 1)
+    }
+    return new Line({ points: [ p1, p2 ], coord, ...attr })
 }
 
 // cells either come as rows (how convert_tree builds them) or, since JSX
@@ -1130,7 +1134,9 @@ class MathArray extends Group {
             for (const { cells, pos } of rows) {
                 const cell = cells[c]
                 if (cell == null) continue
-                const y = baseline(pos) - MATH_AXIS
+                // the cell's anchor sits MATH_AXIS * scale above its baseline
+                // (script-style cells, as {smallmatrix} hands them over)
+                const y = baseline(pos) - MATH_AXIS * cell.math.scale
                 const [ , y0, , y1 ] = metrics_rect(cell.math, 0, y)
                 const rect: Rect = [ x, y0, x + widths[c], y1 ]
                 children.push(with_math(cell, {}, { rect, align: ARRAY_ALIGN[align] }))
@@ -1144,20 +1150,23 @@ class MathArray extends Group {
         // rules span the full array: \hline across it, separators down it. A
         // \hline hangs above its row boundary (so the top rule adds its whole
         // thickness to the array) while a separator straddles its column
-        // boundary, matching how LaTeX and katex place them
+        // boundary, matching how LaTeX and katex place them. Each runs the full
+        // extent of the ink, including the other kind's overhang, so the
+        // corners meet squarely (an \hline above the first row lifts the top
+        // of the box, an outer separator widens it by half a rule)
         const [ ytop, ybot ] = [ baseline(0), baseline(total) ]
+        const coord: Rect = [ 0, ytop, advance, ybot ]
+        const vrange: Limit = [ Math.min(ytop, ...rules.map(({ pos }) => baseline(pos) - thickness)), ybot ]
+        const hink: Limit = [ Math.min(0, ...seps.map(({ x }) => x - 0.5 * thickness)), Math.max(advance, ...seps.map(({ x }) => x + 0.5 * thickness)) ]
         for (const { pos, dashed } of rules) {
-            const y = baseline(pos)
-            children.push(...array_rules(0, y - thickness, advance, y, dashed, fill))
+            const y = baseline(pos) - 0.5 * thickness
+            children.push(array_rule([ hink[0], y ], [ hink[1], y ], thickness, dashed, fill, coord))
         }
         for (const { x: xs, dashed } of seps) {
-            children.push(...array_rules(xs - 0.5 * thickness, ytop, xs + 0.5 * thickness, ybot, dashed, fill))
+            children.push(array_rule([ xs, vrange[0] ], [ xs, vrange[1] ], thickness, dashed, fill, coord))
         }
-
-        // an \hline above the first row lifts the top of the box
-        const vrange: Limit = [ Math.min(ytop, ...rules.map(({ pos }) => baseline(pos) - thickness)), ybot ]
-        const metrics: MathMetrics = { advance, vrange, vanchor: 0 }
-        const coord: Rect = [ 0, ytop, advance, ybot ]
+        const hrange = hink[0] < 0 || hink[1] > advance ? hink : undefined
+        const metrics: MathMetrics = { advance, vrange, vanchor: 0, hrange }
 
         // pass to Group
         super({ children, coord, aspect: metrics_aspect(metrics), upright: true, ...attr })
@@ -1165,6 +1174,11 @@ class MathArray extends Group {
 
         // a tabular body is a single Ord atom
         this.math = make_math({ left: 'mord', right: 'mord', ...metrics })
+    }
+
+    // the rules are stroked in em
+    inner(ctx: Context): string {
+        return super.inner(em_context(ctx))
     }
 }
 
@@ -2459,22 +2473,19 @@ function enclose_box(body: WithMath, border: string | null, background: string |
     const w = box.math.advance
     const rect: Rect = [ 0, lo, w, hi ]
 
+    // the frame is a rectangle stroked in em (MathShape rebases the stroke
+    // unit), inset by half the rule so its outer edge is the box edge
     const children: Element[] = []
     if (background != null) children.push(new Rectangle({ rect, fill: background, stroke: none }))
     children.push(with_math(box, {}, { rect }))
     if (border != null) {
         const t = thickness
-        children.push(
-            ...array_rules(0, lo, w, lo + t, false, border),
-            ...array_rules(0, hi - t, w, hi, false, border),
-            ...array_rules(0, lo, t, hi, false, border),
-            ...array_rules(w - t, lo, w, hi, false, border),
-        )
+        const frame: Rect = [ 0.5 * t, lo + 0.5 * t, w - 0.5 * t, hi - 0.5 * t ]
+        children.push(new Rectangle({ rect: frame, fill: none, stroke: border, stroke_width: t }))
     }
 
     const metrics: MathMetrics = { advance: w, vrange: [ lo, hi ], vanchor: 0 }
-    const group = new Group({ children, coord: rect, aspect: metrics_aspect(metrics) })
-    return with_math(group, { left: 'mord', right: 'mord', ...metrics })
+    return new MathShape({ children, coord: rect, metrics })
 }
 
 // the strike lines of \cancel (rising), \bcancel (falling) and \xcancel

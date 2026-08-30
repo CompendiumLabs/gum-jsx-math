@@ -140,8 +140,11 @@ differs from `vrange` (`\smash`, `\cancel` on a single character). `metrics_rect
 rect, `metrics_bounds` the layout bounds, and `place_items`/`layout_math_row` place children by the
 former while stacking by the latter (`hull_overhang`). `MathOval` (the `\oiint` ring) and
 `MathCancel` are `MathShape`s like `MathStretch`; `enclose_box` builds `\boxed`/`\fbox`/
-`\colorbox` from a `MathBox` plus `array_rules`. `\tiny` … `\Huge` scale relative to the size
-in force, carried as `size` in the `ConvertCtx` (`{ attr, style, size }`) that `convert_tree`
-threads through the conversion.
+`\colorbox` from a `MathBox` plus a stroked frame. Array rules and box frames are stroked in em
+(`em_context`, the same stroke-unit rebase `MathShape.inner` does), so they thin with the style
+like `MathStretch`'s arrows; each rule runs the full ink extent, `\hline`s across the outer
+separators' overhang and separators down the top `\hline`'s, so the corners meet squarely.
+`\tiny` … `\Huge` scale relative to the size in force, carried as `size` in the `ConvertCtx`
+(`{ attr, style, size }`) that `convert_tree` threads through the conversion.
 
 The goal is not always perfectly replicating what LaTeX/KaTeX do. We want the implementation to be simple and easy to understand, and to be able to use the full power of gum.jsx to create complex layouts.
