@@ -924,13 +924,14 @@ interface MathBoxArgs extends Omit<GroupArgs, 'children'> {
     bottom?: number
     justify?: Align
     vanchor?: number
+    klass?: MathClass
 }
 
 class MathBox extends Group {
     math: MathSpec
 
     constructor(args: MathBoxArgs = {}) {
-        const { children: children0, advance: advance0, padding: padding0, justify = 'center', vanchor: vanchor0, style = 'text', ...attr } = THEME(args, 'MathBox')
+        const { children: children0, advance: advance0, padding: padding0, justify = 'center', vanchor: vanchor0, style = 'text', klass, ...attr } = THEME(args, 'MathBox')
         const child = math_child(children0, style, 'MathBox')
 
         // get metrics info
@@ -954,7 +955,11 @@ class MathBox extends Group {
 
         super({ children: [ item ], coord, aspect, upright: true, ...attr })
         this.args = args
-        this.math = inherit_metrics(child, metrics)
+
+        // the box keeps the child's spacing classes unless klass overrides
+        // them, which is how a custom element becomes a relation (say) in a row
+        const kpatch = klass != null ? { left: klass, right: klass } : {}
+        this.math = inherit_metrics(child, { ...metrics, ...kpatch })
     }
 }
 
@@ -1536,11 +1541,12 @@ interface MathStretchArgs extends MathShapeArgs {
     advance?: number
     height?: number
     thickness?: number
+    klass?: MathClass
 }
 
 class MathStretch extends MathShape {
     constructor(args: MathStretchArgs = {}) {
-        const [ fill, { label = 'overbrace', advance: advance0, height: height0, thickness: thickness0, ...attr } ] = shape_args(args)
+        const [ fill, { label = 'overbrace', advance: advance0, height: height0, thickness: thickness0, klass = 'mrel', ...attr } ] = shape_args(args)
         const entry = stretch_entry(label)
         if (entry == null) {
             throw new Error(`Unknown stretchy decoration: '${label}'`)
@@ -1553,14 +1559,17 @@ class MathStretch extends MathShape {
         const advance = Math.max(advance0 ?? entry.min_width, entry.min_width, 2 * thickness)
 
         // the shape is centered on its anchor (the math axis), like MathRule
-        // and MathOval, so on its own it sits where a relation would
+        // and MathOval, so on its own it sits where a relation would; it is
+        // classed as one too, so a row spaces it like \xrightarrow and friends
+        // (the explicit placements ignore the class, so this only matters for
+        // a standalone stretch dropped into a MathText)
         const metrics: MathMetrics = { advance, vrange: [ 0, height ], vanchor: 0.5 * height }
         const coord: Rect = [ 0, 0, advance, height ]
 
         // the children draw in em within this coord (a Polygon maps its points
         // through its own context, so each piece needs the coord explicitly)
         const children = entry.shape({ width: advance, height, thickness, y: 0, coord, color: fill })
-        super({ children, coord, metrics, ...attr })
+        super({ children, coord, metrics, klass, ...attr })
         this.args = args
     }
 }
