@@ -24,7 +24,7 @@ it is given.
 Core is reached through its subpath exports: `@gum-jsx/core` (public API), `@gum-jsx/core/lib/*`
 and `@gum-jsx/core/elems/*` (internals: `Context`, `spec_split`, `rawTextMetrics`, `THEME`,
 `strictError`, …), `@gum-jsx/core/env` (`Env`, `resolveEnv`), and `@gum-jsx/core/fonts` (the font
-registry). Core is a peer dependency (`^1.7.0`, versioned in lockstep): exactly one copy of core
+registry). Core is a peer dependency (`^1.8.0`, versioned in lockstep): exactly one copy of core
 may exist in a host, since the math elements subclass core's and are constructed against a core
 `Env`. It is also a `devDependency` so the package typechecks on its own; in the `gum-org` bun
 workspace both resolve to `../gum-jsx-core`.
