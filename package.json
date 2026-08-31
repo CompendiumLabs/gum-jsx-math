@@ -1,6 +1,6 @@
 {
   "name": "@gum-jsx/math",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "description": "LaTeX math elements and rendering for gum.jsx",
   "type": "module",
   "author": "Douglas Hanley",
