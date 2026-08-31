@@ -102,7 +102,9 @@ since the JSX evaluator flattens nested array children.
 
 `MathStretch` draws the stretchy decorations — `\overbrace`/`\underbrace`, the stretchy
 over-accents (`\overrightarrow` and friends), all of `accentUnder`, and the `\x...`
-extensible arrows. No font carries stretchable versions of any of these, so gum draws
+extensible arrows — plus one fixed-size entry: `\vec`'s accent arrow (its U+20D7 is a
+zero-advance combining glyph, so `Accent` draws it at the ink size of Computer Modern's,
+0.442×0.197 em; katex uses a static SVG path there too). No font carries stretchable versions of any of these, so gum draws
 them from a shape table keyed by katex's own label, using katex's `katexImagesData`
 heights and minimum widths. The arrows are gum's own `Arrow`/`ArrowHead`/`Line`/`Arc`,
 stroked in em: `MathShape.inner` (the base of every drawn shape) rebases the context's stroke

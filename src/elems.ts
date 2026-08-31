@@ -1499,6 +1499,7 @@ type StretchEntry = { shape: StretchShape, height: number, min_width: number, th
 
 const ARROW_H = 0.522, DOUBLE_H = 0.56, FLAT_H = 0.334, GROUP_H = 0.26, PAIR_H = 0.716  // GROUP_H is shallower than katex's 0.342 by choice
 const STRETCH: Record<string, StretchEntry> = {
+    vec:                 { shape: stretch_arrow({ right: true }), height: 0.197, min_width: 0.442 },  // \vec's fixed-size accent arrow, at the ink size of Computer Modern's U+20D7
     overrightarrow:      { shape: stretch_arrow({ right: true }), height: ARROW_H, min_width: 0.888 },
     overleftarrow:       { shape: stretch_arrow({ left: true }), height: ARROW_H, min_width: 0.888 },
     underrightarrow:     { shape: stretch_arrow({ right: true }), height: ARROW_H, min_width: 0.888 },
@@ -2227,16 +2228,19 @@ const ACCENT_LABEL_FALLBACK: Record<string, string> = {
     '\\utilde': '\\tilde',
 }
 
-const ACCENT_TEXT_FALLBACK: Record<string, string> = {
-    '\\vec': '→',
+// accents with no usable glyph: \vec's U+20D7 is a zero-advance combining
+// glyph, so it is drawn like the stretchy arrows (katex uses a static SVG
+// path for it too), at its fixed accent size from the shape table
+const ACCENT_SHAPE_FALLBACK: Record<string, string> = {
+    '\\vec': 'vec',
 }
 
 function build_accent_symbol(label: string, color: string | undefined, mode: SymbolMode = 'math', env?: Env): WithMath {
     const span_attr = { env, ...(color != null ? { color } : {}) }
     const label1 = ACCENT_LABEL_FALLBACK[label] ?? label
-    if (label1 in ACCENT_TEXT_FALLBACK) {
-        const span = new MathSpan({ children: [ ACCENT_TEXT_FALLBACK[label1] ], font_family: 'KaTeX_Main', ...span_attr })
-        return scale_math(span, 0.5)
+    const shape = ACCENT_SHAPE_FALLBACK[label1]
+    if (shape != null) {
+        return new MathStretch({ label: shape, klass: 'mord', ...span_attr })
     }
     return new MathSymbol({ children: [ label1 ], mode, ...span_attr })
 }
