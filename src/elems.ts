@@ -2235,7 +2235,7 @@ function build_accent_symbol(label: string, color: string | undefined, mode: Sym
     const span_attr = { env, ...(color != null ? { color } : {}) }
     const label1 = ACCENT_LABEL_FALLBACK[label] ?? label
     if (label1 in ACCENT_TEXT_FALLBACK) {
-        const span = new MathSpan({ children: [ ACCENT_TEXT_FALLBACK[label1] ], ...span_attr })
+        const span = new MathSpan({ children: [ ACCENT_TEXT_FALLBACK[label1] ], font_family: 'KaTeX_Main', ...span_attr })
         return scale_math(span, 0.5)
     }
     return new MathSymbol({ children: [ label1 ], mode, ...span_attr })
