@@ -8,6 +8,7 @@ import { StrictError, strictError } from '@gum-jsx/core/lib/strict'
 import { FontNotLoadedError } from '@gum-jsx/core/fonts'
 import { is_array, is_scalar, is_string, is_boolean, is_object, check_singleton, check_array, check_string, ensure_vector, merge_limits, prefix_split, join_limits, sum, max, range, rotate_aspect, pad_rect } from '@gum-jsx/core/lib/utils'
 import symbols from './symbols'
+import { MATH_SKEW } from './skew'
 import { registerElements } from '@gum-jsx/core/lib/registry'
 import './fonts'
 import { Context, Element, Group, Spacer, Rectangle, spec_split, ensure_children } from '@gum-jsx/core/elems/core'
@@ -41,9 +42,10 @@ type MathSpec = {
     scale: number   // style scale applied to the content, so its baseline sits MATH_AXIS * scale below the anchor
     hrange?: Limit  // horizontal ink range from the cursor origin, when it differs from [0, advance] (TeX \rlap etc.)
     vink?: Limit    // vertical ink range (same frame as vrange), when it differs from vrange (\smash, \cancel)
+    skew?: number   // accent shift right of center over a single character (TeX's skewchar kern)
 }
 
-type MathMetrics = Pick<MathSpec, 'advance' | 'vrange' | 'vanchor'> & Partial<Pick<MathSpec, 'italic' | 'scale' | 'hrange' | 'vink'>>
+type MathMetrics = Pick<MathSpec, 'advance' | 'vrange' | 'vanchor'> & Partial<Pick<MathSpec, 'italic' | 'scale' | 'hrange' | 'vink' | 'skew'>>
 
 type WithMath<E extends Element = Element> = E & {
     math: MathSpec
@@ -321,7 +323,7 @@ const DEFAULT_MATH_METRICS: MathMetrics = {
     vanchor: MATH_AXIS,
 }
 
-function make_math({ left, right, advance, vrange, vanchor, italic, scale, hrange, vink }: Partial<MathSpec>): MathSpec {
+function make_math({ left, right, advance, vrange, vanchor, italic, scale, hrange, vink, skew }: Partial<MathSpec>): MathSpec {
     return {
         left: left ?? 'mord',
         right: right ?? 'mord',
@@ -332,6 +334,7 @@ function make_math({ left, right, advance, vrange, vanchor, italic, scale, hrang
         scale: scale ?? 1,
         hrange,
         vink,
+        skew,
     }
 }
 
@@ -415,7 +418,7 @@ function ensure_math<E extends Element>(element: E): WithMath<E> {
 // laid out at relative scale, and rendering follows the metrics
 function scale_math<E extends Element>(element: WithMath<E>, scale: number): WithMath<E> {
     if (scale == 1) return element
-    const { advance, vrange: [ ylo, yhi ], vanchor, italic, scale: scale0, hrange, vink } = element.math
+    const { advance, vrange: [ ylo, yhi ], vanchor, italic, scale: scale0, hrange, vink, skew } = element.math
     return with_math(element, {
         advance: scale * advance,
         vrange: [ scale * ylo, scale * yhi ],
@@ -424,6 +427,7 @@ function scale_math<E extends Element>(element: WithMath<E>, scale: number): Wit
         scale: scale * scale0,
         hrange: hrange != null ? [ scale * hrange[0], scale * hrange[1] ] : undefined,
         vink: vink != null ? [ scale * vink[0], scale * vink[1] ] : undefined,
+        skew: skew != null ? scale * skew : undefined,
     })
 }
 
@@ -709,6 +713,10 @@ class MathSymbol extends MathSpan {
         // pass to MathSpan
         super({ children, font_family, klass, ...attr1 })
         this.args = args
+
+        // the accent shift for this character in its resolved face
+        const skew = MATH_SKEW[font_family]?.[children[0]]
+        if (skew != null) this.math.skew = skew
     }
 }
 
@@ -1773,7 +1781,7 @@ type Placed = {
 
 // assemble explicitly placed items into a group whose anchor is at y = 0 and
 // whose math box is the union of the placed boxes (optionally padded)
-function place_items(placed: Placed[], pad: Limit = [ 0, 0 ], klass: MathClass = 'none'): WithMath<Group> {
+function place_items(placed: Placed[], pad: Limit = [ 0, 0 ], klass: MathClass = 'none', advance0?: number): WithMath<Group> {
     // an item given a width is justified within it; otherwise it draws in its
     // own ink box, which may overhang its layout box
     const rects = placed.map(({ item, x, y, width }) => {
@@ -1784,8 +1792,9 @@ function place_items(placed: Placed[], pad: Limit = [ 0, 0 ], klass: MathClass =
         with_math(item, {}, { rect: rects[i], ...(align != null ? { align } : {}) })
     )
 
-    // the layout box is the union of the layout boxes (optionally padded)
-    const advance = max(placed.map(({ item, x, width }) => x + (width ?? item.math.advance))) ?? 0
+    // the layout box is the union of the layout boxes (optionally padded), or
+    // the given advance when some items are not to count (an accent glyph)
+    const advance = advance0 ?? max(placed.map(({ item, x, width }) => x + (width ?? item.math.advance))) ?? 0
     const [ ylo0, yhi0 ] = merge_limits(placed.map(({ item, y }) => {
         const [ lo, hi ] = metrics_bounds(item.math)
         return [ y + lo, y + hi ] as Limit
@@ -2234,12 +2243,18 @@ interface AccentArgs extends GroupArgs {
     label?: string
     color?: string
     mode?: SymbolMode  // text-mode accents (\', \", \c, ...) live in the text symbol table
+    sup?: MathLeaf     // scripts on a single-character base attach to the character, not the accented box
+    sub?: MathLeaf
+    style?: MathStyle
 }
 
 class Accent extends MathGroup {
     constructor(args: AccentArgs = {}) {
-        const { children, label = '', color, mode = 'math', ...attr } = THEME(args, 'Accent')
-        const base = math_child(children, 'text', 'Accent')
+        const { children, label = '', color, mode = 'math', sup, sub, style = 'text', ...attr } = THEME(args, 'Accent')
+
+        // a string child parses to a fragment row; a lone symbol in it is the
+        // base itself, so its skew and italic reach the accent
+        const base = seal_math(math_child(children, style, 'Accent'))
 
         // TeX Rule 12: the accent glyph is designed to sit above the x-height;
         // raise it to clear taller bases (ink bottom at max(base height, x-height)
@@ -2253,13 +2268,29 @@ class Accent extends MathGroup {
         const bottom = MATH_AXIS - Math.max(hb, TEX.x_height) - TEX.accent_gap
         const dy = label == '\\textcircled' ? 0 : label == '\\c' ? bhi - alo : bottom - ahi
 
-        // center both in a shared inline box; the accented atom keeps the
-        // base's spacing classes
-        const advance = max([ base.math.advance, accent.math.advance ]) ?? 0
+        // scripts hang off the base itself, so the accent's height never lifts
+        // them (TeX's make_math_accent, katex's supsub deferral): the accent is
+        // positioned and centered on the bare base, and the scripts row takes
+        // the base's place
+        const scripted = sup != null || sub != null
+        const body0 = scripted ? new SupSub({ children: [ base ], sup, sub, style }) : base
+
+        // TeX Rule 12 again for the horizontal: the accent is centered on the
+        // base and shifted right by the base character's skew (its kern with
+        // the font's skewchar, MATH_SKEW), and takes no width of its own, so a
+        // wide accent overhangs a narrow base rather than spacing it out;
+        // \textcircled's ring is the exception, a full-width box the base is
+        // centered in. The accented atom keeps the base's spacing classes
+        const full = label == '\\textcircled'
+        const wb = base.math.advance
+        const wa = accent.math.advance
+        const skew = full ? 0 : (base.math.skew ?? 0)
+        const xb = full ? Math.max(0, 0.5 * (wa - wb)) : 0
+        const advance = Math.max(xb + body0.math.advance, full ? wa : 0)
         const body = place_items([
-            { item: accent, x: 0.5 * (advance - accent.math.advance), y: dy },
-            { item: base, x: 0.5 * (advance - base.math.advance), y: 0 },
-        ])
+            { item: accent, x: xb + skew + 0.5 * (wb - wa), y: dy },
+            { item: body0, x: xb, y: 0 },
+        ], [ 0, 0 ], 'none', advance)
         super(body, attr)
         this.args = args
         this.math = make_math({ ...body.math, left: base.math.left, right: base.math.right })
@@ -2858,6 +2889,19 @@ function convert_tree(tree: Tree | TreeNode | null, ctx: ConvertCtx): WithMath {
                 const sub = sub0 ? convert_tree(sub0, ctx_style(ctx, sub_style(style))) : null
                 const limits = style_size(style) == 'display'
                 return new SupSub({ children: [ base ], sup, sub, style, limits, ...attr })
+            }
+
+            // scripts on an accented single character attach to the character
+            // (TeX Rule 12 via make_math_accent; katex defers the supsub to the
+            // accent), so the accent's height does not lift them; anything
+            // wider takes the accented box as its base like any other atom.
+            // The drawn stretchy accents go through place_stretch instead
+            if (base0 != null && is_object(base0) && base0.type == 'accent' && is_character_box(base0.base) && !(base0.isStretchy && stretch_entry(base0.label) != null)) {
+                const { label, base: inner0, mode } = base0
+                const inner = convert_tree(inner0, ctx)
+                const sup = sup0 ? convert_tree(sup0, ctx_style(ctx, sup_style(style))) : null
+                const sub = sub0 ? convert_tree(sub0, ctx_style(ctx, sub_style(style))) : null
+                return new Accent({ children: [ inner ], label, mode, sup, sub, style, ...attr })
             }
 
             // \overset, \underset and \stackrel always stack their scripts as

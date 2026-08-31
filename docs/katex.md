@@ -70,6 +70,8 @@ All in `test/code/`, one feature per file, run strictly by `bun scripts/test.ts`
 | `math_boxes.jsx` | `\vcenter` `\hbox` `\pmb` `\\` |
 | `math_stretchy_accents.jsx` | `\overrightarrow` `\overleftrightarrow` `\overgroup` `\overlinesegment`, glyph accents |
 | `math_accent_under.jsx` | `\underrightarrow` `\underleftrightarrow` `\undergroup` `\utilde` |
+| `math_accent_scripts.jsx` | scripts on accented characters (`\hat{x}^2`, `\bar{y}_i^2`) attach to the character, not the accent |
+| `math_accent_skew.jsx` | accents shift right by the character's skew (`\hat{f}`, `\hat{A}`, `\hat{\mathcal{A}}`) and take no width (`\vec{\imath}`) |
 | `math_ext_arrows.jsx` | `\xrightarrow` `\xmapsto` `\xhookrightarrow` `\xrightleftharpoons` `\xrightequilibrium`, labels above and below |
 | `math_operatorname.jsx` | `\operatorname` `\operatorname*` `\limsup` `\argmax` `\varlimsup` |
 | `math_text_spacing.jsx` | spaces inside `\text{}` carry their advance |
