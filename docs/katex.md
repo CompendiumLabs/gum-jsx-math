@@ -20,7 +20,7 @@ What of KaTeX's command surface `src/elems.ts` renders, how, and what is still m
 
 **Arrays.** Every tabular environment is the one `array` node, implemented as `MathArray` with LaTeX's own metrics (`\arraystretch`, `\arraycolsep`, `\jot`, the per-row strut), and matches katex's height and depth to within 0.008 em across all of them. `\substack`, `\\` row breaks and `\\[len]`, `\hline`/`\hdashline`, `|`/`:`/`||` separators and `l`/`c`/`r` columns come with it.
 
-**Strict mode** (`src/lib/strict.ts`). Every fallback is silent by default: parse errors become red text, an unhandled node an empty spacer, an unknown command name is drawn verbatim, a missing glyph is measured as `.notdef`. `strict: true` (on `evaluateGum`, `mathToSvg`/`mathToElement`, and `--strict` on `gum`/`gum-tex`) throws a `StrictError` of kind `parse`, `node`, `symbol`, `font` or `glyph` instead. `scripts/test.ts` renders strictly to decide pass/fail and permissively for the report; an example that means to exercise a fallback opts out with `@nostrict` (`math_parse_error.jsx` is the only one).
+**Strict mode** (`src/lib/strict.ts`). Every fallback is silent by default: parse errors become red text, an unhandled node an empty spacer, an unknown command name is drawn verbatim, a missing glyph is measured as `.notdef`. `strict: true` (on `evaluateGum`, `mathToSvg`/`mathToElement`, and `--strict` on `gum`/`gum-tex`) throws a `StrictError` of kind `parse`, `node`, `symbol`, `font` or `glyph` instead. `test/run.ts` renders strictly to decide pass/fail and permissively for the report; an example that means to exercise a fallback opts out with `@nostrict` (`math_parse_error.jsx` is the only one).
 
 ## Gotchas
 
@@ -51,7 +51,7 @@ Won't fix: `\phase` `\angl` `\angln` (the three exotic `enclose` labels — stei
 
 ## Tests
 
-All in `test/code/`, one feature per file, run strictly by `bun scripts/test.ts` (119 passed, 0 failed; no false positives in `docs/` or `gala/`). Rows keep surviving anchor terms (`1 + … + 2`) so a dropped construct reads as a hole rather than a blank card. Nothing in *Outstanding* has a test today; a one-line `math_middle.jsx` with `\left( a \middle| b \right)` is the one to add back when that lands.
+All in `test/code/`, one feature per file, run strictly by `bun test/run.ts` (119 passed, 0 failed; no false positives in `docs/` or `gala/`). Rows keep surviving anchor terms (`1 + … + 2`) so a dropped construct reads as a hole rather than a blank card. Nothing in *Outstanding* has a test today; a one-line `math_middle.jsx` with `\left( a \middle| b \right)` is the one to add back when that lands.
 
 | file | covers |
 | --- | --- |

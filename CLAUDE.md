@@ -4,15 +4,17 @@ LaTeX math for [gum.jsx](https://github.com/CompendiumLabs/gum-jsx): the `Latex`
 and the math layout elements behind them, the KaTeX faces, and standalone `mathToSvg`.
 A pure, browser-safe library with no node-only dependencies (rasterizing, the `gum-tex` CLI,
 the katex comparison script, and the math test examples all live in the batteries-included
-`gum-jsx` package, `../gum-jsx`). It is an add-on to `@gum-jsx/core`: importing `@gum-jsx/math` registers
-the math elements with core's element registry (so `<Latex>` works in evaluated JSX) and the 18
-KaTeX faces with its font registry.
+`gum-jsx` package, `../gum-jsx`). It is an add-on to `@gum-jsx/core`: it exports `math`, an
+`EnvPlugin` that an `Env` applies with `env.use(math)` (`gum.use(math)` for the default Env) to
+get the math elements in evaluated JSX and the 18 KaTeX faces in its font registry. Importing
+the package has no side effects; `mathToElement` applies the plugin itself to a copy of the Env
+it is given.
 
 ## Layout
 
-- `src/index.ts` - Package entry: re-exports the elements, fonts, and `mathToElement`/`mathToSvg`; importing it registers everything
-- `src/elems.ts` - The math elements (`MathSpan`, `MathSymbol`, `MathArray`, `MathStretch`, `SupSub`, `Frac`, `Sqrt`, `Bracket`, `Latex`, `Tex`, `TextMode`, …) and the katex tree converter; ends with `registerElements(MATH_ELEMS)`
-- `src/fonts.ts` - The KaTeX faces out of the `katex` package (`MATH_FONT_PATHS`, `MATH_FONT_FACES`, `MATH_FONTS`, `loadMathFonts`, plus the `MATH_BASE_FONTS`/`MATH_EXTRA_FONTS` tiers and `loadBaseMathFonts`); registers them with core on import but fetches nothing
+- `src/index.ts` - Package entry: re-exports the elements, fonts, `mathToElement`/`mathToSvg`, and the `math` plugin
+- `src/elems.ts` - The math elements (`MathSpan`, `MathSymbol`, `MathArray`, `MathStretch`, `SupSub`, `Frac`, `Sqrt`, `Bracket`, `Latex`, `Tex`, `TextMode`, …) and the katex tree converter; ends with `MATH_ELEMS` and the plugin (`mathPlugin`, exported as `math`)
+- `src/fonts.ts` - The KaTeX faces out of the `katex` package (`MATH_FONT_PATHS`, `MATH_FONT_FACES`, `MATH_FONT_PLUGIN`, `MATH_FONTS`, `loadMathFonts(env?)`, plus the `MATH_BASE_FONTS`/`MATH_EXTRA_FONTS` tiers and `loadBaseMathFonts(env?)`); the loaders register the faces with the Env first, so a host need not have used the plugin
 - `src/symbols.ts` - katex's symbol table (de-flowed)
 - `src/math.ts` - Standalone LaTeX → SVG (`mathToElement`, `mathToSvg`), browser-safe; `mathToElementAsync`/`mathToSvgAsync` load the base faces and fetch the extra ones on a `FontNotLoadedError` (browser on-demand loading)
 - `src/types/katex.d.ts` - Types for katex's parser (`__parse`) and tree nodes
@@ -21,10 +23,19 @@ KaTeX faces with its font registry.
 
 Core is reached through its subpath exports: `@gum-jsx/core` (public API), `@gum-jsx/core/lib/*`
 and `@gum-jsx/core/elems/*` (internals: `Context`, `spec_split`, `rawTextMetrics`, `THEME`,
-`strictError`, …), `@gum-jsx/core/fonts` (the font registry), and `@gum-jsx/core/test`. Core is a peer dependency
-(`^1.7.0`, versioned in lockstep): exactly one copy of core may exist in a host, since this package
-registers into its element and font registries. It is also a `devDependency` so the package
-typechecks on its own; in the `gum-org` bun workspace both resolve to `../gum-jsx-core`.
+`strictError`, …), `@gum-jsx/core/env` (`Env`, `resolveEnv`), and `@gum-jsx/core/fonts` (the font
+registry). Core is a peer dependency (`^1.7.0`, versioned in lockstep): exactly one copy of core
+may exist in a host, since the math elements subclass core's and are constructed against a core
+`Env`. It is also a `devDependency` so the package typechecks on its own; in the `gum-org` bun
+workspace both resolve to `../gum-jsx-core`.
+
+Every element takes the `Env` it is built against in its args (`env`, see core's `CLAUDE.md`) and
+reads its theme, strict flag and fonts from it, so the converter threads `env` through: it rides in
+the `attr` bag of `ConvertCtx` (spread into every element the converter makes), helper functions
+that take a body use `body.env`, and the ones that take none (`fit_glyph`, `radical_glyph`,
+`build_accent_symbol`, `array_rule`, `normalize_math_leaf`, …) take an `env` parameter. A
+construction site that drops it silently gets the default Env, which the `gum-jsx` test runner
+catches (it walks every tree in strict mode and fails on an element with another Env).
 
 ## Commands
 
@@ -69,7 +80,7 @@ bun tsc --noEmit      # typecheck (follows the workspace symlink into core's sou
 ```
 
 The math examples (`test/code/math_*.jsx`) live in `gum-jsx` (`../gum-jsx`) and run with the rest
-of the suite there: `bun scripts/test.ts` (add `--report` for the `test/report` browser). Strict
+of the suite there: `bun test/run.ts` (add `--report` for the `test/report` browser). Strict
 mode (`@gum-jsx/core/lib/strict`) turns the permissive rendering fallbacks into thrown errors:
 unparseable TeX (`parse`), a katex node with no gum equivalent (`node`), an unknown command name
 drawn verbatim (`symbol`), a TeX font command with no gum face mapped (`font`), and a character

@@ -10,15 +10,16 @@ npm install @gum-jsx/core @gum-jsx/math
 
 ## Usage
 
-Importing the package registers the math elements with core, so they are available in evaluated gum code:
+The package exports `math`, a plugin for core's `Env`. Applying it to an Env (`gum.use(math)` for the default one, `new Env().use(math)` for your own) makes the math elements available in gum code evaluated against that Env and its KaTeX faces known to the Env's font registry. Importing the package does nothing on its own:
 
 ```javascript
-import '@gum-jsx/math'
-import { evaluateGum } from '@gum-jsx/core/eval'
-const svg = evaluateGum('<Latex>{"\\int_0^1 x^2 \\, dx"}</Latex>').svg()
+import { gum } from '@gum-jsx/core'
+import { math } from '@gum-jsx/math'
+gum.use(math)
+const svg = gum.evaluate('<Latex>{"\\int_0^1 x^2 \\, dx"}</Latex>').svg()
 ```
 
-In the browser, `await loadMathFonts()` (from `@gum-jsx/math`) before evaluating; in node the fonts are read from disk on first use. Nothing is fetched on import.
+In the browser, `await loadMathFonts()` (from `@gum-jsx/math`; pass an Env to load into one other than the default) before evaluating; in node the fonts are read from disk on first use. Nothing is fetched on import.
 
 ## Math Rendering
 
@@ -31,7 +32,7 @@ const inl = mathToSvg('e^{i\\pi} + 1 = 0', { font_size: 32, inline: true, paddin
 const fit = mathToSvg('E = mc^2', { size: 400 })  // fit into a 400×400 box
 ```
 
-Options: `inline` (text style rather than display style), `font_size` (px per em), `size` (overall box, overrides `font_size`), `padding` (em), `color`, `background`, and `theme` (`light`/`dark`). There is also `mathToElement`, which returns the `Svg` element itself.
+Options: `inline` (text style rather than display style), `font_size` (px per em), `size` (overall box, overrides `font_size`), `padding` (em), `color`, `background`, `theme` (`light`/`dark`), `strict`, and `env` (the `Env` to lay out against; the default Env otherwise — the math plugin and the theme are applied to a derived copy, so the Env you pass is left as it was). There is also `mathToElement`, which returns the `Svg` element itself.
 
 In the browser the fonts have to be fetched before layout. The simple route is `await loadMathFonts()` once (all 18 KaTeX faces, ~480 kB) and then the sync `mathToSvg`. The lighter route is `mathToSvgAsync` / `mathToElementAsync`: they load the 7 base faces (~190 kB, enough for ordinary math) and fetch the other 11 only if the math uses a font command such as `\mathbf` or `\mathcal`, so most formulas never pay for them:
 
@@ -40,7 +41,7 @@ import { mathToSvgAsync } from '@gum-jsx/math'
 const svg = await mathToSvgAsync('\\mathbf{x}^\\top A \\mathbf{x}', { font_size: 24 })
 ```
 
-Loading is memoized per face, so calling these repeatedly costs nothing after the first time. The same tiers are available directly as `loadBaseMathFonts()` / `loadMathFonts()` and the name lists `MATH_BASE_FONTS` / `MATH_EXTRA_FONTS` / `MATH_FONTS`. Either way the SVG names the faces the way CSS does (`KaTeX_Main`, `KaTeX_Main` + `font-weight="700"`, …), so for the glyphs to draw the page also needs those faces — e.g. `new FontFace(family, FONT_DATA[name], { weight, style })` from the bytes already fetched (the mapping is `fontFace()` in `@gum-jsx/core/fonts`). The output is SVG only — rasterizing it to PNG needs a node runtime, which the `gum-jsx` package provides (`mathToPng`/`mathToKitty` from `gum-jsx/render`).
+Loading is memoized per face, so calling these repeatedly costs nothing after the first time. The same tiers are available directly as `loadBaseMathFonts()` / `loadMathFonts()` and the name lists `MATH_BASE_FONTS` / `MATH_EXTRA_FONTS` / `MATH_FONTS`. Either way the SVG names the faces the way CSS does (`KaTeX_Main`, `KaTeX_Main` + `font-weight="700"`, …), so for the glyphs to draw the page also needs those faces — e.g. `new FontFace(family, env.fonts.data(name), { weight, style })` from the bytes already fetched (the mapping is `env.fonts.face(name)`; `@gum-jsx/web` does this for you). The output is SVG only — rasterizing it to PNG needs a node runtime, which the `gum-jsx` package provides (`mathToPng`/`mathToKitty` from `gum-jsx/render`).
 
 The same is available from the command line with `gum-tex`, shipped by the batteries-included `gum-jsx` package:
 
