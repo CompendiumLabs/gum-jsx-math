@@ -88,6 +88,20 @@ const TEX_FONT_FAMILY: Record<string, FontFamily | undefined> = {
     boldsymbol: 'KaTeX_Math-BoldItalic',  // letters; everything else falls back to Main-Bold (see resolve_font_override)
 }
 
+// the same faces as globals for evaluated JSX (`font-family={mathbb}`), named
+// by their font commands the way core binds `sans`/`mono` and the colours
+const mathrm: FontFamily = 'KaTeX_Main'
+const mathit: FontFamily = 'KaTeX_Main-Italic'
+const mathbf: FontFamily = 'KaTeX_Main-Bold'
+const mathbb: FontFamily = 'KaTeX_AMS'
+const mathcal: FontFamily = 'KaTeX_Caligraphic'
+const mathfrak: FontFamily = 'KaTeX_Fraktur'
+const mathscr: FontFamily = 'KaTeX_Script'
+const mathsf: FontFamily = 'KaTeX_SansSerif'
+const mathtt: FontFamily = 'KaTeX_Typewriter'
+const boldsymbol: FontFamily = 'KaTeX_Math-BoldItalic'
+const MATH_BINDINGS = { mathrm, mathit, mathbf, mathbb, mathcal, mathfrak, mathscr, mathsf, mathtt, boldsymbol }
+
 // a face asked for by a font command may not carry the glyph (\mathcal has no
 // lowercase, \mathbb no digits); katex then sets the character in its default
 // face, and \boldsymbol always sets non-letters in Main-Bold
@@ -3104,11 +3118,11 @@ const MATH_ELEMS = {
 
 // the plugin: `env.use(math)` binds the elements in evaluated JSX and makes
 // the KaTeX faces known to the Env's font registry
-const mathPlugin: EnvPlugin = { elems: MATH_ELEMS, fonts: MATH_FONT_PLUGIN }
+const mathPlugin: EnvPlugin = { elems: MATH_ELEMS, bindings: MATH_BINDINGS, fonts: MATH_FONT_PLUGIN }
 
 //
 // exports
 //
 
-export { MATH_ELEMS, mathPlugin, MathSpan, MathSymbol, MathOp, MathSpacer, MathRow, MathCol, MathBox, MathRule, MathArray, MathStretch, HorizBrace, MathText, SupSub, Frac, Underline, Overline, Sqrt, Accent, Bracket, Latex, Tex, TextMode }
+export { MATH_ELEMS, MATH_BINDINGS, mathPlugin, mathrm, mathit, mathbf, mathbb, mathcal, mathfrak, mathscr, mathsf, mathtt, boldsymbol, MathSpan, MathSymbol, MathOp, MathSpacer, MathRow, MathCol, MathBox, MathRule, MathArray, MathStretch, HorizBrace, MathText, SupSub, Frac, Underline, Overline, Sqrt, Accent, Bracket, Latex, Tex, TextMode }
 export type { MathClass, MathSpec, MathStyle, MathMetrics, FontFamily, MathSymbolArgs, MathOpArgs, MathTextArgs, TextModeArgs }

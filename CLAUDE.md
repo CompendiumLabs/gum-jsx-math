@@ -13,7 +13,7 @@ it is given.
 ## Layout
 
 - `src/index.ts` - Package entry: re-exports the elements, fonts, `mathToElement`/`mathToSvg`, and the `math` plugin
-- `src/elems.ts` - The math elements (`MathSpan`, `MathSymbol`, `MathArray`, `MathStretch`, `SupSub`, `Frac`, `Sqrt`, `Bracket`, `Latex`, `Tex`, `TextMode`, …) and the katex tree converter; ends with `MATH_ELEMS` and the plugin (`mathPlugin`, exported as `math`)
+- `src/elems.ts` - The math elements (`MathSpan`, `MathSymbol`, `MathArray`, `MathStretch`, `SupSub`, `Frac`, `Sqrt`, `Bracket`, `Latex`, `Tex`, `TextMode`, …) and the katex tree converter; ends with `MATH_ELEMS` and the plugin (`mathPlugin`, exported as `math`), which also carries `MATH_BINDINGS`, the KaTeX faces as globals
 - `src/fonts.ts` - The KaTeX faces out of the `katex` package (`MATH_FONT_PATHS`, `MATH_FONT_FACES`, `MATH_FONT_PLUGIN`, `MATH_FONTS`, `loadMathFonts(env?)`, plus the `MATH_BASE_FONTS`/`MATH_EXTRA_FONTS` tiers and `loadBaseMathFonts(env?)`); the loaders register the faces with the Env first, so a host need not have used the plugin
 - `src/symbols.ts` - katex's symbol table (de-flowed)
 - `src/math.ts` - Standalone LaTeX → SVG (`mathToElement`, `mathToSvg`), browser-safe; `mathToElementAsync`/`mathToSvgAsync` load the base faces and fetch the extra ones on a `FontNotLoadedError` (browser on-demand loading)
@@ -141,7 +141,8 @@ Font commands flow down as `font_family` in the converter's `attr`: `TEX_FONT_FA
 `fontMap` (`\mathbf` → `KaTeX_Main-Bold`, `\mathcal` → `KaTeX_Caligraphic`, …) and
 `text_font_family` composes the `\text*` family/weight/shape, carried separately as `text_face` in
 the `ConvertCtx` so it reaches only text-mode symbols (math inside `\text{}` keeps its face);
-`TextMode` is the JSX element for literal `\text{}` (`family`/`bold`/`italic`), built as text-mode symbols without the parser. `MathSymbol` only honours
+`TextMode` is the JSX element for literal `\text{}` (`family`/`bold`/`italic`), built as text-mode symbols without the parser. The plugin also binds the faces as
+globals named by their commands (`mathbb`, `mathbf`, ...; `MATH_BINDINGS`) so JSX can say `font-family={mathbb}`. `MathSymbol` only honours
 the requested face where it has the glyph (`resolve_font_override`), falling back to the symbol's
 own face as katex does, which is also how `\boldsymbol` gets Math-BoldItalic letters and Main-Bold
 operators. `\color` flows the same way as `color`; every `MathShape` takes it as a `fill` alias
