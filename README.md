@@ -2,6 +2,11 @@
 
 LaTeX math for [gum.jsx](https://github.com/CompendiumLabs/gum-jsx). It adds the `Latex` and `Tex` elements (and the math layout elements behind them, such as `MathArray`, `Frac`, `Sqrt`, and `Bracket`) to `@gum-jsx/core`, ships the KaTeX fonts, and exposes the LaTeX pipeline standalone as a lightweight alternative to MathJax/KaTeX for server-side rendering.
 
+<div align="center">
+<img src="images/example.png" alt="example" width="300" />
+<br/>
+</div>
+
 ## Installation
 
 ```bash
