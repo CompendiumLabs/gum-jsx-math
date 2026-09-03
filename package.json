@@ -15,15 +15,24 @@
   },
   "files": [
     "src",
-    "docs"
+    "docs",
+    "types"
   ],
   "exports": {
-    ".": "./src/index.ts",
-    "./fonts": "./src/fonts.ts",
+    ".": {
+      "types": "./types/index.d.ts",
+      "import": "./src/index.ts"
+    },
+    "./fonts": {
+      "types": "./types/fonts.d.ts",
+      "import": "./src/fonts.ts"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {
-    "typecheck": "bun tsc --noEmit"
+    "typecheck": "bun tsc --noEmit",
+    "types": "rm -rf types && bun tsc -p tsconfig.types.json && cp -r src/types types/types",
+    "prepublishOnly": "bun run types"
   },
   "peerDependencies": {
     "@gum-jsx/core": "^1.8.0"
