@@ -1,6 +1,6 @@
 {
   "name": "@gum-jsx/math",
-  "version": "1.8.2",
+  "version": "1.9.0",
   "description": "LaTeX math elements and rendering for gum.jsx",
   "type": "module",
   "author": "Douglas Hanley",
@@ -15,7 +15,6 @@
   },
   "files": [
     "src",
-    "docs",
     "types"
   ],
   "exports": {
@@ -35,13 +34,13 @@
     "prepublishOnly": "bun run types"
   },
   "peerDependencies": {
-    "@gum-jsx/core": "^1.8.0"
+    "@gum-jsx/core": "^1.9.0"
   },
   "dependencies": {
     "katex": "^0.16.33"
   },
   "devDependencies": {
-    "@gum-jsx/core": "^1.8.0",
+    "@gum-jsx/core": "^1.9.0",
     "@types/node": "^25.2.3",
     "typescript": "^5.9.3"
   }
