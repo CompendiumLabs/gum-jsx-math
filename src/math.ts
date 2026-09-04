@@ -8,6 +8,7 @@ import { Svg } from '@gum-jsx/core/elems/core'
 import { Box } from '@gum-jsx/core/elems/layout'
 import { Latex } from './elems'
 import { none } from '@gum-jsx/core/lib/const'
+import { em_bounds, em_hink } from '@gum-jsx/core/lib/em'
 import { resolveEnv, type Env } from '@gum-jsx/core/env'
 import type { Size, ThemeName } from '@gum-jsx/core/lib/types'
 import { FontNotLoadedError } from '@gum-jsx/core/fonts'
@@ -62,8 +63,8 @@ function mathToElement(tex: string, args: MathArgs = {}): Svg {
   const latex = new Latex({ children: tex, inline, strut, env, ...color_attr, ...attr })
 
   // natural math box in em units
-  const { advance, vrange: [ ylo, yhi ], hrange } = latex.math
-  const [ xlo, xhi ] = hrange ?? [ 0, advance ]
+  const [ xlo, xhi ] = em_hink(latex.em)
+  const [ ylo, yhi ] = em_bounds(latex.em)
   const width = Math.max(xhi - xlo, 1e-6)
   const height = Math.max(yhi - ylo, 1e-6)
 

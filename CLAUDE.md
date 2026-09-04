@@ -148,11 +148,11 @@ own face as katex does, which is also how `\boldsymbol` gets Math-BoldItalic let
 operators. `\color` flows the same way as `color`; every `MathShape` takes it as a `fill` alias
 so drawn shapes follow it.
 
-A math box may draw outside the box it is laid out by: `hrange` is the horizontal ink range when
-it differs from `[0, advance]` (`\rlap`, the cancel strokes) and `vink` the vertical one when it
-differs from `vrange` (`\smash`, `\cancel` on a single character). `metrics_rect` gives the ink
-rect, `metrics_bounds` the layout bounds, and `place_items`/`layout_math_row` place children by the
-former while stacking by the latter (`hull_overhang`). `MathOval` (the `\oiint` ring) and
+A math box may draw outside the box it is laid out by: `hink` is the horizontal ink range when
+it differs from `[0, width]` (`\rlap`, the cancel strokes) and `vink` the vertical one when it
+differs from `[0, height]` (`\smash`, `\cancel` on a single character). `em_rect` gives the ink
+rect, `em_bounds` the layout bounds (both in core's `lib/em.ts`), and `place_items`/`layout_em_row`
+(core's `elems/em.ts`) place children by the former while stacking by the latter (`hull_overhang`). `MathOval` (the `\oiint` ring) and
 `MathCancel` are `MathShape`s like `MathStretch`; `enclose_box` builds `\boxed`/`\fbox`/
 `\colorbox` from a `MathBox` plus a stroked frame. Array rules and box frames are stroked in em
 (`em_context`, the same stroke-unit rebase `MathShape.inner` does), so they thin with the style

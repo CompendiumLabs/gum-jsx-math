@@ -15,36 +15,43 @@ The crucial property is that stage 3 produces plain gum elements. Math is not a 
 
 ## The inline metrics protocol
 
-Every participant in math layout is a `WithMath<Element>` — a regular element carrying an extra `math: MathSpec` field:
+Every participant in math layout is a `WithMath<Element>` — a regular element carrying an extra `em: MathSpec` field, core's em metrics (`@gum-jsx/core/lib/em`) plus the TeX fields:
 
 ```typescript
-type MathSpec = {
+type EmSpec = {
+    width: number        // layout box width in em, x from 0 at the left edge
+    height: number       // layout box height in em, y from 0 at the top
+    anchor: number       // y of the anchor (the math axis), down from the top
+    scale: number        // em of the content relative to the em these are stated in
+    hink?: Limit         // horizontal ink range when it overhangs [0, width]
+    vink?: Limit         // vertical ink range when it overhangs [0, height]
+}
+
+type MathSpec = EmSpec & {
     left: MathClass      // TeX atom class of the left edge (mord, mop, mbin, mrel, ...)
     right: MathClass     // atom class of the right edge
-    advance: number      // width in em
-    vrange: Limit        // vertical ink extent [lo, hi] in em (y-down)
-    vanchor: number      // anchor line position within vrange
-    italic: number       // superscript overhang past advance (TeX italic correction), usually 0
+    italic: number       // superscript overhang past the width (TeX italic correction), usually 0
+    skew?: number        // accent shift over a single character
 }
 ```
 
-This is TeX's `(width, height, depth)` box model plus atom classes, with one twist: instead of height/depth measured from a baseline, we store a `vrange` and a `vanchor`. The anchor is the **math axis** (the line through the middle of `=` and the fraction bar), not the text baseline. `metrics_bounds` re-expresses `vrange` relative to the anchor, and all horizontal layout aligns anchors at `y = 0`. The baseline of any item sits `MATH_AXIS = 0.25em` (times its style scale) below its anchor, so `baseline_extents` recovers TeX's *h* and *d* from any item when a rule needs them. The `italic` field is TeX's italic correction: superscripts (only) are shifted right by it, so scripts clear slanted glyphs like ∫ and *f*. Compound elements have `italic = 0`, matching TeX, where only character nuclei carry one.
+This is TeX's `(width, height, depth)` box model plus atom classes, with one twist: instead of height/depth measured from a baseline, the box is measured from its top with the anchor marked in it. The anchor is the **math axis** (the line through the middle of `=` and the fraction bar), not the text baseline. `em_bounds` re-expresses the box relative to the anchor, and all horizontal layout aligns anchors at `y = 0`. The baseline of any item sits `MATH_AXIS = 0.25em` (times its style scale) below its anchor, so `baseline_extents` recovers TeX's *h* and *d* from any item when a rule needs them. The `italic` field is TeX's italic correction: superscripts (only) are shifted right by it, so scripts clear slanted glyphs like ∫ and *f*. Compound elements have `italic = 0`, matching TeX, where only character nuclei carry one.
 
-**Glyph boxes are ink boxes.** A `MathSpan`'s `vrange` is the actual ink extent of its glyphs at their natural size — `x` is 0.43em tall with no depth, `d` is 0.69em, ∫ in the display font is 2.2em with its baseline placed so the ink centers on the axis. This is what TeX's TFM height/depth are, and it is what all of Appendix G assumes: rules like "keep the superscript's bottom above four-fifths of the x-height" or "push the subscript down if it would come within four rule-thicknesses of the superscript" are meaningless against uniform 1em line boxes. Non-glyph elements (a `Square`, a `Plot`) get a 1em box centered on the axis instead. Top-level `Latex` adds a zero-width **strut** (`STRUT = [-0.5, 0.5]` around the axis, i.e. TeX's `\strut`) so a formula presented to the outside world is never shorter than a text line — `<Latex>x</Latex>` and `<Latex>y</Latex>` render at the same scale in equal frames — while internal rows stay ink-tight.
+**Glyph boxes are ink boxes.** A `MathSpan`'s box is the actual ink extent of its glyphs at their natural size — `x` is 0.43em tall with no depth, `d` is 0.69em, ∫ in the display font is 2.2em with its baseline placed so the ink centers on the axis. This is what TeX's TFM height/depth are, and it is what all of Appendix G assumes: rules like "keep the superscript's bottom above four-fifths of the x-height" or "push the subscript down if it would come within four rule-thicknesses of the superscript" are meaningless against uniform 1em line boxes. Non-glyph elements (a `Square`, a `Plot`) get a 1em box centered on the axis instead. Top-level `Latex` adds a zero-width **strut** (`STRUT`, one em centered on the axis, i.e. TeX's `\strut`) so a formula presented to the outside world is never shorter than a text line — `<Latex>x</Latex>` and `<Latex>y</Latex>` render at the same scale in equal frames — while internal rows stay ink-tight.
 
 Key functions:
 
-- `ensure_math(element)` lifts any gum element into the protocol. A `Span` gets real font metrics; an arbitrary element (a `Square`, a `Plot`, anything) gets `advance = aspect`, a default 1em `vrange`, and an anchor at the math axis. **This is the mixing mechanism**: any gum element can appear mid-formula and will be sized to 1em and centered on the axis.
+- `ensure_math(element)` lifts any gum element into the protocol (core's `ensure_em` plus the atom classes). A `Span` gets real font metrics; an arbitrary element (a `Square`, a `Plot`, anything) gets `width = aspect`, a one em height, and the anchor at its middle. **This is the mixing mechanism**: any gum element can appear mid-formula and will be sized to 1em and centered on the axis.
 - `with_math(element, patch, args)` clones an element while updating its `MathSpec` — layout is done functionally, by re-wrapping children with explicit rects. **Important:** `clone` re-runs the element's constructor, so anything an element needs to survive layout must be produced *by its constructor* (from `args`), not patched onto an instance afterward. `MathSpan` builds its ink frame in its constructor for exactly this reason.
 - `scale_math(element, s)` places an element at a smaller style: it multiplies the metrics by `s`, and because a `MathSpan`'s coordinate frame *is* its ink box, the glyph scales with the smaller rect it's given. Scaling is pure arithmetic — no font machinery.
-- `place_items(placed)` assembles explicitly positioned items (each an `{item, x, y}` in anchor coordinates) into an anchored group whose box is their union. `SupSub`, `Frac`, `Accent`, and operator limits all lay out through it.
+- `place_math(placed)` (core's `place_items` plus an atom class) assembles explicitly positioned items (each an `{item, x, y}` in anchor coordinates) into an anchored group whose box is their union. `SupSub`, `Frac`, `Accent`, and operator limits all lay out through it.
 - Text metrics come from `lib/text.ts`, which measures actual glyph geometry via opentype.js — ink bounds (`yMin`/`yMax`), advance, and italic overhang (`xMax − advance`) — not TeX font metric tables. Tall glyphs (taller than 1em) are normalized into a 1em line box by `normalizeTextMetrics` for text-layout purposes; `raw_vrange` records where the ink actually sits, and `MathSpan` inverts the normalization to recover natural-size ink metrics.
 
 ## Layout primitives
 
 A few small primitives do all the geometric work:
 
-- **`MathRow`** — horizontal concatenation. Advances accumulate left to right; every child's anchor sits on `y = 0`; the row's `vrange` is the union of child bounds. This is TeX's `\hbox` with baseline alignment.
+- **`MathRow`** — horizontal concatenation (core's `layout_em_row`). Widths accumulate left to right; every child's anchor sits on `y = 0`; the row's box is the union of child bounds. This is TeX's `\hbox` with baseline alignment.
 - **`MathCol`** — vertical stack. Children stack top-down at their natural heights; the column's anchor defaults to its vertical center.
 - **`MathBox`** — padding/repositioning wrapper around a single child, preserving its anchor.
 - **`MathRule`** / **`MathSpacer`** — the fraction bar and glue. Spacers can carry named widths (`thin`/`medium`/`thick`) from the TeX spacing table. Both have class `none`: like TeX glue and kerns they are transparent to inter-atom spacing and binary cancellation, so `a \quad + b` still spaces the `+` as a binary operator.
@@ -103,7 +110,7 @@ Script and fraction placement follow TeX's rules verbatim (see *Compound element
 The core abstraction is sound, and worth keeping:
 
 1. **Math as a protocol, not an engine.** `MathSpec` + `ensure_math` is exactly the right interface for the stated goal of mixing math and gum arbitrarily. Any element with an aspect participates in a formula; any formula is an element that participates in gum layout. No other math renderer has this property, and it falls out of a ~40-line protocol.
-2. **Anchor-based vertical layout.** Storing `vrange` + `vanchor` (rather than baseline height/depth) makes axis-centered alignment the default, which is what math wants, and generalizes cleanly to non-text elements that have no baseline — while `baseline_extents` gives back TeX's h/d whenever a rule wants them.
+2. **Anchor-based vertical layout.** Storing the box with its anchor (rather than baseline height/depth) makes axis-centered alignment the default, which is what math wants, and generalizes cleanly to non-text elements that have no baseline — while `baseline_extents` gives back TeX's h/d whenever a rule wants them.
 3. **Selective adoption of TeX wisdom.** The spacing table, atom classes, bin cancellation, symbol table, fonts, ink-based boxes, and the Appendix G placement rules with their font parameters are the parts of TeX that encode decades of typographic judgment — they are data and short formulas, cheap to adopt, and they are adopted. The parts *not* adopted (glyph assembly, exact TFM tables per glyph, cramped styles) are the parts that cost complexity for little visible return.
 4. **Drawn rather than assembled stretchy shapes.** The `Sqrt` radical as a polyline is more elegant than TeX's multi-glyph assembly and stretches perfectly. This is the right instinct for `gum.jsx` and should be extended (stretchy accents, wide hats, braces, arrows) rather than walked back.
 5. **Continuous delimiter fitting.** Discrete size choice + linear rescale is a good trade — simpler than KaTeX's stacked-glyph assembly and visually fine at moderate sizes.
@@ -143,9 +150,9 @@ Unknown nodes should render a visible red placeholder (like the parse-error path
 ## Smaller rough edges
 
 - **Inline baseline integration is a fudge.** `MathText` shifts its coord by a constant `INLINE_SHIFT = -0.1` when `inline` is set (the `Tex` element). The real issue is that `Text`/`TextLine` has no baseline concept — lines are even VStacks — so math can't share a true baseline with surrounding prose. The `MathSpec` anchor machinery is exactly what `Text` layout would need; unifying them (giving `TextLine` anchor alignment) would delete the hack and improve mixed text generally. This is the most valuable *non-math* payoff of the math work.
-- **`ensure_math` on non-text elements** centers them on the axis with a fixed 1em height. Consider letting arbitrary elements opt into the protocol declaratively — e.g. a `math` prop or a `MathBox`-style wrapper exposing `advance`/`vanchor` — so a diagram embedded in a formula can say "align my second row to the axis." Formalizing `MathSpec` as a public interface is what makes "more capable than TeX" real rather than incidental.
+- **`ensure_math` on non-text elements** centers them on the axis with a fixed 1em height. Consider letting arbitrary elements opt into the protocol declaratively — e.g. an `em` prop or a `MathBox`-style wrapper exposing `width`/`anchor` — so a diagram embedded in a formula can say "align my second row to the axis." The em record is now core's `EmSpec`, shared with the text elements, which is the first step of that.
 - **Extreme delimiter sizes** (tall matrices) will get thin strokes from rescaling a Size4 glyph; if that starts to matter, draw large delimiters as paths (the `Sqrt` approach) rather than adding KaTeX's glyph-stacking.
-- **`Span`'s `vshift` is applied inconsistently for tall glyphs** — metrics shift by `vshift` in box units, but `props` shifts the SVG baseline by `vshift × font_height`; these agree only when the glyph fits in 1em. `MathSpan` sidesteps this by choosing metrics that cancel `vshift` out entirely (its `metrics.vrange` is a 1em box ending at the intended baseline, in the ink frame); a cleaner `Span` would remove the need.
+- **`Span`'s `vshift` is applied inconsistently for tall glyphs** — metrics shift by `vshift` in box units, but `props` shifts the SVG baseline by `vshift × font_height`; these agree only when the glyph fits in 1em. `MathSpan` sidesteps this by choosing metrics that cancel `vshift` out entirely (its text `metrics.vrange` is a 1em box ending at the intended baseline, in the ink frame); a cleaner `Span` would remove the need.
 - **Direct-JSX `MathText` is ink-tight**, unlike `Latex`, which struts. That's deliberate — a `MathText` inside a `Frac` must not strut — but a user composing `<MathText>` at top level may want `strut` on. It's a prop.
 
 ## Recommended sequence
