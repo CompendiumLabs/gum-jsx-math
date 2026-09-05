@@ -338,9 +338,7 @@ function inherit_metrics(source: WithMath | MathSpec, patch: Partial<MathSpec> =
 // a clone with its metrics patched; an element without any gets the default
 // box (see ensure_em) as an ordinary atom
 function with_math<E extends Element>(element: E, patch: Partial<MathSpec> = {}, args: Attrs = {}): WithMath<E> {
-    const out = with_em(element, patch, args) as WithMath<E>
-    out.em = make_math(out.em)
-    return out
+    return with_em(element, patch, args, make_math) as WithMath<E>
 }
 
 function ensure_math<E extends Element>(element: E): WithMath<E> {
