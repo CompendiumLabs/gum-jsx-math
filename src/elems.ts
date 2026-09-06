@@ -5,7 +5,7 @@ import { THEME } from '@gum-jsx/core/lib/theme'
 import { none, black, red, maxis, d2r } from '@gum-jsx/core/lib/const'
 import { textHasGlyphs, rawTextMetrics } from '@gum-jsx/core/lib/text'
 import { make_em, text_em, bounds_em, em_bounds, em_hink, em_vink, em_aspect, em_rect, baseline_extents, scale_em_spec } from '@gum-jsx/core/lib/em'
-import type { EmSpec, EmMetrics } from '@gum-jsx/core/lib/em'
+import type { EmArgs, EmSpec, EmMetrics } from '@gum-jsx/core/lib/em'
 import { StrictError, strictError } from '@gum-jsx/core/lib/strict'
 import { FontNotLoadedError } from '@gum-jsx/core/fonts'
 import { is_array, is_scalar, is_string, is_boolean, is_object, check_singleton, check_array, check_string, ensure_vector, prefix_split, max, range, rotate_aspect, pad_rect } from '@gum-jsx/core/lib/utils'
@@ -325,9 +325,20 @@ const SPACING_TABLE: Record<MathClass, SpacingTable> = {
 // math metrics
 //
 
-function make_math(spec: Partial<MathSpec>): MathSpec {
+function make_math(spec: Partial<MathSpec>, scale: number = 1): MathSpec {
     const { left, right, italic, skew } = spec
-    return { ...make_em(spec), left: left ?? 'mord', right: right ?? 'mord', italic: italic ?? 0, skew }
+    const em = { ...make_em(spec), left: left ?? 'mord', right: right ?? 'mord', italic: italic ?? 0, skew }
+    return scale_math_spec(em, scale)
+}
+
+// Math adds two distances to the shared em box; classes stay unchanged.
+function scale_math_spec(em: MathSpec, scale: number): MathSpec {
+    if (scale == 1) return em
+    return {
+        ...em, ...scale_em_spec(em, scale),
+        italic: scale * em.italic,
+        skew: em.skew != null ? scale * em.skew : undefined,
+    }
 }
 
 function inherit_metrics(source: WithMath | MathSpec, patch: Partial<MathSpec> = {}): MathSpec {
@@ -353,12 +364,9 @@ function ensure_math<E extends Element>(element: E): WithMath<E> {
 // out at relative scale, and rendering follows the metrics
 function scale_math<E extends Element>(element: WithMath<E>, scale: number): WithMath<E> {
     if (scale == 1) return element
-    const { italic, skew } = element.em
-    return with_math(element, {
-        ...scale_em_spec(element.em, scale),
-        italic: scale * italic,
-        skew: skew != null ? scale * skew : undefined,
-    })
+    // Only distances are overridden; classes can change on reconstruction.
+    const { left, right, ...metrics } = scale_math_spec(element.em, scale)
+    return with_math(element, metrics)
 }
 
 // explicitly placed items assembled into an atom of the given class (see
@@ -373,7 +381,7 @@ function place_math(placed: Placed[], pad: Limit = [ 0, 0 ], klass: MathClass = 
 // that item; longer rows are wrapped in a MathRow carrying their metrics
 function seal_math(element: WithMath): WithMath {
     if (!(element instanceof MathText)) return element
-    if (element.items.length == 1) return element.items[0]
+    if (element.items.length == 1 && element.em.scale == 1) return element.items[0]
     const { left, right } = element.em
     return with_math(new MathRow({ children: [ element ], env: element.env }), { left, right })
 }
@@ -483,14 +491,14 @@ function math_child(children: MathLeaf[] | undefined, style: MathStyle, name: st
 class MathGroup extends Group {
     em: MathSpec
 
-    constructor(body: WithMath<Group>, attr: GroupArgs = {}) {
+    constructor(body: WithMath<Group>, { scale = 1, ...attr }: GroupArgs & EmArgs = {}) {
         const { coord, aspect } = body.spec
         super({ children: body.children, coord, aspect, upright: true, env: body.env, ...attr })
-        this.em = body.em
+        this.em = scale_math_spec(body.em, scale)
     }
 }
 
-interface MathShapeArgs extends GroupArgs {
+interface MathShapeArgs extends GroupArgs, EmArgs {
     fill?: string
     color?: string  // alias for fill, so a \color in force reaches drawn shapes
 }
@@ -508,7 +516,7 @@ function shape_args<T extends MathShapeArgs>(args: T): [ string, Omit<T, 'fill' 
     return [ args.fill ?? color ?? fill ?? black, rest ]
 }
 
-interface MathShapeSpec extends GroupArgs {
+interface MathShapeSpec extends GroupArgs, EmArgs {
     metrics: MathMetrics
     klass?: MathClass
 }
@@ -521,10 +529,10 @@ class MathShape extends Group {
     em: MathSpec
 
     constructor(args: MathShapeSpec) {
-        const { metrics, klass = 'mord', ...attr } = args
+        const { metrics, klass = 'mord', scale = 1, ...attr } = args
         super({ aspect: em_aspect(metrics), upright: true, ...attr })
         this.args = args  // so a clone keeps its metrics (subclasses overwrite this with their own args)
-        this.em = make_math({ left: klass, right: klass, ...metrics })
+        this.em = make_math({ left: klass, right: klass, ...metrics }, scale)
     }
 
     inner(ctx: Context): string {
@@ -536,7 +544,7 @@ class MathShape extends Group {
 // math spacer
 //
 
-interface MathSpacerArgs extends ElementArgs {
+interface MathSpacerArgs extends ElementArgs, EmArgs {
     width?: number
     height?: number
     anchor?: number
@@ -546,14 +554,14 @@ class MathSpacer extends Spacer {
     em: MathSpec
 
     constructor(args: MathSpacerArgs = {}) {
-        const { width = 0, height = 0, anchor = 0, ...attr } = THEME(args, 'MathSpacer')
+        const { width = 0, height = 0, anchor = 0, scale = 1, ...attr } = THEME(args, 'MathSpacer')
 
         // pass to Spacer
         super({ aspect: width, ...attr })
         this.args = args
 
         // glue carries no atom class
-        this.em = make_math({ left: 'none', right: 'none', width, height, anchor })
+        this.em = make_math({ left: 'none', right: 'none', width, height, anchor }, scale)
     }
 }
 
@@ -561,7 +569,7 @@ class MathSpacer extends Spacer {
 // math span
 //
 
-interface MathSpanArgs extends SpanArgs {
+interface MathSpanArgs extends SpanArgs, EmArgs {
     klass?: MathClass
     left?: MathClass
     right?: MathClass
@@ -576,7 +584,7 @@ class MathSpan extends Span {
     em: MathSpec
 
     constructor(args: MathSpanArgs = {}) {
-        const { children, klass = 'mord', left = klass, right = left, center = false, ...attr } = THEME(args, 'MathSpan')
+        const { children, klass = 'mord', left = klass, right = left, center = false, scale = 1, ...attr } = THEME(args, 'MathSpan')
         const text = check_string(children)
 
         // pass to Span
@@ -587,7 +595,7 @@ class MathSpan extends Span {
         // ink means a plain text box
         const raw = rawTextMetrics(this.metrics)
         if (raw == null) {
-            this.em = make_math({ left, right, ...text_em(this.metrics), italic: this.metrics.italic })
+            this.em = make_math({ left, right, ...text_em(this.metrics), italic: this.metrics.italic }, scale)
             return
         }
         const { advance, vrange: [ ymin, ymax ], italic = 0 } = raw
@@ -606,7 +614,7 @@ class MathSpan extends Span {
         this.spec.aspect = this.spec.rotate_invar ? aspect : rotate_aspect(aspect, this.spec.rotate)
 
         // set math metrics
-        this.em = make_math({ left, right, ...bounds_em(advance, vrange), italic })
+        this.em = make_math({ left, right, ...bounds_em(advance, vrange), italic }, scale)
     }
 }
 
@@ -647,7 +655,7 @@ class MathSymbol extends MathSpan {
 
         // the accent shift for this character in its resolved face
         const skew = MATH_SKEW[font_family]?.[children[0]]
-        if (skew != null) this.em.skew = skew
+        if (skew != null) this.em.skew = skew * this.em.scale
     }
 }
 
@@ -728,7 +736,7 @@ class MathOp extends MathSymbol {
 // math row
 //
 
-interface MathRowArgs extends Omit<GroupArgs, 'children'> {
+interface MathRowArgs extends Omit<GroupArgs, 'children'>, EmArgs {
     children?: MathLeaf[]
     style?: MathStyle
 }
@@ -737,7 +745,7 @@ class MathRow extends Group {
     em: MathSpec
 
     constructor(args: MathRowArgs = {}) {
-        const { children: children0, style = 'text', env, ...attr } = THEME(args, 'MathRow')
+        const { children: children0, style = 'text', scale = 1, env, ...attr } = THEME(args, 'MathRow')
         const math_items = normalize_math_items(children0, style, env)
 
         // compute layout
@@ -748,7 +756,7 @@ class MathRow extends Group {
         this.args = args
 
         // set math metrics
-        this.em = make_math({ left: 'mord', right: 'mord', ...metrics })
+        this.em = make_math({ left: 'mord', right: 'mord', ...metrics }, scale)
     }
 }
 
@@ -756,7 +764,7 @@ class MathRow extends Group {
 // math col
 //
 
-interface MathColArgs extends Omit<GroupArgs, 'children'> {
+interface MathColArgs extends Omit<GroupArgs, 'children'>, EmArgs {
     children?: MathLeaf[]
     style?: MathStyle
     spacing?: number
@@ -767,7 +775,7 @@ class MathCol extends Group {
     em: MathSpec
 
     constructor(args: MathColArgs = {}) {
-        const { children: children0, justify, spacing = 0, style = 'text', env, ...attr } = THEME(args, 'MathCol')
+        const { children: children0, justify, spacing = 0, style = 'text', scale = 1, env, ...attr } = THEME(args, 'MathCol')
         const math_items = normalize_math_items(children0, style, env)
 
         // compute layout
@@ -778,7 +786,7 @@ class MathCol extends Group {
         this.args = args
 
         // set math metrics
-        this.em = make_math({ left: 'mord', right: 'mord', ...metrics })
+        this.em = make_math({ left: 'mord', right: 'mord', ...metrics }, scale)
     }
 }
 
@@ -786,7 +794,7 @@ class MathCol extends Group {
 // math box/rule
 //
 
-interface MathBoxArgs extends Omit<GroupArgs, 'children'> {
+interface MathBoxArgs extends Omit<GroupArgs, 'children'>, EmArgs {
     children?: MathLeaf[]
     style?: MathStyle
     width?: number
@@ -802,7 +810,7 @@ class MathBox extends Group {
     em: MathSpec
 
     constructor(args: MathBoxArgs = {}) {
-        const { children: children0, width: width0, padding: padding0, justify = 'center', anchor: anchor0, style = 'text', klass, env, ...attr } = THEME(args, 'MathBox')
+        const { children: children0, width: width0, padding: padding0, justify = 'center', anchor: anchor0, style = 'text', klass, scale = 1, env, ...attr } = THEME(args, 'MathBox')
         const child = math_child(children0, style, 'MathBox', env)
 
         // get metrics info
@@ -835,7 +843,7 @@ class MathBox extends Group {
             vink: vink != null ? [ vink[0] + pt, vink[1] + pt ] as Limit : undefined,
         }
         const kpatch = klass != null ? { left: klass, right: klass } : {}
-        this.em = inherit_metrics(child, { ...metrics, ...ink, ...kpatch })
+        this.em = scale_math_spec(inherit_metrics(child, { ...metrics, ...ink, ...kpatch }), scale)
     }
 }
 
@@ -884,7 +892,7 @@ type ArrayCol =
 
 const ARRAY_ALIGN: Record<ArrayAlign, Align> = { l: 'left', c: 'center', r: 'right' }
 
-interface MathArrayArgs extends Omit<GroupArgs, 'children'> {
+interface MathArrayArgs extends Omit<GroupArgs, 'children'>, EmArgs {
     children?: MathLeaf[][] | MathLeaf[]  // rows of cells, or a flat list chunked by ncol
     style?: MathStyle              // style string cells are parsed in
     cols?: ArrayCol[]              // column alignments and separators
@@ -933,7 +941,7 @@ class MathArray extends Group {
     constructor(args: MathArrayArgs = {}) {
         const {
             children: children0, cols = [], ncol: ncol0, stretch = 1, jot = false, colsep = ARRAY_COL_SEP,
-            outer = false, hlines = [], rowgaps = [], thickness = ARRAY_RULE, fill: fill0, style = 'text', env, ...attr
+            outer = false, hlines = [], rowgaps = [], thickness = ARRAY_RULE, fill: fill0, style = 'text', scale = 1, env, ...attr
         } = THEME(args, 'MathArray')
         const rows0 = normalize_rows(children0, ncol0, cols).map(row =>
             row.map(cell => normalize_math_leaf(cell, style, env) ?? empty_math(env))
@@ -1054,7 +1062,7 @@ class MathArray extends Group {
         this.args = args
 
         // a tabular body is a single Ord atom
-        this.em = make_math({ left: 'mord', right: 'mord', ...metrics })
+        this.em = make_math({ left: 'mord', right: 'mord', ...metrics }, scale)
     }
 
     // the rules are stroked in em
@@ -1451,7 +1459,7 @@ class MathStretch extends MathShape {
     }
 }
 
-interface HorizBraceArgs extends Omit<GroupArgs, 'children'> {
+interface HorizBraceArgs extends Omit<GroupArgs, 'children'>, EmArgs {
     children?: MathLeaf[]
     label?: MathLeaf
     over?: boolean
@@ -1464,7 +1472,7 @@ class HorizBrace extends MathGroup {
     constructor(args: HorizBraceArgs = {}) {
         const {
             children, label = null, over = true, style = 'text',
-            height = BRACE_HEIGHT, thickness = BRACE_THICKNESS, env, ...attr0
+            height = BRACE_HEIGHT, thickness = BRACE_THICKNESS, scale = 1, env, ...attr0
         } = THEME(args, 'HorizBrace')
         const [ spec, attr ] = spec_split(attr0)
 
@@ -1483,7 +1491,7 @@ class HorizBrace extends MathGroup {
         // the brace is a stretchy decoration with a floor on its width (so a
         // brace over a narrow body does not collapse into a squiggle) and its
         // label riding beyond it; an over/underbrace is an inner atom
-        super(place_stretch(body, over ? 'overbrace' : 'underbrace', over, BRACE_KERN, { height, thickness, env, ...attr }, note, 'minner'), spec)
+        super(place_stretch(body, over ? 'overbrace' : 'underbrace', over, BRACE_KERN, { height, thickness, env, ...attr }, note, 'minner'), { ...spec, scale })
         this.args = args
     }
 }
@@ -1492,7 +1500,7 @@ class HorizBrace extends MathGroup {
 // math text
 //
 
-interface MathTextArgs extends GroupArgs {
+interface MathTextArgs extends GroupArgs, EmArgs {
     spacing?: number
     style?: MathStyle
     strut?: boolean
@@ -1559,9 +1567,10 @@ function normalize_math_children(children0: MathLeafTree, style: MathStyle = 'te
             continue
         }
         const elem = normalize_math_leaf(child, style, env)
+        // A scaled fragment keeps its own spacing and coordinate frame.
         if (elem == null) {
             continue
-        } else if (elem instanceof MathText) {
+        } else if (elem instanceof MathText && elem.em.scale == 1) {
             out.push(...elem.items)
         } else {
             out.push(elem)
@@ -1758,7 +1767,7 @@ class SupSub extends MathRow {
 // frac
 //
 
-interface FracArgs extends Omit<GroupArgs, 'children'> {
+interface FracArgs extends Omit<GroupArgs, 'children'>, EmArgs {
     children?: MathLeaf[]  // [ numerator, denominator ]
     has_bar?: boolean
     padding?: Padding
@@ -1827,7 +1836,7 @@ class Frac extends MathGroup {
 // over/underline
 //
 
-interface LineDecorationArgs extends GroupArgs {
+interface LineDecorationArgs extends GroupArgs, EmArgs {
     thickness?: number
     color?: string
     style?: MathStyle
@@ -1877,7 +1886,7 @@ class Overline extends LineDecoration {
 // sqrt
 //
 
-interface SqrtArgs extends GroupArgs {
+interface SqrtArgs extends GroupArgs, EmArgs {
     index?: MathLeaf
     padding?: Padding
     rule_size?: number
@@ -2061,7 +2070,7 @@ function build_accent_symbol(label: string, color: string | undefined, mode: Sym
     return new MathSymbol({ children: [ label1 ], mode, ...span_attr })
 }
 
-interface AccentArgs extends GroupArgs {
+interface AccentArgs extends GroupArgs, EmArgs {
     label?: string
     color?: string
     mode?: SymbolMode  // text-mode accents (\', \", \c, ...) live in the text symbol table
@@ -2115,7 +2124,7 @@ class Accent extends MathGroup {
         ], [ 0, 0 ], 'none', width)
         super(body, attr)
         this.args = args
-        this.em = make_math({ ...body.em, left: base.em.left, right: base.em.right })
+        this.em = make_math({ ...this.em, left: base.em.left, right: base.em.right })
     }
 }
 
@@ -2202,7 +2211,7 @@ interface BracketArgs extends MathRowArgs {
 
 class Bracket extends MathRow {
     constructor(args: BracketArgs = {}) {
-        const { children, delim: delim0 = 'round', left_delim: left_delim0, right_delim: right_delim0, height, env, ...attr0 } = THEME(args, 'Bracket')
+        const { children, delim: delim0 = 'round', left_delim: left_delim0, right_delim: right_delim0, height, scale = 1, env, ...attr0 } = THEME(args, 'Bracket')
         const body = math_child(children, 'text', 'Bracket', env)
         const [ left_delim1, right_delim1 ] = ensure_vector(delim0, 2)
         const left_delim = normalize_delim(left_delim0 ?? left_delim1)
@@ -2224,7 +2233,7 @@ class Bracket extends MathRow {
         const items = [ left, body, right ].filter(item => item != null)
 
         // pass to MathRow
-        super({ children: items, env, ...shared_attr, ...spec })
+        super({ children: items, scale, env, ...shared_attr, ...spec })
         this.args = args
 
         // a delimited group is an inner atom
@@ -2445,7 +2454,7 @@ const TEXT_MODE_FAMILY: Record<TextModeFamily, TextFace['family']> = {
 // in MathText
 class TextMode extends MathText {
     constructor(args: TextModeArgs = {}) {
-        const { children: children0, family, bold, italic, style = 'text', strut, env, ...attr0 } = THEME(args, 'TextMode')
+        const { children: children0, family, bold, italic, style = 'text', strut, scale = 1, env, ...attr0 } = THEME(args, 'TextMode')
         const [ spec, attr ] = spec_split(attr0)
         const inputs = ensure_children(children0)
 
@@ -2466,7 +2475,7 @@ class TextMode extends MathText {
         )
 
         // pass to MathText
-        super({ children: elems, style, strut, env, ...spec })
+        super({ children: elems, style, strut, scale, env, ...spec })
         this.args = args
     }
 }
@@ -2882,7 +2891,7 @@ function convert_tree(tree: Tree | TreeNode | null, ctx: ConvertCtx): WithMath {
 // katex parser and component
 //
 
-interface LatexArgs extends ElementArgs {
+interface LatexArgs extends ElementArgs, EmArgs {
     inline?: boolean
     style?: MathStyle
     strut?: boolean
@@ -2890,7 +2899,7 @@ interface LatexArgs extends ElementArgs {
 
 class Latex extends MathText {
     constructor(args: LatexArgs = {}) {
-        const { children, inline, style = inline ? 'text' : 'display', strut = true, env, ...attr0 } = THEME(args, 'Latex')
+        const { children, inline, style = inline ? 'text' : 'display', strut = true, scale = 1, env, ...attr0 } = THEME(args, 'Latex')
         const tex = check_string(children)
         const [ spec, attr ] = spec_split(attr0)
 
@@ -2898,7 +2907,7 @@ class Latex extends MathText {
         const elems = [ parse_math(tex, { env, ...attr }, style) ]
 
         // pass to MathText
-        super({ children: elems, style, strut, env, ...spec })
+        super({ children: elems, style, strut, scale, env, ...spec })
         this.args = args
     }
 }

@@ -89,6 +89,15 @@ out with a `@nostrict` comment. `docs/katex.md` lists which `math_*.jsx` file co
 
 ## Math Elements
 
+Math and text share `EmArgs.scale`: an element lays itself out in its own em,
+then reports its metrics in the surrounding em. The math base constructors
+apply it once with `scale_math_spec`, including italic correction and skew;
+coordinates stay in the local frame. Parser wrappers (`Latex`, `TextMode`)
+keep scale out of the attributes passed to every parsed atom. Scaled
+`MathText` fragments remain whole when nested, so flattening cannot discard
+their scale or internal spacing. `scale` does not change aspect-based fitting
+outside an em layout. Placement cloning remains shallow.
+
 We use `katex` to parse LaTeX strings into an AST. This is then converted into gum.jsx elements and rendered to SVG. The `Latex` element is a wrapper that parses the LaTeX string and positions the element at the center of the rectangle.
 
 `MathArray` implements katex's `array` node, which backs every tabular environment:
