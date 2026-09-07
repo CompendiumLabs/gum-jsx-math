@@ -8,13 +8,13 @@ import { make_em, text_em, bounds_em, em_bounds, em_hink, em_vink, em_aspect, em
 import type { EmArgs, EmSpec, EmMetrics } from '@gum-jsx/core/lib/em'
 import { StrictError, strictError } from '@gum-jsx/core/lib/strict'
 import { FontNotLoadedError } from '@gum-jsx/core/fonts'
-import { is_array, is_scalar, is_string, is_boolean, is_object, check_singleton, check_array, check_string, ensure_vector, prefix_split, max, range, rotate_aspect, pad_rect } from '@gum-jsx/core/lib/utils'
+import { is_array, is_scalar, is_string, is_boolean, is_object, check_singleton, check_array, check_string, ensure_vector, prefix_split, max, range, rotate_aspect, pad_rect, ensure_pair } from '@gum-jsx/core/lib/utils'
 import symbols from './symbols'
 import { MATH_SKEW } from './skew'
 import type { Env, EnvPlugin } from '@gum-jsx/core/env'
 import { MATH_FONT_PLUGIN } from './fonts'
 import { Context, Element, Group, Spacer, Rectangle, spec_split, ensure_children } from '@gum-jsx/core/elems/core'
-import { with_em, em_context, place_items as place_em, layout_em_row, layout_em_col } from '@gum-jsx/core/elems/em'
+import { with_em, em_context, place_items as place_em, layout_em_stack } from '@gum-jsx/core/elems/em'
 import type { Placed } from '@gum-jsx/core/elems/em'
 import { Polygon, Line, Arc, Arrow, ArrowHead, Ellipse } from '@gum-jsx/core/elems/geometry'
 import { Span } from '@gum-jsx/core/elems/text'
@@ -748,8 +748,9 @@ class MathRow extends Group {
         const { children: children0, style = 'text', scale = 1, env, ...attr } = THEME(args, 'MathRow')
         const math_items = normalize_math_items(children0, style, env)
 
-        // compute layout
-        const { metrics, ...layout } = layout_em_row(math_items)
+        // compute layout: a row in em, the items aligned on their anchors
+        // (the math axis); the spacing between them is already in the items
+        const { metrics, ...layout } = layout_em_stack('h', math_items, { valign: 'anchor' })
 
         // pass to Group
         super({ env, ...layout, upright: true, ...attr })
@@ -775,14 +776,18 @@ class MathCol extends Group {
     em: MathSpec
 
     constructor(args: MathColArgs = {}) {
-        const { children: children0, justify, spacing = 0, style = 'text', scale = 1, env, ...attr } = THEME(args, 'MathCol')
+        const { children: children0, justify = 'center', spacing = 0, style = 'text', scale = 1, env, ...attr } = THEME(args, 'MathCol')
         const math_items = normalize_math_items(children0, style, env)
 
-        // compute layout
-        const { metrics, ...layout } = layout_em_col(math_items, { justify, spacing })
+        // compute layout: a column in em, `spacing` em apart, anchored on its
+        // middle (the math axis of the whole); each item is placed across it
+        // by justify
+        const halign = ensure_pair(justify)[0]
+        const { metrics, children: placed, ...layout } = layout_em_stack('v', math_items, { gap: spacing, justify: halign, anchor: 'center' })
+        const children = placed.map(c => c.clone({ align: justify }))
 
         // pass to Group
-        super({ env, ...layout, upright: true, ...attr })
+        super({ children, env, ...layout, upright: true, ...attr })
         this.args = args
 
         // set math metrics

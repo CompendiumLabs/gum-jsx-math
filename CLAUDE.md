@@ -160,8 +160,10 @@ so drawn shapes follow it.
 A math box may draw outside the box it is laid out by: `hink` is the horizontal ink range when
 it differs from `[0, width]` (`\rlap`, the cancel strokes) and `vink` the vertical one when it
 differs from `[0, height]` (`\smash`, `\cancel` on a single character). `em_rect` gives the ink
-rect, `em_bounds` the layout bounds (both in core's `lib/em.ts`), and `place_items`/`layout_em_row`
-(core's `elems/em.ts`) place children by the former while stacking by the latter (`hull_overhang`). `MathOval` (the `\oiint` ring) and
+rect, `em_bounds` the layout bounds (both in core's `lib/em.ts`), and `place_items` and
+`layout_em_stack` (core's `elems/em.ts`; the latter is what `MathRow` and `MathCol` lay out with,
+shared with the text stacks: a row aligned on the anchors, a column anchored on its middle) place
+children by the former while stacking by the latter (`hull_overhang`). `MathOval` (the `\oiint` ring) and
 `MathCancel` are `MathShape`s like `MathStretch`; `enclose_box` builds `\boxed`/`\fbox`/
 `\colorbox` from a `MathBox` plus a stroked frame. Array rules and box frames are stroked in em
 (`em_context`, the same stroke-unit rebase `MathShape.inner` does), so they thin with the style
