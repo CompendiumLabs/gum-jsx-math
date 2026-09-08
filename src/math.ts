@@ -5,7 +5,7 @@
 // and laid out in em units; the resulting Svg is sized from the font size.
 
 import { Svg } from '@gum-jsx/core/elems/core'
-import { Box } from '@gum-jsx/core/elems/layout'
+import { Box } from '@gum-jsx/core/elems/box'
 import { Latex } from './elems'
 import { none } from '@gum-jsx/core/lib/const'
 import { em_bounds, em_hink } from '@gum-jsx/core/lib/em'
@@ -68,16 +68,9 @@ function mathToElement(tex: string, args: MathArgs = {}): Svg {
   const width = Math.max(xhi - xlo, 1e-6)
   const height = Math.max(yhi - ylo, 1e-6)
 
-  // pad and optionally fill background (padding is in em, so convert to fractions of the math box)
+  // pad (in em) and optionally fill the background
   const boxed = padding > 0 || background != null
-  const child = boxed ? new Box({
-    children: [ latex ],
-    padding: [ padding / width, padding / height, padding / width, padding / height ],
-    fill: background,
-    stroke: none,
-    adjust: false,
-    env,
-  }) : latex
+  const child = boxed ? new Box({ children: [ latex ], padding, fill: background, stroke: none, env }) : latex
 
   // size svg to the math box (or fit into the given size by aspect)
   const natural: Size = [ font_size * (width + 2 * padding), font_size * (height + 2 * padding) ]
