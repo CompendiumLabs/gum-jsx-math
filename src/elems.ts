@@ -2,13 +2,13 @@
 
 import './types/katex.d.ts'
 import { THEME } from '@gum-jsx/core/lib/theme'
-import { none, black, red, maxis, d2r } from '@gum-jsx/core/lib/const'
-import { textHasGlyphs, rawTextMetrics } from '@gum-jsx/core/lib/text'
-import { make_em, text_em, bounds_em, em_bounds, em_hink, em_vink, em_rect, em_frame, baseline_extents, scale_em_spec } from '@gum-jsx/core/lib/em'
+import { MATH_AXIS, none, black, red, d2r } from '@gum-jsx/core/lib/const'
+import { text_has_glyphs } from '@gum-jsx/core/lib/text'
+import { make_em, bounds_em, em_bounds, em_hink, em_vink, em_rect, em_frame, baseline_extents, scale_em_spec } from '@gum-jsx/core/lib/em'
 import type { EmArgs, EmSpec, EmMetrics, EmOrigin } from '@gum-jsx/core/lib/em'
 import { StrictError, strictError } from '@gum-jsx/core/lib/strict'
 import { FontNotLoadedError } from '@gum-jsx/core/fonts'
-import { is_array, is_scalar, is_string, is_boolean, is_object, check_singleton, check_array, check_string, ensure_vector, prefix_split, max, range, rotate_aspect, pad_rect, ensure_pair } from '@gum-jsx/core/lib/utils'
+import { is_array, is_scalar, is_string, is_boolean, is_object, check_singleton, check_array, check_string, ensure_vector, prefix_split, max, range, pad_rect, ensure_pair } from '@gum-jsx/core/lib/utils'
 import symbols from './symbols'
 import { MATH_SKEW } from './skew'
 import type { Env, EnvPlugin } from '@gum-jsx/core/env'
@@ -36,12 +36,12 @@ type FontFamily =
 
 type MathClass = 'mord' | 'mop' | 'mbin' | 'mrel' | 'mopen' | 'mclose' | 'mpunct' | 'minner' | 'none'
 
-// the em metrics (lib/em.ts) plus the atom classes and TeX's italic
-// correction and accent skew
+// the em metrics (lib/em.ts) plus the atom classes and TeX's accent skew;
+// the italic correction is core's, and a math record always has it
 type MathSpec = EmSpec & {
     left: MathClass
     right: MathClass
-    italic: number  // superscript overhang past the width (TeX italic correction)
+    italic: number
     skew?: number   // accent shift right of center over a single character (TeX's skewchar kern)
 }
 
@@ -110,7 +110,7 @@ function resolve_font_override(override: string, text: string, family: SymbolFam
         ? (family == 'mathord' ? [ override, 'KaTeX_Main-Bold' ] : [ 'KaTeX_Main-Bold' ])
         : [ override ]
     for (const font_family of candidates) {
-        if (textHasGlyphs(text, { font_family, env })) return font_family
+        if (text_has_glyphs(text, { font_family, env })) return font_family
     }
     return fallback
 }
@@ -161,7 +161,6 @@ const SIZE_MULTIPLIERS = [ 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.2, 1.44, 1.728, 2.074
 // constants
 //
 
-const MATH_AXIS = maxis
 const STRUT = { height: 1, anchor: 0.5 }  // minimum line box around the axis for top-level math
 
 // TeX font parameters (Computer Modern, in em) that drive Appendix G layout;
@@ -325,20 +324,27 @@ const SPACING_TABLE: Record<MathClass, SpacingTable> = {
 // math metrics
 //
 
-function make_math(spec: Partial<MathSpec>, scale: number = 1): MathSpec {
+// the math record from what an element states: the em box with its defaults
+// (see make_em), the classes (an Ord atom unless said) and TeX's two distances
+function make_math(spec: Partial<MathSpec>): MathSpec {
     const { left, right, italic, skew } = spec
-    const em = { ...make_em(spec), left: left ?? 'mord', right: right ?? 'mord', italic: italic ?? 0, skew }
-    return scale_math_spec(em, scale)
+    return { ...make_em(spec), left: left ?? 'mord', right: right ?? 'mord', italic: italic ?? 0, skew }
 }
 
-// Math adds two distances to the shared em box; classes stay unchanged.
+// Math adds one distance to the shared em box; classes stay unchanged.
 function scale_math_spec(em: MathSpec, scale: number): MathSpec {
     if (scale == 1) return em
-    return {
-        ...em, ...scale_em_spec(em, scale),
-        italic: scale * em.italic,
-        skew: em.skew != null ? scale * em.skew : undefined,
-    }
+    const scaled = scale_em_spec(em, scale)
+    return { ...scaled, skew: em.skew != null ? scale * em.skew : undefined }
+}
+
+// what a math element hands its constructor as `metrics`, alongside the
+// `scale` it lays out at: the box in its own em, which Element scales into
+// the parent's, and the skew already in the parent's, since the base passes
+// a subtype's fields through unchanged
+function math_metrics(spec: Partial<MathSpec>, scale: number = 1): MathSpec {
+    const em = make_math(spec)
+    return { ...em, skew: em.skew != null ? scale * em.skew : undefined }
 }
 
 function inherit_metrics(source: WithMath | MathSpec, patch: Partial<MathSpec> = {}): MathSpec {
@@ -489,12 +495,11 @@ function math_child(children: MathLeaf[] | undefined, style: MathStyle, name: st
 // a composite assembled from explicitly placed items (what place_items returns):
 // the group draws those children in their shared frame and carries its math box
 class MathGroup extends Group {
-    em: MathSpec
+    declare em: MathSpec
 
     constructor(body: WithMath<Group>, { scale = 1, ...attr }: GroupArgs & EmArgs = {}) {
         const { coord, aspect } = body.spec
-        super({ children: body.children, coord, aspect, upright: true, env: body.env, ...attr })
-        this.em = scale_math_spec(body.em, scale)
+        super({ children: body.children, coord, aspect, metrics: math_metrics(body.em, scale), scale, upright: true, env: body.env, ...attr })
     }
 }
 
@@ -529,13 +534,12 @@ interface MathShapeSpec extends Omit<GroupArgs, 'coord'>, EmArgs {
 // and the rules and arrowheads scale with the math around them rather than
 // with the image
 class MathShape extends Group {
-    em: MathSpec
+    declare em: MathSpec
 
     constructor(args: MathShapeSpec) {
         const { metrics, origin, klass = 'mord', scale = 1, ...attr } = args
-        super({ ...em_frame(metrics, origin), upright: true, ...attr })
+        super({ metrics: math_metrics({ left: klass, right: klass, ...metrics }, scale), origin, scale, upright: true, ...attr })
         this.args = args  // so a clone keeps its metrics (subclasses overwrite this with their own args)
-        this.em = make_math({ left: klass, right: klass, ...metrics }, scale)
     }
 
     inner(ctx: Context): string {
@@ -554,17 +558,14 @@ interface MathSpacerArgs extends ElementArgs, EmArgs {
 }
 
 class MathSpacer extends Spacer {
-    em: MathSpec
+    declare em: MathSpec
 
     constructor(args: MathSpacerArgs = {}) {
         const { width = 0, height = 0, anchor = 0, scale = 1, ...attr } = THEME(args, 'MathSpacer')
 
-        // pass to Spacer
-        super({ aspect: width, ...attr })
+        // pass to Spacer; glue carries no atom class
+        super({ aspect: width, metrics: math_metrics({ left: 'none', right: 'none', width, height, anchor }, scale), scale, ...attr })
         this.args = args
-
-        // glue carries no atom class
-        this.em = make_math({ left: 'none', right: 'none', width, height, anchor }, scale)
     }
 }
 
@@ -577,47 +578,21 @@ interface MathSpanArgs extends SpanArgs, EmArgs {
     left?: MathClass
     right?: MathClass
     center?: boolean
+    skew?: number   // the accent shift over this glyph (TeX's skewchar kern), in its em
 }
 
-// a glyph atom with TeX-style ink metrics: the math box is the ink extent at
-// the glyph's natural size (undoing the 1em line-box normalization of text
-// metrics), with the baseline 0.25em below the axis, or the ink centered on
-// the axis for large operators and delimiters (TeX Rule 13)
+// a glyph atom: a Span framed by its ink about the math axis (core's ink
+// frame, see Span), classed as an atom and carrying the glyph's accent skew.
+// the skew is a length, so like the box Element scales it is given in the
+// parent's em
 class MathSpan extends Span {
-    em: MathSpec
+    declare em: MathSpec
 
     constructor(args: MathSpanArgs = {}) {
-        const { children, klass = 'mord', left = klass, right = left, center = false, scale = 1, ...attr } = THEME(args, 'MathSpan')
+        const { children, klass = 'mord', left = klass, right = left, center = false, skew, scale = 1, ...attr } = THEME(args, 'MathSpan')
         const text = check_string(children)
-
-        // pass to Span
-        super({ children: [ text ], ...attr })
+        super({ children: [ text ], frame: 'ink', axis: center ? 'center' : 'baseline', metrics: { left, right, skew: skew != null ? scale * skew : undefined }, scale, ...attr })
         this.args = args
-
-        // the ink extents above/below the baseline at a 1em font (y-up); no
-        // ink means a plain text box
-        const raw = rawTextMetrics(this.metrics)
-        if (raw == null) {
-            this.em = make_math({ left, right, ...text_em(this.metrics), italic: this.metrics.italic }, scale)
-            return
-        }
-        const { advance, vrange: [ ymin, ymax ], italic = 0 } = raw
-        const height = ymax - ymin
-
-        // ink box in anchor coords (y-down, axis at 0)
-        const baseline = center ? 0.5 * (ymax + ymin) : MATH_AXIS
-        const vrange: Limit = [ baseline - ymax, baseline - ymin ]
-
-        // Span places text in a 1em box ending at the baseline; make the ink box
-        // the coordinate frame so any assigned rect scales the glyph with its box
-        const aspect = advance / height
-        this.metrics = { advance, vrange: [ baseline - 1, baseline ], raw_vrange: vrange, italic }
-        this.spec.coord = [ 0, vrange[0], 1, vrange[1] ]
-        this.spec.aspect0 = aspect
-        this.spec.aspect = this.spec.rotate_invar ? aspect : rotate_aspect(aspect, this.spec.rotate)
-
-        // set math metrics
-        this.em = make_math({ left, right, ...bounds_em(advance, vrange), italic }, scale)
     }
 }
 
@@ -652,13 +627,12 @@ class MathSymbol extends MathSpan {
         const font_family = override != null ? resolve_font_override(override, children[0], family, family0, env) : family0
         const klass = SYMBOL_FAMILY_CLASS[family]
 
-        // pass to MathSpan
-        super({ children, font_family, klass, env, ...attr1 })
-        this.args = args
-
         // the accent shift for this character in its resolved face
         const skew = MATH_SKEW[font_family]?.[children[0]]
-        if (skew != null) this.em.skew = skew * this.em.scale
+
+        // pass to MathSpan
+        super({ children, font_family, klass, skew, env, ...attr1 })
+        this.args = args
     }
 }
 
@@ -742,25 +716,25 @@ class MathOp extends MathSymbol {
 interface MathRowArgs extends Omit<GroupArgs, 'children'>, EmArgs {
     children?: MathLeaf[]
     style?: MathStyle
+    klass?: MathClass   // the atom classes the row spaces as: one for both ends, or each its own
+    left?: MathClass
+    right?: MathClass
 }
 
 class MathRow extends Group {
-    em: MathSpec
+    declare em: MathSpec
 
     constructor(args: MathRowArgs = {}) {
-        const { children: children0, style = 'text', scale = 1, env, ...attr } = THEME(args, 'MathRow')
+        const { children: children0, style = 'text', klass = 'mord', left = klass, right = left, scale = 1, env, ...attr } = THEME(args, 'MathRow')
         const math_items = normalize_math_items(children0, style, env)
 
         // compute layout: a row in em, the items aligned on their anchors
         // (the math axis); the spacing between them is already in the items
-        const { metrics, ...layout } = layout_em_stack('h', math_items, { valign: 'anchor' })
+        const { children, metrics } = layout_em_stack('h', math_items, { valign: 'anchor' })
 
-        // pass to Group
-        super({ env, ...layout, upright: true, ...attr })
+        // pass to Group; the row is an Ord atom unless its classes are given
+        super({ children, metrics: math_metrics({ left, right, ...metrics }, scale), scale, upright: true, env, ...attr })
         this.args = args
-
-        // set math metrics
-        this.em = make_math({ left: 'mord', right: 'mord', ...metrics }, scale)
     }
 }
 
@@ -776,7 +750,7 @@ interface MathColArgs extends Omit<GroupArgs, 'children'>, EmArgs {
 }
 
 class MathCol extends Group {
-    em: MathSpec
+    declare em: MathSpec
 
     constructor(args: MathColArgs = {}) {
         const { children: children0, justify = 'center', spacing = 0, style = 'text', scale = 1, env, ...attr } = THEME(args, 'MathCol')
@@ -786,15 +760,12 @@ class MathCol extends Group {
         // middle (the math axis of the whole); each item is placed across it
         // by justify
         const halign = ensure_pair(justify)[0]
-        const { metrics, children: placed, ...layout } = layout_em_stack('v', math_items, { gap: spacing, justify: halign, anchor: 'center' })
+        const { metrics, children: placed } = layout_em_stack('v', math_items, { gap: spacing, justify: halign, anchor: 'center' })
         const children = placed.map(c => c.clone({ align: justify }))
 
-        // pass to Group
-        super({ children, env, ...layout, upright: true, ...attr })
+        // pass to Group; a column is an Ord atom
+        super({ children, metrics: math_metrics({ left: 'mord', right: 'mord', ...metrics }, scale), scale, upright: true, env, ...attr })
         this.args = args
-
-        // set math metrics
-        this.em = make_math({ left: 'mord', right: 'mord', ...metrics }, scale)
     }
 }
 
@@ -815,7 +786,7 @@ interface MathBoxArgs extends Omit<GroupArgs, 'children'>, EmArgs {
 }
 
 class MathBox extends Group {
-    em: MathSpec
+    declare em: MathSpec
 
     constructor(args: MathBoxArgs = {}) {
         const { children: children0, width: width0, padding: padding0, justify = 'center', anchor: anchor0, style = 'text', klass, scale = 1, env, ...attr } = THEME(args, 'MathBox')
@@ -845,14 +816,12 @@ class MathBox extends Group {
         const rect: Rect = [ pl, iy0, pl + inner_width, iy1 ]
         const item = with_math(child, {}, { rect, align: justify })
 
-        super({ children: [ item ], ...em_frame(metrics), upright: true, env, ...attr })
-        this.args = args
-
         // the box keeps the child's spacing classes unless klass overrides
         // them, which is how a custom element becomes a relation (say) in a
         // row
         const kpatch = klass != null ? { left: klass, right: klass } : {}
-        this.em = scale_math_spec(inherit_metrics(child, { ...metrics, ...kpatch }), scale)
+        super({ children: [ item ], metrics: math_metrics(inherit_metrics(child, { ...metrics, ...kpatch }), scale), scale, upright: true, env, ...attr })
+        this.args = args
     }
 }
 
@@ -945,7 +914,7 @@ function normalize_rows(children: MathLeaf[][] | MathLeaf[] | undefined, ncol0: 
 }
 
 class MathArray extends Group {
-    em: MathSpec
+    declare em: MathSpec
 
     constructor(args: MathArrayArgs = {}) {
         const {
@@ -1057,21 +1026,18 @@ class MathArray extends Group {
         const hink: Limit = [ Math.min(0, ...seps.map(({ x }) => x - 0.5 * thickness)), Math.max(width, ...seps.map(({ x }) => x + 0.5 * thickness)) ]
         const overhang = hink[0] < 0 || hink[1] > width ? hink : undefined
         const metrics: MathMetrics = bounds_em(width, bounds, { hink: overhang })
-        const frame = em_frame(metrics, 'anchor')
+        const { coord } = em_frame(metrics, 'anchor')
         for (const { pos, dashed } of rules) {
             const y = baseline(pos) - 0.5 * thickness
-            children.push(array_rule([ hink[0], y ], [ hink[1], y ], thickness, dashed, fill, frame.coord, env))
+            children.push(array_rule([ hink[0], y ], [ hink[1], y ], thickness, dashed, fill, coord, env))
         }
         for (const { x: xs, dashed } of seps) {
-            children.push(array_rule([ xs, bounds[0] ], [ xs, bounds[1] ], thickness, dashed, fill, frame.coord, env))
+            children.push(array_rule([ xs, bounds[0] ], [ xs, bounds[1] ], thickness, dashed, fill, coord, env))
         }
 
-        // pass to Group
-        super({ children, ...frame, upright: true, env, ...attr })
+        // pass to Group; a tabular body is a single Ord atom
+        super({ children, metrics: math_metrics({ left: 'mord', right: 'mord', ...metrics }, scale), origin: 'anchor', scale, upright: true, env, ...attr })
         this.args = args
-
-        // a tabular body is a single Ord atom
-        this.em = make_math({ left: 'mord', right: 'mord', ...metrics }, scale)
     }
 
     // the rules are stroked in em
@@ -1641,14 +1607,10 @@ class MathText extends MathRow {
         const { items: items0, left, right } = layout_math_text(spaced_items, is_script_style(style))
         const items = strut ? [ ...items0, new MathSpacer({ ...STRUT, env }) ] : items0
 
-        // pass to Group
-        super({ children: items, env, ...attr })
+        // pass to MathRow with the classes of its ends
+        super({ children: items, left, right, env, ...attr })
         this.args = args
-
-        // set math metrics
         this.items = math_items
-        this.em.left = left
-        this.em.right = right
     }
 }
 
@@ -1762,13 +1724,9 @@ class SupSub extends MathRow {
             items = scripts != null ? [ base, scripts, space ] : [ base ]
         }
 
-        // pass to MathRow
-        super({ children: items, env, ...attr })
+        // pass to MathRow, keeping the base's atom classes with the row's metrics
+        super({ children: items, left: base.em.left, right: base.em.right, env, ...attr })
         this.args = args
-
-        // preserve the base atom classes while keeping the actual row metrics
-        this.em.left = base.em.left
-        this.em.right = base.em.right
     }
 }
 
@@ -1914,7 +1872,7 @@ interface SqrtArgs extends GroupArgs, EmArgs {
 function fit_glyph<E extends WithMath>(text: string, target: number, make: (font_family: FontFamily) => E, measure: (glyph: E) => number, env?: Env): [ E, number ] {
     let largest: E | null = null
     for (const font_family of SIZE_FONTS) {
-        if (!textHasGlyphs(text, { font_family, env })) continue
+        if (!text_has_glyphs(text, { font_family, env })) continue
         const glyph = make(font_family)
         if (measure(glyph) >= target) return [ glyph, 1 ]
         largest = glyph
@@ -2131,9 +2089,8 @@ class Accent extends MathGroup {
             { item: accent, x: xb + skew + 0.5 * (wb - wa), y: dy },
             { item: body0, x: xb, y: 0 },
         ], [ 0, 0 ], 'none', width)
-        super(body, attr)
+        super(with_math(body, { left: base.em.left, right: base.em.right }), attr)
         this.args = args
-        this.em = make_math({ ...this.em, left: base.em.left, right: base.em.right })
     }
 }
 
@@ -2241,13 +2198,9 @@ class Bracket extends MathRow {
         const right = right_delim != null ? fit_delim(right_delim, 'right', target, level0, delim_args) : null
         const items = [ left, body, right ].filter(item => item != null)
 
-        // pass to MathRow
-        super({ children: items, scale, env, ...shared_attr, ...spec })
+        // pass to MathRow; a delimited group is an inner atom
+        super({ children: items, klass: 'minner', scale, env, ...shared_attr, ...spec })
         this.args = args
-
-        // a delimited group is an inner atom
-        this.em.left = 'minner'
-        this.em.right = 'minner'
     }
 }
 

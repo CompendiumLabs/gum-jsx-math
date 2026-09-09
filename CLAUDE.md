@@ -90,9 +90,14 @@ out with a `@nostrict` comment. `docs/katex.md` lists which `math_*.jsx` file co
 ## Math Elements
 
 Math and text share `EmArgs.scale`: an element lays itself out in its own em,
-then reports its metrics in the surrounding em. The math base constructors
-apply it once with `scale_math_spec`, including italic correction and skew;
-coordinates stay in the local frame. Parser wrappers (`Latex`, `TextMode`)
+then reports its metrics in the surrounding em. A math element hands its
+constructor `metrics: math_metrics(spec, scale)` and `scale`: core's `Element`
+scales the box and keeps it as `em`, `Group` derives `coord` and `aspect` from
+it, and `math_metrics` pre-scales the skew, which the base passes through
+unchanged (the italic correction is a core field, scaled with the box).
+`MathSpan` is core's `Span` with `frame: 'ink'`: `Span` measures, frames the
+glyph by its ink about the axis and builds the record before `super`, and the
+classes and skew ride in as `metrics`. Coordinates stay in the local frame. Parser wrappers (`Latex`, `TextMode`)
 keep scale out of the attributes passed to every parsed atom. Scaled
 `MathText` fragments remain whole when nested, so flattening cannot discard
 their scale or internal spacing. `scale` does not change aspect-based fitting
