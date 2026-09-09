@@ -4,8 +4,8 @@ import './types/katex.d.ts'
 import { THEME } from '@gum-jsx/core/lib/theme'
 import { none, black, red, maxis, d2r } from '@gum-jsx/core/lib/const'
 import { textHasGlyphs, rawTextMetrics } from '@gum-jsx/core/lib/text'
-import { make_em, text_em, bounds_em, em_bounds, em_hink, em_vink, em_aspect, em_rect, baseline_extents, scale_em_spec } from '@gum-jsx/core/lib/em'
-import type { EmArgs, EmSpec, EmMetrics } from '@gum-jsx/core/lib/em'
+import { make_em, text_em, bounds_em, em_bounds, em_hink, em_vink, em_rect, em_frame, baseline_extents, scale_em_spec } from '@gum-jsx/core/lib/em'
+import type { EmArgs, EmSpec, EmMetrics, EmOrigin } from '@gum-jsx/core/lib/em'
 import { StrictError, strictError } from '@gum-jsx/core/lib/strict'
 import { FontNotLoadedError } from '@gum-jsx/core/fonts'
 import { is_array, is_scalar, is_string, is_boolean, is_object, check_singleton, check_array, check_string, ensure_vector, prefix_split, max, range, rotate_aspect, pad_rect, ensure_pair } from '@gum-jsx/core/lib/utils'
@@ -516,21 +516,24 @@ function shape_args<T extends MathShapeArgs>(args: T): [ string, Omit<T, 'fill' 
     return [ args.fill ?? color ?? fill ?? black, rest ]
 }
 
-interface MathShapeSpec extends GroupArgs, EmArgs {
+interface MathShapeSpec extends Omit<GroupArgs, 'coord'>, EmArgs {
     metrics: MathMetrics
+    origin?: EmOrigin   // where the pieces' frame puts y = 0: the top of the box (default) or its anchor
     klass?: MathClass
 }
 
 // a drawn math shape (rule, brace, arrow, oval, strike): `metrics` is its math
-// box and `coord` the em frame its pieces draw in. Strokes in here are given in
-// em, so the stroke unit is rebased to this box's pixels per em and the rules
-// and arrowheads scale with the math around them rather than with the image
+// box, and the em frame its pieces draw in follows from it (em_frame) with
+// y = 0 at the top of the box or, by `origin`, at its anchor. Strokes in here
+// are given in em, so the stroke unit is rebased to this box's pixels per em
+// and the rules and arrowheads scale with the math around them rather than
+// with the image
 class MathShape extends Group {
     em: MathSpec
 
     constructor(args: MathShapeSpec) {
-        const { metrics, klass = 'mord', scale = 1, ...attr } = args
-        super({ aspect: em_aspect(metrics), upright: true, ...attr })
+        const { metrics, origin, klass = 'mord', scale = 1, ...attr } = args
+        super({ ...em_frame(metrics, origin), upright: true, ...attr })
         this.args = args  // so a clone keeps its metrics (subclasses overwrite this with their own args)
         this.em = make_math({ left: klass, right: klass, ...metrics }, scale)
     }
@@ -827,28 +830,29 @@ class MathBox extends Group {
         const outer_width = inner_width + pl + pr
         const outer_height = pt + (yhi - ylo) + pb
         const anchor = anchor0 ?? (pt - ylo)
-        const metrics: MathMetrics = { width: outer_width, height: outer_height, anchor }
+        // the child's ink overhang, if any, moves with it inside the box
+        const { hink, vink } = child.em
+        const metrics: MathMetrics = {
+            width: outer_width,
+            height: outer_height,
+            anchor,
+            hink: hink != null ? [ hink[0] + pl, hink[1] + pl ] : undefined,
+            vink: vink != null ? [ vink[0] + pt, vink[1] + pt ] : undefined,
+        }
 
         // make child item (its ink may overhang its layout box)
         const [ , iy0, , iy1 ] = em_rect(child.em, 0, pt - ylo)
         const rect: Rect = [ pl, iy0, pl + inner_width, iy1 ]
         const item = with_math(child, {}, { rect, align: justify })
-        const coord: Rect = [ 0, 0, outer_width, outer_height ]
-        const aspect = em_aspect(metrics)
 
-        super({ children: [ item ], coord, aspect, upright: true, env, ...attr })
+        super({ children: [ item ], ...em_frame(metrics), upright: true, env, ...attr })
         this.args = args
 
         // the box keeps the child's spacing classes unless klass overrides
         // them, which is how a custom element becomes a relation (say) in a
-        // row; the child's ink overhang, if any, moves with it inside the box
-        const { hink, vink } = child.em
-        const ink = {
-            hink: hink != null ? [ hink[0] + pl, hink[1] + pl ] as Limit : undefined,
-            vink: vink != null ? [ vink[0] + pt, vink[1] + pt ] as Limit : undefined,
-        }
+        // row
         const kpatch = klass != null ? { left: klass, right: klass } : {}
-        this.em = scale_math_spec(inherit_metrics(child, { ...metrics, ...ink, ...kpatch }), scale)
+        this.em = scale_math_spec(inherit_metrics(child, { ...metrics, ...kpatch }), scale)
     }
 }
 
@@ -867,7 +871,7 @@ class MathRule extends MathShape {
 
         // a rule is glue for spacing
         const metrics: MathMetrics = { width, height: thickness, anchor: 0.5 * thickness }
-        super({ children: [ bar ], coord: [ 0, 0, width, thickness ], metrics, klass: 'none', env, ...attr })
+        super({ children: [ bar ], metrics, klass: 'none', env, ...attr })
         this.args = args
     }
 }
@@ -1049,21 +1053,21 @@ class MathArray extends Group {
         // corners meet squarely (an \hline above the first row lifts the top
         // of the box, an outer separator widens it by half a rule)
         const [ ytop, ybot ] = [ baseline(0), baseline(total) ]
-        const coord: Rect = [ 0, ytop, width, ybot ]
         const bounds: Limit = [ Math.min(ytop, ...rules.map(({ pos }) => baseline(pos) - thickness)), ybot ]
         const hink: Limit = [ Math.min(0, ...seps.map(({ x }) => x - 0.5 * thickness)), Math.max(width, ...seps.map(({ x }) => x + 0.5 * thickness)) ]
-        for (const { pos, dashed } of rules) {
-            const y = baseline(pos) - 0.5 * thickness
-            children.push(array_rule([ hink[0], y ], [ hink[1], y ], thickness, dashed, fill, coord, env))
-        }
-        for (const { x: xs, dashed } of seps) {
-            children.push(array_rule([ xs, bounds[0] ], [ xs, bounds[1] ], thickness, dashed, fill, coord, env))
-        }
         const overhang = hink[0] < 0 || hink[1] > width ? hink : undefined
         const metrics: MathMetrics = bounds_em(width, bounds, { hink: overhang })
+        const frame = em_frame(metrics, 'anchor')
+        for (const { pos, dashed } of rules) {
+            const y = baseline(pos) - 0.5 * thickness
+            children.push(array_rule([ hink[0], y ], [ hink[1], y ], thickness, dashed, fill, frame.coord, env))
+        }
+        for (const { x: xs, dashed } of seps) {
+            children.push(array_rule([ xs, bounds[0] ], [ xs, bounds[1] ], thickness, dashed, fill, frame.coord, env))
+        }
 
         // pass to Group
-        super({ children, coord, aspect: em_aspect(metrics), upright: true, env, ...attr })
+        super({ children, ...frame, upright: true, env, ...attr })
         this.args = args
 
         // a tabular body is a single Ord atom
@@ -1454,12 +1458,12 @@ class MathStretch extends MathShape {
         // (the explicit placements ignore the class, so this only matters for
         // a standalone stretch dropped into a MathText)
         const metrics: MathMetrics = { width, height, anchor: 0.5 * height }
-        const coord: Rect = [ 0, 0, width, height ]
+        const { coord } = em_frame(metrics)
 
         // the children draw in em within this coord (a Polygon maps its points
         // through its own context, so each piece needs the coord explicitly)
         const children = entry.shape({ width, height, thickness, y: 0, coord, color: fill, env })
-        super({ children, coord, metrics, klass, env, ...attr })
+        super({ children, metrics, klass, env, ...attr })
         this.args = args
     }
 }
@@ -2274,7 +2278,7 @@ class MathOval extends MathShape {
         const [ w, h ] = [ cx + rx + 0.5 * thickness, 2 * ry + thickness ]
         const oval = new Ellipse({ pos: [ cx, 0.5 * h ], rad: [ rx, ry ], stroke: color, stroke_width: thickness, fill: none, env })
         const metrics: MathMetrics = { width: w, height: h, anchor: 0.5 * h }
-        super({ children: [ oval ], coord: [ 0, 0, w, h ], metrics, klass: 'none', env, ...attr })
+        super({ children: [ oval ], metrics, klass: 'none', env, ...attr })
         this.args = args
     }
 }
@@ -2362,7 +2366,7 @@ function enclose_box(body: WithMath, border: string | null, background: string |
     }
 
     const metrics: MathMetrics = bounds_em(w, [ lo, hi ])
-    return new MathShape({ children, coord: rect, metrics, env: body.env })
+    return new MathShape({ children, metrics, origin: 'anchor', env: body.env })
 }
 
 // the strike lines of \cancel (rising), \bcancel (falling) and \xcancel
@@ -2386,7 +2390,7 @@ class MathCancel extends MathShape {
         if (rising) children.push(new Line({ points: [ [ x0, y1 ], [ x1, y0 ] ], ...line_attr }))
         if (falling) children.push(new Line({ points: [ [ x0, y0 ], [ x1, y1 ] ], ...line_attr }))
         const metrics = metrics0 ?? bounds_em(x1 - x0, [ y0, y1 ])
-        super({ children, coord: box, aspect: (x1 - x0) / (y1 - y0), metrics, klass: 'none', env, ...attr })
+        super({ children, metrics, origin: 'anchor', klass: 'none', env, ...attr })
         this.args = args
     }
 }
