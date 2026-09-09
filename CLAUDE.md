@@ -22,7 +22,7 @@ it is given.
 - `docs/design.md` - Design notes and roadmap for math rendering
 
 Core is reached through its subpath exports: `@gum-jsx/core` (public API), `@gum-jsx/core/lib/*`
-and `@gum-jsx/core/elems/*` (internals: `Context`, `spec_split`, `rawTextMetrics`, `THEME`,
+and `@gum-jsx/core/elems/*` (internals: `Context`, `spec_split`, `Span`, `THEME`,
 `strictError`, …), `@gum-jsx/core/env` (`Env`, `resolveEnv`), and `@gum-jsx/core/fonts` (the font
 registry). Core is a peer dependency (`^1.9.0`, versioned in lockstep): exactly one copy of core
 may exist in a host, since the math elements subclass core's and are constructed against a core
