@@ -589,9 +589,12 @@ class MathSpan extends Span {
     declare em: MathSpec
 
     constructor(args: MathSpanArgs = {}) {
-        const { children, klass = 'mord', left = klass, right = left, center = false, skew, scale = 1, ...attr } = THEME(args, 'MathSpan')
+        const { children, klass = 'mord', left = klass, right = left, center = false, skew: skew0, scale = 1, ...attr } = THEME(args, 'MathSpan')
         const text = check_string(children)
-        super({ children: [ text ], frame: 'ink', axis: center ? 'center' : 'baseline', metrics: { left, right, skew: skew != null ? scale * skew : undefined }, scale, ...attr })
+        const axis = center ? 'center' : 'baseline'
+        const skew = skew0 != null ? scale * skew0 : undefined
+        const metrics = { left, right, skew }
+        super({ children: [ text ], frame: 'ink', axis, metrics, scale, ...attr })
         this.args = args
     }
 }
