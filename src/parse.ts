@@ -1,0 +1,126 @@
+import katex from 'katex'
+import type { KatexOptions } from 'katex'
+import type { MathClass } from 'gum-next-core'
+import { MathError } from './errors'
+import { SYMBOL_CLASS } from './types'
+import type { SourceRange, SymbolFamily, SymbolMode } from './types'
+import symbols from './symbols'
+
+// KaTeX's internal AST is confined to this adapter. No lexer/location instances
+// escape into Element props, and a parser upgrade has one compatibility boundary.
+type Raw = {
+  type: string; mode?: SymbolMode; text?: string; family?: SymbolFamily
+  loc?: SourceRange; body?: Raw | Raw[]; color?: string; font?: string
+  mclass?: MathClass; name?: string; symbol?: boolean; semisimple?: boolean
+  dimension?: { number: number; unit: string }
+}
+const parser = katex as typeof katex & { __parse: (source: string, options: KatexOptions) => Raw[] }
+type ParseOptions = Readonly<{
+  display?: boolean
+  macros?: Readonly<Record<string, string>>
+  warnings?: 'error' | 'warn' | 'ignore'
+}>
+type Attributes = Readonly<{ color?: string; font_family?: string }>
+type Located = Attributes & Readonly<{ range?: SourceRange }>
+type MathSyntax = Located & (
+  | Readonly<{ kind: 'symbol'; text: string; mode: SymbolMode; klass?: MathClass }>
+  | Readonly<{ kind: 'space'; advance: number }>
+  | Readonly<{ kind: 'group'; body: readonly MathSyntax[]; klass: MathClass }>
+  | Readonly<{ kind: 'operator'; text: string }>
+)
+
+const FONT_COMMANDS: Record<string, string> = {
+  mathrm: 'KaTeX_Main', mathit: 'KaTeX_Main-Italic', mathbf: 'KaTeX_Main-Bold',
+  mathnormal: 'KaTeX_Math', mathbb: 'KaTeX_AMS', mathcal: 'KaTeX_Caligraphic',
+  mathfrak: 'KaTeX_Fraktur', mathscr: 'KaTeX_Script', mathsf: 'KaTeX_SansSerif',
+  mathtt: 'KaTeX_Typewriter', boldsymbol: 'KaTeX_Math-BoldItalic',
+}
+const UNIT_EM: Record<string, number> = {
+  mu: 1 / 18, em: 1, ex: 0.431,
+  pt: 0.1, mm: 7227 / 25400, cm: 7227 / 2540, in: 7.227, bp: 803 / 8000,
+  pc: 1.2, dd: 1238 / 11570, cc: 14856 / 11570, nd: 685 / 6420, nc: 1370 / 1070, sp: 1 / 655360,
+}
+
+function source_range(node: Raw, source: string): SourceRange {
+  if (node.loc) return { start: node.loc.start, end: node.loc.end }
+  const body = Array.isArray(node.body) ? node.body : node.body ? [node.body] : []
+  if (!body.length) return { start: 0, end: source.length }
+  const ranges = body.map(child => source_range(child, source))
+  return { start: Math.min(...ranges.map(range => range.start)), end: Math.max(...ranges.map(range => range.end)) }
+}
+
+function parse_math(source: string, options: ParseOptions = {}): readonly MathSyntax[] {
+  let tree: Raw[]
+  try {
+    tree = parser.__parse(source, {
+      displayMode: options.display ?? true,
+      strict: (code, message) => {
+        if (code === 'htmlExtension') throw new MathError('unsupported', message, source)
+        return options.warnings ?? 'error'
+      },
+      macros: { ...options.macros }, throwOnError: true,
+      trust: context => { throw new MathError('unsupported', `Unsupported command '${context.command}'`, source) },
+    })
+  } catch (error) {
+    if (!(error instanceof katex.ParseError)) throw error
+    const details = error as Error & { position?: number; length?: number; rawMessage?: string }
+    const range = details.position === undefined ? undefined : { start: details.position,
+      end: Math.min(source.length, details.position + (details.length ?? 1)) }
+    // KaTeX's formatted message inserts combining underlines (even between
+    // surrogate halves). Keep its plain message and our separate source range.
+    throw new MathError('parse', details.rawMessage ?? error.message, source, range, undefined, { cause: error })
+  }
+
+  type Context = Attributes & { text_face?: string; upright?: boolean }
+  function convert(nodes: Raw | Raw[] | undefined, context: Context = {}): MathSyntax[] {
+    if (!nodes) return []
+    if (Array.isArray(nodes)) return nodes.flatMap(node => convert(node, context))
+    const node = nodes, range = source_range(node, source)
+    const { color, font_family } = context
+    const attr: Located = { ...(color === undefined ? {} : { color }),
+      ...(font_family === undefined ? {} : { font_family }), range }
+    const unsupported = (detail = node.type): never => {
+      throw new MathError('unsupported', `Unsupported TeX ${detail}`, source, range, node.type)
+    }
+    switch (node.type) {
+      case 'mathord': case 'textord': case 'atom': case 'spacing': {
+        if (typeof node.text !== 'string') throw new Error(`Invalid KaTeX ${node.type} text`)
+        const mode = context.upright ? 'text' : node.mode ?? 'math'
+        if (node.type === 'spacing' && symbols[mode][node.text]?.replace === null) return []
+        const text = context.upright ? node.text.replace(/\u2212/g, '-').replace(/\u2217/g, '*') : node.text
+        const face = mode === 'text' ? context.text_face ?? font_family : font_family
+        return [{ ...attr, ...(face === undefined ? {} : { font_family: face }),
+          kind: 'symbol', text, mode, ...(node.family ? { klass: SYMBOL_CLASS[node.family] } : {}) }]
+      }
+      case 'ordgroup': case 'mclass':
+        if (node.type === 'ordgroup' && node.semisimple) return convert(node.body, context)
+        return [{ ...attr, kind: 'group', body: convert(node.body, context), klass: node.mclass ?? 'mord' }]
+      case 'kern': {
+        const dim = node.dimension
+        if (!dim || !(dim.unit in UNIT_EM)) return unsupported('measurement')
+        return [{ ...attr, kind: 'space', advance: dim.number * UNIT_EM[dim.unit] }]
+      }
+      case 'color':
+        return convert(node.body, { ...context, color: node.color })
+      case 'font': {
+        const face = node.font && FONT_COMMANDS[node.font]
+        if (!face) return unsupported(`font '${node.font}'`)
+        return convert(node.body, { ...context, font_family: face })
+      }
+      case 'text':
+        if (node.font && !['\\text', '\\textrm', '\\textnormal'].includes(node.font)) return unsupported(`text font '${node.font}'`)
+        return convert(node.body, { ...context, text_face: 'KaTeX_Main' })
+      case 'op':
+        if (node.symbol || !node.name) return unsupported('symbol operator')
+        return [{ ...attr, kind: 'operator', text: node.name.replace(/^\\/, '') }]
+      case 'operatorname':
+        return [{ ...attr, kind: 'group', klass: 'mop',
+          body: convert(node.body, { ...context, font_family: 'KaTeX_Main', text_face: 'KaTeX_Main', upright: true }) }]
+      default: return unsupported(`node '${node.type}'`)
+    }
+  }
+  return convert(tree)
+}
+
+export { parse_math }
+export type { MathSyntax, ParseOptions }
