@@ -9,9 +9,9 @@ import { cramped_style, sup_style, sub_style, tex_metrics, font_scale } from '..
 import { stretch_fragment, stretch_entry } from '../stretch'
 import type { MathAtomProps, SymbolMode } from '../types'
 
-type MathStretchProps = MathAtomProps & Readonly<{ label?: string; thickness?: Length }>
+type MathStretchProps = MathAtomProps & Readonly<{ label?: string; thickness?: Length; head_curve?: number }>
 type AccentProps = MathAtomProps & Readonly<{
-  accent?: string; under?: boolean; stretchy?: boolean; shifty?: boolean; mode?: SymbolMode
+  accent?: string; under?: boolean; stretchy?: boolean; shifty?: boolean; mode?: SymbolMode; head_curve?: number
 }>
 type LineProps = MathAtomProps & Readonly<{ thickness?: Length }>
 type HorizBraceProps = LineProps & Readonly<{ label?: Child; over?: boolean; bracket?: boolean }>
@@ -30,7 +30,7 @@ class MathStretch extends MathElement<MathStretchProps> {
     const f = math_font_size(query, math_context(props, query)), label = props.label ?? 'overbrace'
     const width = query.request.width.kind === 'exact' ? query.request.width.value : stretch_entry(label).min_width * f
     const height = query.request.height.kind === 'exact' ? query.request.height.value : undefined
-    const result = stretch_fragment(label, width, f, query, thickness(props, query, f), height)
+    const result = stretch_fragment(label, width, f, query, thickness(props, query, f), height, props.head_curve)
     return finish_math({ ...result, math: atom(props, result.size.width, 'mrel') }, query)
   }
 }
@@ -65,7 +65,8 @@ class Accent extends MathElement<AccentProps> {
     const skew = props.shifty !== false && bm.nucleus === 'character' ? bm.skew : 0
     const full = label === 'textcircled', below = props.under || label === 'c'
     let accent: Fragment
-    if (stretchy || label === 'vec') accent = stretch_fragment(label, stretchy ? Math.max(0, advance(body) - 2 * skew) : 0, f, query)
+    if (stretchy || label === 'vec') accent = stretch_fragment(label,
+      stretchy ? Math.max(0, advance(body) - 2 * skew) : 0, f, query, undefined, undefined, props.head_curve)
     else {
       const source = query.prepare('accent-glyph', () => new MathSymbol({ text: `\\${label}`, mode: props.mode,
         // Accent glyphs are textords. A selected math alphabet may not contain
@@ -155,7 +156,7 @@ class XArrow extends MathElement<XArrowProps> {
     const above = measure_operand(sources.above, query, upper, 0)
     const below = sources.below && measure_operand(sources.below, query, lower, 1)
     const shape = stretch_fragment(label, Math.max(advance(above) + math_font_size(query, upper),
-      below ? advance(below) + math_font_size(query, lower) : 0), f, query, thickness(props, query, f))
+      below ? advance(below) + math_font_size(query, lower) : 0), f, query, thickness(props, query, f), undefined, props.head_curve)
     const width = shape.size.width, half = shape.size.height / 2, se = extent(above, math_font_size(query, upper))
     const items: MathPlacement[] = [
       { fragment: shape, x: 0, axis: half },

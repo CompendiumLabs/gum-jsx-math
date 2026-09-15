@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test'
-import { LayoutPass, Rect, Text, px, make_request, exact, available, resolve_style, render_svg } from 'gum-next-core'
-import type { Element, Fragment, FontProvider, MathStyle } from 'gum-next-core'
+import { Arrow, LayoutPass, Rect, Text, px, make_request, exact, available, resolve_style, render_svg } from 'gum-next-core'
+import type { Element, Fragment, FontProvider, MathStyle, PathDraw } from 'gum-next-core'
 import { Accent, Underline, Overline, MathStretch, HorizBrace, XArrow, MathSymbol, MathSpan, MathText, MathRow,
   SupSub, Frac, TextMode, Latex, Phantom, Smash, Lap, Enclose, RaiseBox, VCenter, Pmb,
   createMathFonts, MATH_FONTS, parse_math } from '../src'
@@ -12,6 +12,7 @@ const near = (a: number, b: number) => expect(a).toBeCloseTo(b, 8)
 const layout = (element: Element) => pass.layout(element, natural, context)
 const formula = (text: string, style: MathStyle = 'display') => layout(new Latex({ text, style, strut: false }))
 function descendants(f: Fragment): Fragment[] { return [f, ...f.children.flatMap(c => descendants(c.fragment))] }
+function drawings(f: Fragment) { return descendants(f).flatMap(item => item.draw) }
 function named(f: Fragment, name: string) { return descendants(f).filter(item => item.name === name) }
 const b = (f: Fragment) => f.guides.baseline!
 const width = (f: Fragment) => f.math!.advance + f.math!.italic
@@ -78,7 +79,8 @@ test('every stretch family scales, inherits paint, retains its form and reports 
     near(half.ink!.height * 2, shape.ink!.height)
     expect(shape.ink!.width).toBeGreaterThan(150)
     expect(shape.ink!.height).toBeGreaterThan(0)
-    expect(shape.draw.every(d => d.fill === '#fafafa' && d.opacity === 0.6)).toBe(true)
+    expect(drawings(shape).length).toBeGreaterThan(0)
+    expect(drawings(shape).every(d => (d.fill === '#fafafa' || d.stroke === '#fafafa') && d.opacity === 0.6)).toBe(true)
     near(shape.guides.math_axis!, shape.size.height / 2)
     const small = pass.layout(new MathStretch({ label }), make_request({ width: exact(1) }), context)
     near(small.size.width, 1)
@@ -87,6 +89,78 @@ test('every stretch family scales, inherits paint, retains its form and reports 
     expect(none.ink).toBeNull()
   }
   expect(() => layout(new MathStretch({ label: 'unknown' }))).toThrow('Unknown stretchy')
+})
+
+test('math arrows share adjustable barb curvature across arrows, harpoons and accents', () => {
+  for (const label of ['xrightarrow', 'xleftarrow', 'xleftrightarrow', 'xRightarrow', 'xLeftrightarrow',
+    'xtwoheadrightarrow', 'xhookleftarrow', 'xmapsto', 'xrightharpoonup', 'xleftharpoondown',
+    'xrightleftharpoons', 'xrightequilibrium', 'overrightarrow', 'vec']) {
+    const props = { label, width: px(180), color: '#b24', opacity: 0.5 }
+    const normal = layout(new MathStretch(props)), straight = layout(new MathStretch({ ...props, head_curve: 0 }))
+    expect(drawings(normal)).toEqual(drawings(layout(new MathStretch({ ...props, head_curve: 0.7 }))))
+    expect(drawings(normal)).not.toEqual(drawings(straight))
+    for (const head_curve of [0, 0.7, 1]) {
+      const shape = layout(new MathStretch({ ...props, head_curve }))
+      expect(shape.size).toEqual(normal.size)
+      expect(shape.guides).toEqual(normal.guides)
+      expect(shape.math).toEqual(normal.math)
+      expect(drawings(shape).every(d => d.fill === 'none' && d.stroke === '#b24' && d.opacity === 0.5)).toBe(true)
+      expect(render_svg(shape)).not.toMatch(/NaN|Infinity/)
+    }
+  }
+  for (const element of [
+    (head_curve: number) => new XArrow({ label: 'xRightarrow', above: 'f', below: 'g', head_curve }),
+    (head_curve: number) => new Accent({ accent: 'overrightarrow', children: 'ABC', head_curve }),
+    (head_curve: number) => new Accent({ accent: 'vec', children: 'v', head_curve }),
+  ]) {
+    const straight = layout(element(0)), curved = layout(element(0.7))
+    expect(straight.size).toEqual(curved.size)
+    expect(straight.guides).toEqual(curved.guides)
+    expect(drawings(named(straight, 'StretchShape')[0])).not.toEqual(drawings(named(curved, 'StretchShape')[0]))
+    expect(() => layout(element(2))).toThrow('curve')
+  }
+})
+
+test('math arrows render through core elements with joined tips and correctly oriented harpoons', () => {
+  const head_width = 2 * Math.tan(46 * Math.PI / 180), h = 0.522 * 40, t = 0.04 * 40
+  const style = { stroke: '#246', fill: 'none', stroke_width: px(t),
+    stroke_linecap: 'butt' as const, stroke_linejoin: 'round' as const }
+  for (const label of ['xrightarrow', 'xleftarrow', 'xleftrightarrow']) for (const head_curve of [0, 0.7, 1]) {
+    const shape = layout(new MathStretch({ label, width: px(180), head_curve, color: '#246' }))
+    const right = label !== 'xleftarrow', from = [px(t / 2), px(h / 2)] as const, to = [px(180 - t / 2), px(h / 2)] as const
+    const core = layout(new Arrow({ ...style, width: px(180), height: px(h), from: right ? from : to, to: right ? to : from,
+      start_head: label === 'xleftrightarrow', head_open: true, head_curve, head_width, head_size: px((h - t) / head_width) }))
+    expect(named(shape, 'Arrow')).toHaveLength(1)
+    expect(named(shape, 'Arrow')[0].draw).toEqual(core.draw)
+    for (const head of core.draw.slice(1) as PathDraw[]) {
+      expect(head.commands.filter(c => c.kind === 'M')).toHaveLength(1)
+      expect(head.commands.some(c => c.kind === 'Z')).toBe(false)
+      // A single continuous path joins both barbs at the tip; separate capped
+      // bands left the notch this regression is intended to catch.
+      expect(head.commands.filter(c => c.kind === 'C' || c.kind === 'L').length).toBeGreaterThanOrEqual(2)
+    }
+  }
+  for (const direction of ['left', 'right']) for (const vertical of ['up', 'down']) {
+    const shape = layout(new MathStretch({ label: `x${direction}harpoon${vertical}`, width: px(180) }))
+    const head = named(shape, 'Arrow')[0].draw[1] as PathDraw
+    expect(head.commands.filter(c => c.kind === 'C')).toHaveLength(1)
+    const endpoints = head.commands.filter(c => c.kind !== 'Z')
+    expect(endpoints.every(p => vertical === 'up' ? p.y <= h / 2 + 1e-8 : p.y >= h / 2 - 1e-8)).toBe(true)
+  }
+  for (const label of ['xRightarrow', 'xLeftarrow', 'xLeftrightarrow', 'xlongequal']) {
+    const shape = layout(new MathStretch({ label }))
+    expect(named(shape, 'Line')).toHaveLength(2)
+    expect(named(shape, 'ArrowHead')).toHaveLength(label === 'xlongequal' ? 0 : label === 'xLeftrightarrow' ? 2 : 1)
+  }
+  for (const label of ['xhookrightarrow', 'xhookleftarrow']) {
+    const shape = layout(new MathStretch({ label }))
+    const shaft = named(shape, 'Arrow')[0].draw[0] as PathDraw, hook = named(shape, 'Arc')[0].draw[0] as PathDraw
+    expect(shaft.commands[0]).toEqual(hook.commands[0])
+  }
+  expect(named(layout(new MathStretch({ label: 'xrightleftharpoons' })), 'Arrow')).toHaveLength(2)
+  expect(named(layout(new MathStretch({ label: 'xtwoheadrightarrow' })), 'ArrowHead')).toHaveLength(1)
+  expect(named(layout(new XArrow({ above: 'f', below: 'g' })), 'Arrow')).toHaveLength(1)
+  expect(named(layout(new Accent({ accent: 'vec', children: 'v' })), 'Arrow')).toHaveLength(1)
 })
 
 test('horizontal braces measure their body before labels and keep opposite scripts', () => {
@@ -327,7 +401,7 @@ test('decorated and suppressed sources survive reuse, exact offers and resource 
   expect(render_svg(plain)).toBe(saved)
   const dark = pass.layout(source, natural, { style: resolve_style({ font_size: px(20), color: 'white' }) })
   near(dark.size.width * 2, plain.size.width)
-  expect(descendants(dark).flatMap(f => f.draw).every(draw => draw.fill === 'white')).toBe(true)
+  expect(drawings(dark).every(draw => draw.fill === 'white' || draw.stroke === 'white')).toBe(true)
   pass.set_resource('fonts', fonts, fonts.version + 1)
   expect(render_svg(layout(source))).toBe(saved)
 })
