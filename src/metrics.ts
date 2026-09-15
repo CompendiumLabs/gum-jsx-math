@@ -1,6 +1,6 @@
 import { copy_math_context, make_fragment, make_size, make_point, place_fragment, finish_size,
-  resolve_length } from 'gum-next-core'
-import type { Fragment, FragmentSpec, LayoutQuery, MathClass, MathContext, MathMetrics, MathStyle } from 'gum-next-core'
+  resolve_length } from 'gum-jsx-core'
+import type { Fragment, FragmentSpec, LayoutQuery, MathClass, MathContext, MathMetrics, MathStyle } from 'gum-jsx-core'
 import type { MathProps, MathSpace, MathDimension } from './types'
 import { font_scale, STYLE_SCALE, text_style } from './styles'
 

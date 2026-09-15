@@ -1,5 +1,5 @@
-import { Element, Span, make_fragment, resolve_style } from 'gum-next-core'
-import type { Child, LayoutQuery, Style, FontProvider } from 'gum-next-core'
+import { Element, Span, make_fragment, resolve_style } from 'gum-jsx-core'
+import type { Child, LayoutQuery, Style, FontProvider } from 'gum-jsx-core'
 import { MathElement, literal_text } from './base'
 import { glyph_layout } from './glyphs'
 import type { MathSpanProps } from './glyphs'

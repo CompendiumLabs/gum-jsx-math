@@ -1,8 +1,8 @@
 import { Element, Svg, Fonts, LayoutPass, make_request, make_rect, make_size, make_point,
   make_fragment, place_fragment, union_rects, transform_guides, resolve_insets, finish_size, px,
-  render_svg } from 'gum-next-core'
+  render_svg } from 'gum-jsx-core'
 import type { ElementProps, LayoutQuery, LayoutRequest, InsetSpec, UnitLength, SvgOptions,
-  FontProvider } from 'gum-next-core'
+  FontProvider } from 'gum-jsx-core'
 import { Latex } from './elems/composition'
 import type { MathTextProps } from './elems/composition'
 import { createMathFonts } from './fonts'

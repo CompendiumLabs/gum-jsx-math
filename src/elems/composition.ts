@@ -1,8 +1,8 @@
 import { Element, Text, Span, LayoutError, make_request, make_size, make_point, make_fragment,
   place_fragment, resolve_style, definite_reference, layout_content, resolve_insets,
-  resolve_alignment, resolve_length, em } from 'gum-next-core'
+  resolve_alignment, resolve_length, em } from 'gum-jsx-core'
 import type { Child, LayoutQuery, MathContext, MathMetrics, MathSizeStyle, Fragment, Style, Length, InsetSpec,
-  Alignment, ElementType, FontProvider } from 'gum-next-core'
+  Alignment, ElementType, FontProvider } from 'gum-jsx-core'
 import { MathElement } from './base'
 import { MathSymbol } from './glyphs'
 import { MathSpacer, MathRule } from './space'

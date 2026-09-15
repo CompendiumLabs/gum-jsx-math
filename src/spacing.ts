@@ -1,4 +1,4 @@
-import type { MathClass, MathMetrics } from 'gum-next-core'
+import type { MathClass, MathMetrics } from 'gum-jsx-core'
 
 // TeX's inter-atom spacing, in mu. Explicit glue is transparent to this pass.
 const SPACING: Partial<Record<MathClass, Partial<Record<MathClass, number>>>> = {

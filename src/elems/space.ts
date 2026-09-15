@@ -1,5 +1,5 @@
-import { draw_rect, make_rect, make_size, em, resolve_length, theme_color } from 'gum-next-core'
-import type { LayoutQuery, Length } from 'gum-next-core'
+import { draw_rect, make_rect, make_size, em, resolve_length, theme_color } from 'gum-jsx-core'
+import type { LayoutQuery, Length } from 'gum-jsx-core'
 import { MathElement } from './base'
 import { math_context, math_font_size, math_metrics, finish_math, MATH_AXIS, space_length, dimension_length } from '../metrics'
 import type { MathProps, MathAtomProps, MathSpace, MathDimension } from '../types'

@@ -1,11 +1,11 @@
 import { em, resolve_length, resolve_style, make_size, make_point, make_rect,
-  make_fragment, place_fragment, draw_rect, draw_path } from 'gum-next-core'
-import type { Child, LayoutQuery, Length, Drawing, PathCommand, Placement } from 'gum-next-core'
+  make_fragment, place_fragment, draw_rect, draw_path } from 'gum-jsx-core'
+import type { Child, LayoutQuery, Length, Drawing, PathCommand, Placement } from 'gum-jsx-core'
 import { MathElement } from './base'
 import { math_children, operand_source, measure_operand, baseline, advance } from './operands'
 import { math_context, math_font_size, math_metrics, finish_math, dimension_length, MATH_AXIS } from '../metrics'
 import type { MathAtomProps, MathDimension, ArrayCol, ArrayAlign } from '../types'
-import type { MathStyle } from 'gum-next-core'
+import type { MathStyle } from 'gum-jsx-core'
 
 type MathArrayProps = MathAtomProps & Readonly<{
   rows?: readonly (readonly Child[])[]

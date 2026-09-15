@@ -1,5 +1,5 @@
-import { draw_rect, make_rect, make_size, make_fragment, make_point, place_fragment, resolve_length, theme_color } from 'gum-next-core'
-import type { Child, Element, ElementType, Fragment, LayoutQuery, Length, MathContext } from 'gum-next-core'
+import { draw_rect, make_rect, make_size, make_fragment, make_point, place_fragment, resolve_length, theme_color } from 'gum-jsx-core'
+import type { Child, Element, ElementType, Fragment, LayoutQuery, Length, MathContext } from 'gum-jsx-core'
 import { MathElement } from './base'
 import { MathSymbol } from './glyphs'
 import { operand_source, measure_operand, advance, baseline, extent } from './operands'

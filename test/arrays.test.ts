@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test'
 import { LayoutPass, Rect, Text, Plot, Polyline, Span, Box, px, em, make_request,
-  available, exact, resolve_style, render_svg, evaluate } from 'gum-next-core'
-import type { Fragment, FontProvider, MathStyle, Child } from 'gum-next-core'
+  available, exact, resolve_style, render_svg, evaluate } from 'gum-jsx-core'
+import type { Fragment, FontProvider, MathStyle, Child } from 'gum-jsx-core'
 import * as math from '../src'
 import { MathArray, MathText, MathSymbol, Frac, SupSub, Latex, Tex, createMathFonts, parse_math } from '../src'
 import type { MathArrayProps, MathSyntax } from '../src'

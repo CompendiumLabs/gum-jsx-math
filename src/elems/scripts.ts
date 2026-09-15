@@ -1,5 +1,5 @@
-import { make_fragment, make_size, make_point, place_fragment } from 'gum-next-core'
-import type { Child, LayoutQuery } from 'gum-next-core'
+import { make_fragment, make_size, make_point, place_fragment } from 'gum-jsx-core'
+import type { Child, LayoutQuery } from 'gum-jsx-core'
 import { MathElement } from './base'
 import { operand_source, measure_operand, extent, baseline, advance } from './operands'
 import { limit_policy } from './operators'

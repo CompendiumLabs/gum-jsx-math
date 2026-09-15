@@ -5,17 +5,17 @@ import { mkdtempSync, readdirSync, readFileSync, mkdirSync, rmSync } from 'node:
 import { dirname, join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
-import { px, em } from 'gum-next-core'
+import { px, em } from 'gum-jsx-core'
 import { mathToSvg } from '../src'
 
-const dist = fileURLToPath(new URL('../../gum-next-edit/dist/', import.meta.url))
+const dist = fileURLToPath(new URL('../../gum-jsx-edit/dist/', import.meta.url))
 const bundle = readdirSync(join(dist, 'assets')).find(file => /^gum-.+\.js$/.test(file))
 if (!bundle) throw new Error('Run bun run build from the workspace first')
 const chrome = process.env.GUM_CHROME ?? Bun.which('chromium') ?? Bun.which('google-chrome-stable')
 if (!chrome) throw new Error('Chromium is required; set GUM_CHROME to its path')
 const output = resolve(process.argv[2] ?? fileURLToPath(new URL('../out/browser.png', import.meta.url)))
 mkdirSync(dirname(output), { recursive: true })
-const scratch = mkdtempSync(join(tmpdir(), 'gum-next-browser-'))
+const scratch = mkdtempSync(join(tmpdir(), 'gum-jsx-browser-'))
 const browserSources = [
   String.raw`e^{i\pi}+1=0`,
   String.raw`x=\frac{-b\pm\sqrt{b^2-4ac}}{2a}`,
@@ -31,7 +31,7 @@ browserSources.unshift(...['topics/code/MathExport.jsx', 'topics/code/MathPlotLa
   'elements/code/MathStretch.jsx', 'elements/code/Phantom.jsx',
   'topics/code/MathArrays.jsx', 'topics/code/AlignedMath.jsx', 'elements/code/MathArray.jsx',
   'topics/code/InlineMath.jsx', 'topics/code/MathComposition.jsx',
-  'elements/code/TextMode.jsx'].map(file => readFileSync(new URL('../../gum-next-docs/' + file, import.meta.url), 'utf8')))
+  'elements/code/TextMode.jsx'].map(file => readFileSync(new URL('../../gum-jsx-docs/' + file, import.meta.url), 'utf8')))
 browserSources.push(`<Svg font-size={px(40)} color={blue}>
   <Box padding={em(0.5)}>
     <MathText style="display">

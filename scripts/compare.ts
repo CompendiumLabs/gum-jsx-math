@@ -11,8 +11,8 @@ import { pathToFileURL } from 'node:url'
 import { createCanvas, Image } from 'canvas'
 import type { Canvas } from 'canvas'
 import katex from 'katex'
-import { LayoutPass, px, render_svg } from 'gum-next-core'
-import { rasterize_svg } from 'gum-next-png'
+import { LayoutPass, px, render_svg } from 'gum-jsx-core'
+import { rasterize_svg } from 'gum-jsx-png'
 import { createMathFonts, mathToElement } from '../src'
 
 const BASIC = [
@@ -167,7 +167,7 @@ const fonts = createMathFonts(), pass = new LayoutPass({ fonts: { value: fonts, 
 const css = import.meta.resolve('katex/dist/katex.min.css')
 const chrome = options.chrome ?? process.env.GUM_CHROME ?? ['chromium', 'chromium-browser',
   'google-chrome-stable', 'google-chrome'].map(name => Bun.which(name)).find(Boolean)
-const scratch = mkdtempSync(join(tmpdir(), 'gum-next-compare-'))
+const scratch = mkdtempSync(join(tmpdir(), 'gum-jsx-compare-'))
 const reference_borders = new Map<string, number>(), expected_ink = new Map<string, boolean>()
 let failed = false
 

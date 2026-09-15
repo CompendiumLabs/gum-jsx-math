@@ -1,5 +1,5 @@
-import { draw_path, make_size, make_point, transform_path, transform_rect, MissingGlyphError } from 'gum-next-core'
-import type { LayoutQuery, FontProvider, MathClass } from 'gum-next-core'
+import { draw_path, make_size, make_point, transform_path, transform_rect, MissingGlyphError } from 'gum-jsx-core'
+import type { LayoutQuery, FontProvider, MathClass } from 'gum-jsx-core'
 import { MathElement, literal_text } from './base'
 import { math_context, math_font_size, MATH_AXIS, math_metrics, finish_math } from '../metrics'
 import { MathError } from '../errors'

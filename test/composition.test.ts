@@ -1,8 +1,8 @@
 import { expect, test } from 'bun:test'
 import { LayoutPass, Text, Span, Rect, Circle, Plot, Polyline, Box, Fit, TextRow,
   Rotate, TransformBox, TextBox, TitleBox, TextFigure, Bullets, Slide, px, em,
-  make_request, exact, available, resolve_style, render_svg, evaluate } from 'gum-next-core'
-import type { Fragment, FontProvider } from 'gum-next-core'
+  make_request, exact, available, resolve_style, render_svg, evaluate } from 'gum-jsx-core'
+import type { Fragment, FontProvider } from 'gum-jsx-core'
 import * as math from '../src'
 import { Tex, Latex, MathText, MathRow, MathSymbol, TextMode, Frac, SupSub, Sqrt, createMathFonts } from '../src'
 

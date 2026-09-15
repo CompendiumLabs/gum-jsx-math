@@ -1,5 +1,5 @@
-import { make_fragment, make_point, make_size, place_fragment, draw_ellipse } from 'gum-next-core'
-import type { LayoutQuery } from 'gum-next-core'
+import { make_fragment, make_point, make_size, place_fragment, draw_ellipse } from 'gum-jsx-core'
+import type { LayoutQuery } from 'gum-jsx-core'
 import { MathElement } from './base'
 import { MathSpan } from './glyphs'
 import { math_children, operand_source, measure_operand } from './operands'

@@ -1,5 +1,5 @@
-import { draw_path, draw_rect, make_rect, make_fragment, make_size, make_point, place_fragment, resolve_length, theme_color } from 'gum-next-core'
-import type { LayoutQuery, Length, PathCommand } from 'gum-next-core'
+import { draw_path, draw_rect, make_rect, make_fragment, make_size, make_point, place_fragment, resolve_length, theme_color } from 'gum-jsx-core'
+import type { LayoutQuery, Length, PathCommand } from 'gum-jsx-core'
 import { MathElement } from './base'
 import { operand_source, measure_operand, advance, baseline, extent } from './operands'
 import { math_context, math_font_size, math_metrics, atom_metrics, finish_math, dimension_length, MATH_AXIS } from '../metrics'

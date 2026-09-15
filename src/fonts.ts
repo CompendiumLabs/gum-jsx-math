@@ -1,5 +1,5 @@
 /// <reference path="./assets.d.ts" />
-import { Fonts } from 'gum-next-core'
+import { Fonts } from 'gum-jsx-core'
 import MathItalic from 'katex/dist/fonts/KaTeX_Math-Italic.ttf'
 import Main from 'katex/dist/fonts/KaTeX_Main-Regular.ttf'
 import AMS from 'katex/dist/fonts/KaTeX_AMS-Regular.ttf'

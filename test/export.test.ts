@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'bun:test'
 import { Svg, Fit, Rect, LayoutPass, FontNotLoadedError, px, em, make_request,
-  available, exact, render_svg, inspect_fragment } from 'gum-next-core'
-import type { Fragment, FontProvider } from 'gum-next-core'
+  available, exact, render_svg, inspect_fragment } from 'gum-jsx-core'
+import type { Fragment, FontProvider } from 'gum-jsx-core'
 import { Latex, mathToElement, mathToElementAsync, mathToSvg, mathToSvgAsync,
   createMathFonts, MATH_FONT_PATHS } from '../src'
 

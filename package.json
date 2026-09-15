@@ -1,7 +1,7 @@
 {
   "name": "gum-jsx-math",
   "version": "0.1.0",
-  "description": "Math elements and TeX parsing for gum-next.",
+  "description": "Math elements and TeX parsing for gum-jsx.",
   "type": "module",
   "module": "src/index.ts",
   "types": "src/index.ts",
@@ -14,14 +14,14 @@
     "compare": "bun scripts/compare.ts"
   },
   "dependencies": {
-    "gum-next-core": "workspace:*",
+    "gum-jsx-core": "workspace:*",
     "katex": "0.16.47"
   },
   "devDependencies": {
     "@types/bun": "latest",
     "canvas": "^3.2.3",
     "commander": "^14.0.3",
-    "gum-next-png": "workspace:*",
+    "gum-jsx-png": "workspace:*",
     "typescript": "^7"
   }
 }

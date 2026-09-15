@@ -1,5 +1,5 @@
-import { make_size, make_fragment, make_point, place_fragment, draw_rect, make_rect, resolve_length } from 'gum-next-core'
-import type { LayoutQuery, Length } from 'gum-next-core'
+import { make_size, make_fragment, make_point, place_fragment, draw_rect, make_rect, resolve_length } from 'gum-jsx-core'
+import type { LayoutQuery, Length } from 'gum-jsx-core'
 import { MathElement } from './base'
 import { math_children, operand_source, measure_operand, extent, baseline, advance } from './operands'
 import { delimiter } from './delimiters'

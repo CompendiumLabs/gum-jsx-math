@@ -1,5 +1,5 @@
-import { Element } from 'gum-next-core'
-import type { Child } from 'gum-next-core'
+import { Element } from 'gum-jsx-core'
+import type { Child } from 'gum-jsx-core'
 import type { MathProps } from '../types'
 
 // A source-language distinction for math containers, like core's inline Span.

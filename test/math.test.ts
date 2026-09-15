@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'bun:test'
 import { Fonts, LayoutPass, LayoutError, FontNotLoadedError,
-  make_request, available, exact, px, em, render_svg, evaluate, define_component } from 'gum-next-core'
-import type { Element, Fragment, MathStyle, FontProvider, LayoutQuery } from 'gum-next-core'
+  make_request, available, exact, px, em, render_svg, evaluate, define_component } from 'gum-jsx-core'
+import type { Element, Fragment, MathStyle, FontProvider, LayoutQuery } from 'gum-jsx-core'
 import type { MathTextProps } from '../src'
 import * as math from '../src'
 import { MathSpan, MathSymbol, MathSpacer, MathRule, MathRow, MathText, MathCol, MathBox,
@@ -78,7 +78,7 @@ describe('glyph and font contracts', () => {
   test('registration is lazy and concurrent loads share work, including retry', async () => {
     const resource = new Fonts()
     const nativeFetch = globalThis.fetch
-    const bytes = await Bun.file(new URL('../../gum-next-core/src/fonts/IBMPlexSans-Regular.ttf', import.meta.url)).arrayBuffer()
+    const bytes = await Bun.file(new URL('../../gum-jsx-core/src/fonts/IBMPlexSans-Regular.ttf', import.meta.url)).arrayBuffer()
     let fetches = 0, fail = true
     globalThis.fetch = (async () => {
       fetches++

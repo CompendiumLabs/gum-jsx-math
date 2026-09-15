@@ -1,4 +1,4 @@
-import type { ElementProps, Length, MathClass, MathStyle } from 'gum-next-core'
+import type { ElementProps, Length, MathClass, MathStyle } from 'gum-jsx-core'
 
 type SymbolMode = 'math' | 'text'
 type SymbolFont = 'main' | 'ams'
@@ -26,4 +26,4 @@ const SYMBOL_CLASS: Record<SymbolFamily, MathClass> = {
 export { SYMBOL_CLASS }
 export type { SymbolMode, SymbolFont, SymbolFamily, SymbolEntry, SourceRange, MathProps, MathAtomProps, MathSpace, LimitPolicy, MathDimension,
   ArrayAlign, ArrayCol }
-export type { MathStyle, MathSizeStyle, MathClass, MathContext, MathMetrics } from 'gum-next-core'
+export type { MathStyle, MathSizeStyle, MathClass, MathContext, MathMetrics } from 'gum-jsx-core'
