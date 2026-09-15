@@ -29,5 +29,7 @@ export { parse_math } from './parse'
 export type { MathSyntax, ParseOptions } from './parse'
 export { MATH_AXIS, STYLE_SCALE } from './metrics'
 export * from './fonts'
+export { mathToElement, mathToSvg, mathToElementAsync, mathToSvgAsync } from './math'
+export type { MathSource, MathElementOptions, MathSvgOptions, MathLoadOptions } from './math'
 export type { MathProps, MathAtomProps, MathSpace, MathClass, MathStyle, MathContext, MathMetrics,
   SymbolMode, SourceRange, LimitPolicy, MathDimension, ArrayAlign, ArrayCol } from './types'

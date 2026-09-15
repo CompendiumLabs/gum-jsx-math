@@ -1,7 +1,7 @@
 # gum-next-math
 
 Math elements and TeX parsing for the Gum rewrite. This package implements
-phases 1–6 of the [math roadmap](../docs/MATH.md), using KaTeX **0.16.47**
+phases 1–7 of the [math roadmap](../docs/MATH.md), using KaTeX **0.16.47**
 for parsing and fonts, Gum for layout, and Fontkit for outline geometry.
 
 ## Use
@@ -40,6 +40,50 @@ seven base faces; `loadMathFonts(fonts)` loads all eighteen. Concurrent loads
 share work and failed loads can be retried. Exported SVGs contain paths and do
 not require page fonts. Notify a reused pass of font replacements with
 `pass.set_resource('fonts', fonts, fonts.version)`.
+
+## Standalone exports
+
+```ts
+import { px, em } from 'gum-next-core'
+import { mathToElement, mathToSvg, mathToSvgAsync } from 'gum-next-math'
+
+const tex = String.raw`\int_0^\infty e^{-x^2}\,dx=\frac{\sqrt\pi}{2}`
+const source = mathToElement(tex, { font_size: px(36), padding: em(0.25) })
+const svg = mathToSvg(tex, { font_size: px(36), title: 'Gaussian integral' })
+const browserSvg = await mathToSvgAsync(tex, { font_size: px(36) })
+```
+
+`mathToElement` returns an immutable `Svg`. Construction performs no parsing or
+font I/O; ordinary layout determines its natural viewport from the union of
+logical size and visible ink. Negative extents are translated before clipping.
+Each natural axis has a one-pixel floor, so empty and all-space formulas have a
+valid export. Default typography is display style at `px(24)` with a strut;
+`inline`, `style`, `strut`, `macros`, and error controls follow `Latex`.
+An existing Gum element is also accepted as the source.
+
+Use Gum lengths for `font_size` and `padding`; `width` and `height` are explicit
+SVG `px()` dimensions that clip without scaling. Wrap the natural source in
+`Fit` when you want uniform scaling. Inline prose continues to use `Tex` and
+its ordinary typographic advance.
+
+SVG helpers accept `title`, `background`, `id_prefix`, `request`, and optional
+caller-owned `fonts`/`pass`. Supplied resources must already register the math
+faces; custom registrations are preserved. The helpers refresh a reused pass's
+font version after replacement. Async helpers preload every registered face,
+sharing concurrent loads and permitting retries. `mathToElementAsync` requires
+caller-owned `fonts` or `pass` so you retain the preloaded resource used later
+for layout. Synchronous SVG helpers also accept a custom font provider through
+a pass; its host is responsible for preloading.
+
+```sh
+bun run gum-tex 'e^{i\pi}+1=0' -S 48 -p 0.25 -o /tmp/euler.png --ratio 2
+bun run gum-tex -i formula.tex -f svg
+bun run gum-tex 'x^2' --fit -W 320
+```
+
+PNG/kitty output stays in the host packages. See the
+[standalone export guide](../gum-next-docs/topics/text/MathExport.md) for all
+options, browser loading, PNG library composition, and runnable sizing examples.
 
 ## Elements and layout
 
@@ -104,7 +148,7 @@ Arrays and multiline environments are supported as described below. Accents,
 wide hats/checks/tildes, over/under rules and decorations, labeled braces and
 arrows, overset/underset/stackrel, phantom/smash/lap, enclosures/cancellation,
 rules, raisebox, vcenter, hbox, verbatim, and poor-man's bold are implemented.
-Standalone export helpers and a dedicated TeX CLI remain deferred. Unknown
+Standalone exports and the `gum-tex` CLI use the same layout. Unknown
 syntax cannot silently vanish. See [decorations](../gum-next-docs/topics/text/MathDecorations.md),
 [boxes](../gum-next-docs/topics/text/MathBoxes.md), and [fonts/macros](../gum-next-docs/topics/text/MathFonts.md).
 
@@ -220,6 +264,7 @@ bun run compare --suite 5 --inline -S 48 -o gum-next-math/out/phase5-inline.png
 bun run compare --suite 6 -S 48 -o gum-next-math/out/phase6.png
 bun run compare --suite 6 --inline -S 48 -o gum-next-math/out/phase6-inline.png
 bun run compare --suite 6-extra --no-latex -S 48 -o gum-next-math/out/phase6-extra.png
+bun run compare --suite 7 -S 48 -o gum-next-math/out/phase7.png
 bun run compare 'a\!b' --inline -S 96 -o /tmp/negative-glue.png
 ```
 

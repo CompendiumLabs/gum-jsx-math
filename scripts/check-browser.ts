@@ -5,6 +5,8 @@ import { mkdtempSync, readdirSync, readFileSync, mkdirSync, rmSync } from 'node:
 import { dirname, join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
+import { px, em } from 'gum-next-core'
+import { mathToSvg } from '../src'
 
 const dist = fileURLToPath(new URL('../../gum-next-edit/dist/', import.meta.url))
 const bundle = readdirSync(join(dist, 'assets')).find(file => /^gum-.+\.js$/.test(file))
@@ -24,7 +26,8 @@ const browserSources = [
     <Latex text={${JSON.stringify(text)}} />
   </Box>
 </Svg>`)
-browserSources.unshift(...['topics/code/MathDecorations.jsx', 'topics/code/MathBoxes.jsx', 'topics/code/MathFonts.jsx',
+browserSources.unshift(...['topics/code/MathExport.jsx', 'topics/code/MathPlotLabels.jsx', 'topics/code/MathSlides.jsx',
+  'topics/code/MathDecorations.jsx', 'topics/code/MathBoxes.jsx', 'topics/code/MathFonts.jsx',
   'elements/code/MathStretch.jsx', 'elements/code/Phantom.jsx',
   'topics/code/MathArrays.jsx', 'topics/code/AlignedMath.jsx', 'elements/code/MathArray.jsx',
   'topics/code/InlineMath.jsx', 'topics/code/MathComposition.jsx',
@@ -42,6 +45,13 @@ browserSources.push(`<Svg font-size={px(40)} color={blue}>
     </MathText>
   </Box>
 </Svg>`)
+const exports = [String.raw`\mathllap{f}\int_0^\infty e^{-x^2}\,dx`,
+  String.raw`\smash{\widehat{ABC}}`, String.raw`\mathscr{A}+\mathbf{B}`]
+const exportOptions = { font_size: px(40), padding: em(0.25), strut: false, id_prefix: 'gum-edit' }
+const expectedExports = exports.map(text => mathToSvg(text, exportOptions))
+browserSources.push(...exports.map(text => `return mathToElement(${JSON.stringify(text)}, {
+  font_size: px(40), padding: em(0.25), strut: false,
+})`))
 const failures = [['<Latex text="{" />', 'parse:'], [String.raw`<Latex text="\phase{x}" />`, 'unsupported:'],
   [String.raw`<Latex text="\begin{align*}a&=b\tag{A}\end{align*}" />`, 'unsupported:']]
 const html = `<!doctype html><html><meta charset="utf-8"><title>Gum math browser verification</title>
@@ -55,6 +65,8 @@ try {
   if (fontRequests().length) throw Error('Importing the math renderer loaded fonts');
   const sources = ${JSON.stringify(browserSources)};
   const svgs = await Promise.all(sources.map(source => renderGum(source)));
+  const expected = ${JSON.stringify(expectedExports)};
+  if (svgs.slice(-expected.length).some((svg, index) => svg !== expected[index])) throw Error('Browser exports differ from library SVG');
   for (const svg of svgs) {
     if (!svg.includes('<path') || svg.includes('<text')) throw Error('Expected outline-only SVG');
     // Each preview is a standalone SVG, like the docs images. Inlining several
@@ -76,7 +88,7 @@ try {
   }
   await renderGum(sources[0]);
   document.body.dataset.result = 'passed';
-  status.textContent = 'Passed: no import-time font requests; 24 faces loaded once; concurrent typography, boxes, arrays and mixed-content docs; dark decorations; repeat rendering; parse/unsupported failures and recovery; outline SVG.';
+  status.textContent = 'Passed: no import-time font requests; 24 faces loaded once; concurrent exports, plot labels, slides and math docs; exact browser/library SVG agreement; dark decorations; repeat rendering; parse/unsupported failures and recovery; outline SVG.';
 } catch (error) {
   document.body.dataset.result = 'failed'; status.textContent = String(error.stack ?? error);
 }
