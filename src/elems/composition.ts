@@ -5,7 +5,7 @@ import type { Child, LayoutQuery, MathContext, MathMetrics, MathSizeStyle, Fragm
   Alignment, ElementType, FontProvider } from 'gum-next-core'
 import { MathElement } from './base'
 import { MathSymbol } from './glyphs'
-import { MathSpacer } from './space'
+import { MathSpacer, MathRule } from './space'
 import { MathOp } from './operators'
 import { SupSub } from './scripts'
 import { Frac } from './fraction'
@@ -13,6 +13,8 @@ import { Sqrt } from './radical'
 import { Bracket, SizedDelimiter, Middle } from './delimiters'
 import { TextMode } from './text'
 import { MathArray } from './array'
+import { Accent, Overline, Underline, HorizBrace, XArrow } from './decorations'
+import { Phantom, Smash, Lap, Enclose, RaiseBox, VCenter, Pmb } from './boxes'
 import { style_size } from '../styles'
 import { math_context, math_font_size, math_metrics, atom_metrics, math_axis,
   finish_math, place_math, MATH_AXIS } from '../metrics'
@@ -40,9 +42,13 @@ function syntax_elements(nodes: readonly MathSyntax[], source: string): Element[
       case 'symbol': return new MathSymbol({ ...attr, text: node.text, mode: node.mode,
         klass: node.klass, source, source_range: node.range })
       case 'literal': return new TextMode({ ...attr, text: node.text })
-      case 'text': return new TextMode({ ...attr, children: node.body.map(child => child.kind === 'literal'
-        ? new Span({ color: child.color, font_family: child.font_family, children: child.text })
-        : syntax_elements([child], source)[0]) })
+      case 'text': {
+        const children = (nodes: readonly MathSyntax[]): Child[] => nodes.flatMap(child => child.kind === 'text'
+          ? children(child.body) : [child.kind === 'literal'
+            ? new Span({ color: child.color, font_family: child.font_family, children: child.text })
+            : syntax_elements([child], source)[0]])
+        return new TextMode({ ...attr, children: children(node.body) })
+      }
       case 'operator': return new MathOp({ ...attr, symbol: node.symbol, limits: node.limits,
         center: node.center,
         ...(node.body ? { children: syntax_operand(node.body, source) } : { text: node.text }), source, source_range: node.range })
@@ -56,6 +62,23 @@ function syntax_elements(nodes: readonly MathSyntax[], source: string): Element[
         left_delim: node.left_delim, right_delim: node.right_delim })
       case 'root': return new Sqrt({ ...attr, children: syntax_operand(node.body, source),
         index: node.index && syntax_operand(node.index, source) })
+      case 'accent': return new Accent({ ...attr, children: syntax_operand(node.body, source), accent: node.label,
+        under: node.under, stretchy: node.stretchy, shifty: node.shifty, mode: node.mode })
+      case 'line': return new (node.over ? Overline : Underline)({ ...attr, children: syntax_operand(node.body, source) })
+      case 'brace': return new HorizBrace({ ...attr, children: syntax_operand(node.body, source),
+        label: node.label && syntax_operand(node.label, source), over: node.over, bracket: node.bracket })
+      case 'arrow': return new XArrow({ ...attr, label: node.label, above: syntax_operand(node.above, source),
+        below: node.below && syntax_operand(node.below, source) })
+      case 'phantom': return new Phantom({ ...attr, children: syntax_operand(node.body, source), horizontal: node.horizontal, vertical: node.vertical })
+      case 'smash': return new Smash({ ...attr, children: syntax_operand(node.body, source), top: node.top, bottom: node.bottom })
+      case 'lap': return new Lap({ ...attr, children: syntax_operand(node.body, source), align: node.align })
+      case 'enclose': return new Enclose({ ...attr, children: syntax_operand(node.body, source), notation: node.notation,
+        background: node.background, border_color: node.border_color })
+      case 'raise': return new RaiseBox({ ...attr, children: syntax_operand(node.body, source), shift_dimension: node.shift })
+      case 'vcenter': return new VCenter({ ...attr, children: syntax_operand(node.body, source) })
+      case 'pmb': return new Pmb({ ...attr, children: syntax_operand(node.body, source), klass: node.klass })
+      case 'rule': return new MathRule({ ...attr, klass: 'mord', width_dimension: node.width, height_dimension: node.height, shift_dimension: node.shift })
+      case 'verb': return new TextMode({ ...attr, text: node.text, family: 'mono', bold: false, italic: false, style: 'text' })
       case 'array': return new MathArray({ ...attr, rows: node.rows.map(row => row.map(cell => syntax_operand(cell, source))),
         cols: node.cols, stretch: node.stretch, jot: node.jot, outer: node.outer, small: node.small,
         row_gap_dimensions: node.rowgaps, hlines: node.hlines })
@@ -90,7 +113,13 @@ function syntax_operand(nodes: readonly MathSyntax[], source: string): Element {
       if (inner.body.length === 1 && inner.body[0].kind === 'symbol') {
         return syntax_elements([{ ...inner.body[0], klass: node.klass }], source)[0]
       }
+      if (inner.body.length === 1 && inner.body[0].kind === 'literal' && [...inner.body[0].text].length === 1) {
+        const leaf = inner.body[0]
+        return new MathSymbol({ text: leaf.text, mode: 'text', font_family: leaf.font_family, color: leaf.color, klass: node.klass })
+      }
     }
+    if (node.kind === 'literal' && [...node.text].length === 1) return new MathSymbol({ text: node.text, mode: 'text',
+      font_family: node.font_family, color: node.color })
     return syntax_elements(nodes, source)[0]
   }
   return new MathText({ children: syntax_elements(nodes, source) })

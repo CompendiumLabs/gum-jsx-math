@@ -24,7 +24,9 @@ const browserSources = [
     <Latex text={${JSON.stringify(text)}} />
   </Box>
 </Svg>`)
-browserSources.unshift(...['topics/code/MathArrays.jsx', 'topics/code/AlignedMath.jsx', 'elements/code/MathArray.jsx',
+browserSources.unshift(...['topics/code/MathDecorations.jsx', 'topics/code/MathBoxes.jsx', 'topics/code/MathFonts.jsx',
+  'elements/code/MathStretch.jsx', 'elements/code/Phantom.jsx',
+  'topics/code/MathArrays.jsx', 'topics/code/AlignedMath.jsx', 'elements/code/MathArray.jsx',
   'topics/code/InlineMath.jsx', 'topics/code/MathComposition.jsx',
   'elements/code/TextMode.jsx'].map(file => readFileSync(new URL('../../gum-next-docs/' + file, import.meta.url), 'utf8')))
 browserSources.push(`<Svg font-size={px(40)} color={blue}>
@@ -40,7 +42,7 @@ browserSources.push(`<Svg font-size={px(40)} color={blue}>
     </MathText>
   </Box>
 </Svg>`)
-const failures = [['<Latex text="{" />', 'parse:'], [String.raw`<Latex text="\hat{x}" />`, 'unsupported:'],
+const failures = [['<Latex text="{" />', 'parse:'], [String.raw`<Latex text="\phase{x}" />`, 'unsupported:'],
   [String.raw`<Latex text="\begin{align*}a&=b\tag{A}\end{align*}" />`, 'unsupported:']]
 const html = `<!doctype html><html><meta charset="utf-8"><title>Gum math browser verification</title>
 <style>body{font:16px sans-serif;margin:24px;background:#f6f7f9;color:#182330}figure{margin:12px 0;padding:16px;background:white;border:1px solid #ddd}svg{display:block}pre{white-space:pre-wrap}</style>
@@ -74,7 +76,7 @@ try {
   }
   await renderGum(sources[0]);
   document.body.dataset.result = 'passed';
-  status.textContent = 'Passed: no import-time font requests; 24 faces loaded once; concurrent formulas, arrays and mixed-content docs; repeat rendering; parse/unsupported failures and recovery; outline SVG.';
+  status.textContent = 'Passed: no import-time font requests; 24 faces loaded once; concurrent typography, boxes, arrays and mixed-content docs; dark decorations; repeat rendering; parse/unsupported failures and recovery; outline SVG.';
 } catch (error) {
   document.body.dataset.result = 'failed'; status.textContent = String(error.stack ?? error);
 }

@@ -64,8 +64,8 @@ describe('ordinary math styles and scripts', () => {
       near(formula(String.raw`\mathchoice{D}{T}{S}{Q}`, style).size.width, formula(choice, style).size.width)
     }
     near(formula(String.raw`x^{\mathchoice{D}{T}{S}{Q}}`).size.width, formula('x^S').size.width)
-    near(formula(String.raw`\mathchoice{x}{\hat{x}}{\hat{y}}{\hat{z}}`).size.width, formula('x').size.width)
-    expect(() => formula(String.raw`\mathchoice{x}{\hat{x}}{y}{z}`, 'text')).toThrow('unsupported')
+    near(formula(String.raw`\mathchoice{x}{\phase{x}}{\phase{y}}{\phase{z}}`).size.width, formula('x').size.width)
+    expect(() => formula(String.raw`\mathchoice{x}{\phase{x}}{y}{z}`, 'text')).toThrow('unsupported')
     const mixed = formula(String.raw`x{\Huge x}`)
     const small_baseline = mixed.children[0].offset.y + mixed.children[0].fragment.guides.baseline!
     const huge_baseline = mixed.children[1].offset.y + mixed.children[1].fragment.guides.baseline!

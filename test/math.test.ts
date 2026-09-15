@@ -248,15 +248,15 @@ describe('parser and host boundaries', () => {
   test('unsupported and malformed sources carry distinct diagnostics and do not poison a pass', () => {
     const malformed = cause(new Latex({ text: '{' }))
     expect(malformed.kind).toBe('parse')
-    for (const text of [String.raw`\begin{CD}a\end{CD}`, String.raw`\hat{x}`, String.raw`\htmlClass{x}{a}`]) {
+    for (const text of [String.raw`\begin{CD}a\end{CD}`, String.raw`\phase{x}`, String.raw`\htmlClass{x}{a}`]) {
       expect(cause(new Latex({ text })).kind).toBe('unsupported')
     }
-    const unsupported = cause(new Latex({ text: String.raw`a+\hat{x}` }))
-    expect(unsupported.source).toBe(String.raw`a+\hat{x}`)
-    expect(unsupported.node).toBe('accent')
+    const unsupported = cause(new Latex({ text: String.raw`a+\phase{x}` }))
+    expect(unsupported.source).toBe(String.raw`a+\phase{x}`)
+    expect(unsupported.node).toBe('enclose')
     expect(unsupported.range).toBeDefined()
     expect(formula('a+b').ink).not.toBeNull()
-    const visible = pass.layout(new Latex({ text: String.raw`\hat{x}`, on_error: 'render' }))
+    const visible = pass.layout(new Latex({ text: String.raw`\phase{x}`, on_error: 'render' }))
     expect(visible.label).toContain('unsupported')
     expect(visible.ink).not.toBeNull()
     for (const text of ['{', String.raw`\nonesuch`, '🦄']) {

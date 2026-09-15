@@ -84,7 +84,8 @@ test('TextMode is literal, preserves spaces and kerning, and isolates its text f
     near(styled.size.width, fonts.resolve(face, 400, 'normal').shape('AV ').advance * 32 + standalone.size.width)
     expect(render_svg(named(styled, 'MathText')[0])).toBe(render_svg(standalone))
   }
-  expect(() => pass.layout(new TextMode({ family: 'sans', bold: true, italic: true, text: 'x' }))).toThrow('No bundled')
+  const fallback = pass.layout(new TextMode({ family: 'sans', bold: true, italic: true, text: 'x' }), make_request(), context)
+  near(fallback.size.width, fonts.resolve('KaTeX_Main-BoldItalic', 400, 'normal').shape('x').advance * 32)
   expect(new TextMode({ text: literal }).props.text).toBe(literal)
 })
 

@@ -1,7 +1,7 @@
 # gum-next-math
 
 Math elements and TeX parsing for the Gum rewrite. This package implements
-phases 1–5 of the [math roadmap](../docs/MATH.md), using KaTeX **0.16.47**
+phases 1–6 of the [math roadmap](../docs/MATH.md), using KaTeX **0.16.47**
 for parsing and fonts, Gum for layout, and Fontkit for outline geometry.
 
 ## Use
@@ -62,6 +62,11 @@ not require page fonts. Notify a reused pass of font replacements with
 | `Sqrt` | Cramped radicands, scriptscript indices, and vertically growing surds. |
 | `Bracket` | Measured left/middle/right delimiter groups and fixed levels. |
 | `TextMode` | Literal text runs, preserved spaces and kerning, and nested math. |
+| `Accent`, `Overline`, `Underline` | Fixed/wide accents and rules with baseline and script attachment. |
+| `MathStretch`, `HorizBrace`, `XArrow` | Drawn horizontal shapes, braces, and arrows with labels. |
+| `Phantom`, `Smash`, `Lap` | Independently suppress ink, vertical dimensions, or advance. |
+| `Enclose` | Frames, backgrounds, cancellation, and strikeout. |
+| `RaiseBox`, `VCenter`, `Pmb` | Vertical shifts, axis centering, and overprinted bold. |
 
 Nested `MathText` descriptions flatten before layout unless they specify sizing,
 atom classes, a strut, or visible error handling. `MathRow`, `MathBox`, and TeX
@@ -88,17 +93,28 @@ padding inside an explicit `Svg` viewport when ink extends beyond the advance.
 ## Supported TeX
 
 Symbols and aliases, atom classes, ordinary groups, named operators and
-`\operatorname`, signed kerns/glue, color, local macros, plain `\text`, and basic
+`\operatorname`, signed kerns/glue, color, local macros, composed text, and
 math font commands are implemented. Scripts, fractions and generalized fractions,
 continued fractions, binomials, indexed roots, named/large operators, explicit
 limits, style/size commands, `\mathchoice`, and left/middle/right or fixed-size
 delimiters are supported. All eighteen KaTeX faces are registered;
 font aliases such as `mathrm`, `mathbf`, and `mathbb` are exported for JSX.
 
-Arrays and multiline environments are supported as described below. Decorations
-and full TeX text-font command composition remain in later phases.
-Standalone export helpers and a dedicated TeX CLI are
-also deferred. Unknown syntax cannot silently vanish.
+Arrays and multiline environments are supported as described below. Accents,
+wide hats/checks/tildes, over/under rules and decorations, labeled braces and
+arrows, overset/underset/stackrel, phantom/smash/lap, enclosures/cancellation,
+rules, raisebox, vcenter, hbox, verbatim, and poor-man's bold are implemented.
+Standalone export helpers and a dedicated TeX CLI remain deferred. Unknown
+syntax cannot silently vanish. See [decorations](../gum-next-docs/topics/text/MathDecorations.md),
+[boxes](../gum-next-docs/topics/text/MathBoxes.md), and [fonts/macros](../gum-next-docs/topics/text/MathFonts.md).
+
+Macros support arguments, declarations, and local scope within the pinned
+parser. A supplied macro dictionary is snapshotted, and even `\gdef` cannot
+leak into another formula. Optional `\newcommand` defaults are not supported
+by KaTeX 0.16.47. Actual line breaks outside arrays are unsupported; a normal
+display-mode `\\` is a no-op. The HTML math branch of `\html@mathml` is used
+without enabling trusted HTML commands. `\phase`, `\angl`, and `\angln` remain
+explicit unsupported enclosures.
 
 `limits: 'auto'` stacks limits in display style; `'always'` forces stacking and
 `'never'` keeps side scripts. Operator glyphs use TeX logical height/depth while
@@ -140,9 +156,11 @@ script. See the [mixed formula examples](../gum-next-docs/topics/code/MathCompos
 
 `TextMode` strings are literal, including spaces and kerning. Source newlines
 and tabs become spaces. Its `family`, `bold`, and `italic` controls select among
-the bundled text faces without changing nested math fonts. Missing face
-combinations are explicit errors. Parsed `\text`, `\textrm`, and `\textnormal`
-use the same literal-run layout, with nested `$…$` math supported.
+the bundled text faces without changing nested math fonts. Sans bold italic and
+styled typewriter fall back to the corresponding Main face. Parsed text font
+commands compose family, weight, shape, and emphasis with scoped resets. Literal
+runs preserve kerning across compatible scopes and fall back per glyph; a glyph
+absent from the fallback face is an error. Nested `$…$` math is supported.
 
 ## Arrays and multiline math
 
@@ -199,6 +217,9 @@ bun run compare --suite 4 -S 48 -o gum-next-math/out/phase4.png
 bun run compare --suite 4 --inline -S 48 -o gum-next-math/out/phase4-inline.png
 bun run compare --suite 5 -S 48 -o gum-next-math/out/phase5.png
 bun run compare --suite 5 --inline -S 48 -o gum-next-math/out/phase5-inline.png
+bun run compare --suite 6 -S 48 -o gum-next-math/out/phase6.png
+bun run compare --suite 6 --inline -S 48 -o gum-next-math/out/phase6-inline.png
+bun run compare --suite 6-extra --no-latex -S 48 -o gum-next-math/out/phase6-extra.png
 bun run compare 'a\!b' --inline -S 96 -o /tmp/negative-glue.png
 ```
 
@@ -209,7 +230,10 @@ clipped reference images, retains optional artifacts, and labels errors while
 returning a failing exit code. Chromium and the two TeX binaries are required;
 `--no-latex` explicitly requests only Gum/KaTeX. LaTeX needs the `standalone`,
 `amsmath`, `amssymb`, and `xcolor` packages. Array comparisons also use `mathtools`
-for starred matrices/cases, `arydshln` for dashed rules, and `nccmath` for `darray`.
+for starred matrices/cases and some arrows/laps, `arydshln` for dashed rules,
+and `nccmath` for `darray`. Typography comparisons use `cancel` and `ulem` too.
+KaTeX pages are shifted to include leading overhang, and the LaTeX crop gets
+extra border based on Gum's ink bounds so laps and smashes remain visible.
 Display-only environments are wrapped as displays in the LaTeX document; the
 inline suite omits those cases. Child processes have a 30-second
 timeout and run in temporary directories; pdflatex disables shell escape.
@@ -226,6 +250,11 @@ inside math follow KaTeX; standard LaTeX warns and ignores `\Huge` there.
 Small matrices and substacks can differ from LaTeX in script font metrics.
 Tall braces and matrix bars still use the existing glyph-scaling fallback,
 so they differ from KaTeX/LaTeX's assembled delimiters. Dash patterns vary too.
+Horizontal decoration curves are Gum's own; wide hats/checks/tildes use measured
+width, including ordinary figure operands. Horizontal brace labels do not widen
+the brace, and an opposite script is retained even where KaTeX drops it.
+Frame padding includes the border, as in LaTeX; KaTeX's horizontal frame padding
+is slightly narrower. Poor-man bold uses two overprints, whereas LaTeX uses three.
 
 `bun scripts/update-font-data.ts` regenerates italic corrections from the pinned
 KaTeX version. Review the parser adapter, symbol/skew data, tests, and comparison

@@ -1,12 +1,13 @@
 import { Element, Span, make_fragment, resolve_style } from 'gum-next-core'
-import type { Child, LayoutQuery, Style } from 'gum-next-core'
+import type { Child, LayoutQuery, Style, FontProvider } from 'gum-next-core'
 import { MathElement, literal_text } from './base'
 import { glyph_layout } from './glyphs'
 import type { MathSpanProps } from './glyphs'
 import { assemble_row, measure_items } from './composition'
 import type { MathRowProps } from './composition'
 import { math_context } from '../metrics'
-import { MathError } from '../errors'
+import { text_font_face } from '../text-fonts'
+import symbols from '../symbols'
 
 type TextModeProps = MathRowProps & Readonly<{
   text?: string; family?: 'main' | 'sans' | 'mono'; bold?: boolean; italic?: boolean
@@ -25,11 +26,7 @@ function text_face(props: TextModeProps, style: Style): string {
   const family = props.family ?? (match?.[1] === 'SansSerif' ? 'sans' : match?.[1] === 'Typewriter' ? 'mono' : 'main')
   const bold = props.bold ?? (match?.[2]?.includes('Bold') ?? false)
   const italic = props.italic ?? (match?.[2]?.includes('Italic') ?? false)
-  if (family === 'mono' && (bold || italic) || family === 'sans' && bold && italic) {
-    throw new MathError('unsupported', `No bundled ${family} text face for bold=${bold}, italic=${italic}`)
-  }
-  const base = family === 'sans' ? 'SansSerif' : family === 'mono' ? 'Typewriter' : 'Main'
-  return `KaTeX_${base}${bold && italic ? '-BoldItalic' : bold ? '-Bold' : italic ? '-Italic' : ''}`
+  return text_font_face({ family, bold, italic })
 }
 
 // A literal run uses the math text face only for its own glyphs. Nested math
@@ -60,12 +57,23 @@ class TextMode extends MathElement<TextModeProps> {
         } else throw new TypeError('Expected literal text or an inline element')
       }
       collect(props.text ?? props.children, query.style)
-      return runs.map(run => {
+      return runs.flatMap(run => {
         // Text mode is a single horizontal math atom. Source line endings and
         // tabs are spaces, not glyphs; ordinary spaces remain uncollapsed.
         const text = run.text?.replace(/\r\n|[\r\n\t\v\f\u0085\u2028\u2029]/g, ' ')
-        return { style: run.style, math: context, text,
-          element: run.element ?? new LiteralRun({ text, font_family: text_face(props, run.style) }) }
+        if (run.element) return [{ style: run.style, math: context, text, element: run.element }]
+        const face = text_face(props, run.style), fonts = query.resource<FontProvider>('fonts')
+        const selected = fonts.resolve(face, 400, 'normal'), pieces: { face: string; text: string }[] = []
+        for (const char of text ?? '') {
+          const fallback = symbols.text[char]?.font === 'ams' ? 'KaTeX_AMS' : 'KaTeX_Main'
+          const chosen = selected.has_glyphs(char) ? face
+            : fonts.resolve(fallback, 400, 'normal').has_glyphs(char) ? fallback : face
+          const last = pieces.at(-1)
+          if (last?.face === chosen) last.text += char
+          else pieces.push({ face: chosen, text: char })
+        }
+        return pieces.map(piece => ({ style: run.style, math: context, text: piece.text,
+          element: new LiteralRun({ text: piece.text, font_family: piece.face }) }))
       })
     })
     const measured = measure_items(items, query)

@@ -56,8 +56,9 @@ const mathbf: MathFont = 'KaTeX_Main-Bold', mathbb: MathFont = 'KaTeX_AMS'
 const mathcal: MathFont = 'KaTeX_Caligraphic', mathfrak: MathFont = 'KaTeX_Fraktur'
 const mathscr: MathFont = 'KaTeX_Script', mathsf: MathFont = 'KaTeX_SansSerif'
 const mathtt: MathFont = 'KaTeX_Typewriter', boldsymbol: MathFont = 'KaTeX_Math-BoldItalic'
+const mathnormal: MathFont = 'KaTeX_Math', mathsfit: MathFont = 'KaTeX_SansSerif-Italic'
 
 export { MATH_FONT_PATHS, MATH_FONTS, MATH_BASE_FONTS, MATH_EXTRA_FONTS,
   registerMathFonts, createMathFonts, loadMathFonts, loadBaseMathFonts,
-  mathrm, mathit, mathbf, mathbb, mathcal, mathfrak, mathscr, mathsf, mathtt, boldsymbol }
+  mathrm, mathit, mathbf, mathbb, mathcal, mathfrak, mathscr, mathsf, mathtt, boldsymbol, mathnormal, mathsfit }
 export type { MathFont }

@@ -72,6 +72,52 @@ const DISPLAY_ARRAYS = [
   String.raw`\begin{gather*}a+b=c\\\frac1x=y\end{gather*}`,
   String.raw`\begin{equation*}\begin{split}a+b&=c\\a&=c-b\end{split}\end{equation*}`,
 ]
+const TYPOGRAPHY = [
+  String.raw`\hat{x}_i^2+\bar{f}_j+\vec{v}+\dot{x}+\ddot{x}+\mathring{A}`,
+  String.raw`\acute{a}+\grave{a}+\breve{a}+\check{a}+\tilde{a}`,
+  String.raw`\widehat{x}\quad\widehat{ABC}\quad\widehat{a+b+c+d}`,
+  String.raw`\widetilde{x}\quad\widetilde{ABC}\quad\widetilde{a+b+c+d}`,
+  String.raw`\overline{x+\frac1y}\quad\underline{x+\frac1y}`,
+  String.raw`\overrightarrow{AB}\quad\overleftarrow{ABC}\quad\overleftrightarrow{a+b}`,
+  String.raw`\underrightarrow{AB}\quad\underleftarrow{ABC}\quad\underleftrightarrow{a+b}`,
+  String.raw`\overbrace{a+b+c}^{\text{a long label}}\quad\underbrace{\frac1x+\frac1y}_{n\text{ terms}}`,
+  String.raw`\overbrace{x}^{n}_{i}\quad\underbrace{x}_{n}^{i}`,
+  String.raw`A\xrightarrow[f^{-1}]{\text{a long map}}B\quad C\xleftarrow[g]{f}D`,
+  String.raw`A\xleftrightarrow[b]{a}B\quad C\xmapsto{f}D`,
+  String.raw`a\overset{!}{=}b\quad a\underset{n}{\sim}b\quad A\stackrel{f}{\longrightarrow}B`,
+  String.raw`a+\phantom{x+y}+b\quad\sqrt{\vphantom{\frac1x}y}\quad a\hphantom{x^2}b`,
+  String.raw`\sqrt{\smash{x^2}}\quad\smash[t]{\frac{x}{y}}+\smash[b]{\frac{x}{y}}`,
+  String.raw`\mathllap{a}B\quad A\mathrlap{b}\quad\sum_{\mathclap{1\leq i\leq n}}x_i`,
+  String.raw`\boxed{x^2+1}\quad\fbox{hello}\quad\colorbox{yellow}{$x$}\quad\fcolorbox{blue}{yellow}{$y$}`,
+  String.raw`\cancel{x}+\bcancel{a+b}+\xcancel{\frac1y}\quad\text{\sout{old} new}`,
+  String.raw`x\rule[2pt]{1em}{0.6pt}y\quad x\raisebox{0.5ex}{up}\raisebox{-2pt}{down}y`,
+  String.raw`a+\vcenter{\hbox{$\frac{x}{y}$}}+b\quad\pmb{x+\alpha}=\boldsymbol{x+\alpha}`,
+  String.raw`\verb|x^2 % ~|\quad\verb*|a b|`,
+  String.raw`\textbf{bold \textit{and italic}}\quad\textsf{sans \textbf{bold} \textit{italic}}`,
+  String.raw`\textit{A \textup{B} C}\quad\emph{A \emph{B} C}\quad\texttt{a--b}`,
+  String.raw`\mathcal{ABC}+\mathfrak{xyz}+\mathbb{R}\quad\boldsymbol{\alpha+\Gamma\leq x}`,
+  String.raw`{\def\pair#1{\langle #1,#1\rangle}\textcolor{blue}{\widehat{\pair{x}}}}`,
+]
+// Extended KaTeX commands need assorted LaTeX packages or have no direct
+// equivalent. Request this gallery explicitly with --suite 6-extra --no-latex.
+const TYPOGRAPHY_EXTRA = [
+  String.raw`\widecheck{x}\quad\widecheck{ABC}\quad\widecheck{a+b+c+d}`,
+  String.raw`\overleftharpoon{AB}\quad\overrightharpoon{ABC}\quad\Overrightarrow{a+b}`,
+  String.raw`\overgroup{a+b+c}\quad\undergroup{a+b+c}\quad\utilde{ABC}`,
+  String.raw`\overlinesegment{AB}\quad\underlinesegment{ABC}`,
+  String.raw`\overbracket{a+b}^{n}\quad\underbracket{a+b}_{m}`,
+  String.raw`A\xRightarrow[b]{a}B\quad C\xLeftarrow[b]{a}D\quad E\xLeftrightarrow[b]{a}F`,
+  String.raw`A\xhookrightarrow[b]{a}B\quad C\xhookleftarrow[b]{a}D\quad E\xlongequal[b]{a}F`,
+  String.raw`A\xtwoheadrightarrow[b]{a}B\quad C\xtwoheadleftarrow[b]{a}D`,
+  String.raw`A\xrightharpoonup[b]{a}B\quad C\xrightharpoondown[b]{a}D`,
+  String.raw`A\xleftharpoonup[b]{a}B\quad C\xleftharpoondown[b]{a}D`,
+  String.raw`A\xrightleftharpoons[b]{a}B\quad C\xleftrightharpoons[b]{a}D`,
+  String.raw`A\xrightleftarrows[b]{a}B\quad C\xtofrom[b]{a}D`,
+  String.raw`A\xrightequilibrium[b]{a}B\quad C\xleftequilibrium[b]{a}D`,
+  String.raw`\textsf{\textbf{ABC}\textit{xyz}}\quad\textbf{speed $x^2$ now}\quad\mathbf{\text{ABC}}`,
+  String.raw`\text{\'{a}\ \c{c}\ \H{o}\ \textcircled{a}}\quad\mathsfit{ABC}`,
+  String.raw`x^{\overbrace{a+b}^{n}}+x^{\widehat{abc}}+x^{\xrightarrow[g]{f}}`,
+]
 
 function positive(value: string): number {
   const number = Number(value)
@@ -82,13 +128,13 @@ const program = new Command().name('compare')
   .description('Compare Gum, KaTeX HTML in Chromium, and pdflatex at equal pixels per em.')
   .argument('[tex]', 'TeX source (otherwise read stdin)')
   .option('-F, --file <path>', 'Read TeX from a file')
-  .option('--suite [phase]', 'Render a comparison gallery: 1-2, 3, 4, 5, or all (default)')
+  .option('--suite [phase]', 'Gallery: 1-2, 3, 4, 5, 6, 6-extra (KaTeX extensions), or all (default)')
   .option('-i, --inline', 'Use inline math style')
   .option('-S, --font-size <pixels>', 'Pixels per em in all renderers', positive, 64)
   .option('-o, --output <path>', 'Output PNG (otherwise write PNG to stdout)')
   .option('--artifacts <directory>', 'Keep individual images, Gum SVG, HTML, and LaTeX logs')
   .option('--chrome <path>', 'Chromium binary (also accepts GUM_CHROME)')
-  .option('--window <WxH>', 'Chromium screenshot size', '4000x500')
+  .option('--window <WxH>', 'Chromium screenshot size', '4000x1000')
   .option('--no-latex', 'Explicitly omit the LaTeX comparison')
   .parse()
 const options = program.opts<{
@@ -98,11 +144,12 @@ const options = program.opts<{
 if ([options.file !== undefined, options.suite !== undefined, program.args.length > 0].filter(Boolean).length > 1) {
   program.error('Use a TeX argument, --file, or --suite, not more than one')
 }
-if (typeof options.suite === 'string' && !['1-2', '3', '4', '5', 'all'].includes(options.suite)) program.error('--suite must be 1-2, 3, 4, 5, or all')
+if (typeof options.suite === 'string' && !['1-2', '3', '4', '5', '6', '6-extra', 'all'].includes(options.suite)) program.error('--suite must be 1-2, 3, 4, 5, 6, 6-extra, or all')
 // AMS display environments are invalid in inline mode in both reference tools.
 const arrays = [...ARRAYS, ...(options.inline ? [] : DISPLAY_ARRAYS)]
 const formulas = options.suite ? options.suite === '1-2' ? BASIC : options.suite === '3' ? ORDINARY
-  : options.suite === '4' ? TEXT : options.suite === '5' ? arrays : [...BASIC, ...ORDINARY, ...TEXT, ...arrays]
+  : options.suite === '4' ? TEXT : options.suite === '5' ? arrays : options.suite === '6' ? TYPOGRAPHY
+  : options.suite === '6-extra' ? TYPOGRAPHY_EXTRA : [...BASIC, ...ORDINARY, ...TEXT, ...arrays, ...TYPOGRAPHY]
   : [program.args[0] ?? readFileSync(options.file ?? 0, 'utf8').trim()]
 const windowSize = /^(\d+)x(\d+)$/.exec(options.window)
 if (!windowSize || Number(windowSize[1]) < 100 || Number(windowSize[2]) < 100) {
@@ -114,6 +161,7 @@ const css = import.meta.resolve('katex/dist/katex.min.css')
 const chrome = options.chrome ?? process.env.GUM_CHROME ?? ['chromium', 'chromium-browser',
   'google-chrome-stable', 'google-chrome'].map(name => Bun.which(name)).find(Boolean)
 const scratch = mkdtempSync(join(tmpdir(), 'gum-next-compare-'))
+const reference_borders = new Map<string, number>(), expected_ink = new Map<string, boolean>()
 let failed = false
 
 function run(binary: string, args: string[], cwd: string): string {
@@ -131,6 +179,12 @@ function gum(tex: string, directory: string): Buffer {
   // Export the union of logical size and ink, including both signed kerns and
   // italic overhang. An explicit Svg viewport elsewhere keeps its own clipping.
   const bounds = union_rects(make_rect(0, 0, fragment.size.width, fragment.size.height), fragment.ink)!
+  // Standalone's PDF crop sees logical TeX boxes, so reserve enough border for
+  // lap/smash ink. Use Gum's overhang as an estimate plus a full em of slack.
+  const overhang = Math.max(0, -bounds.x, -bounds.y,
+    bounds.x + bounds.width - fragment.size.width, bounds.y + bounds.height - fragment.size.height)
+  reference_borders.set(tex, Math.ceil(Math.max(2, overhang / font_size + 1) * 10))
+  expected_ink.set(tex, fragment.ink !== null)
   const size = make_size(Math.ceil(bounds.width + 24), Math.ceil(bounds.height + 24))
   const viewport = make_fragment({ size, children: [place_fragment(fragment,
     make_point(12 - bounds.x, 12 - bounds.y))] })
@@ -147,7 +201,18 @@ function katexPng(tex: string, directory: string): Buffer {
 <link rel="stylesheet" href="${css}">
 <style>html,body{margin:0;background:white}body{display:inline-block;padding:24px;font-size:${font_size}px;white-space:nowrap}
 .katex{font-size:1em}.katex-display{margin:0}</style></head><body>${body}
-<script>document.fonts.ready.then(()=>document.body.dataset.fonts='ready')</script></body></html>`
+<script>document.fonts.ready.then(()=>{
+  // Lap/smash can put ink beyond a zero-size box, including before the page
+  // origin. Measure descendants too and translate the complete formula into
+  // the viewport before taking a screenshot.
+  // Stretchy SVGs deliberately extend hundreds of em inside clipped spans.
+  // Their DOM rectangles are not visible overhang; the enclosing spans are.
+  const rects = [...document.querySelectorAll('.katex, .katex *')]
+    .filter(node=>!(node instanceof SVGElement)).flatMap(node=>[...node.getClientRects()]);
+  document.body.style.marginLeft = Math.max(0, 24 - Math.min(...rects.map(r=>r.left))) + 'px';
+  document.body.style.marginTop = Math.max(0, 24 - Math.min(...rects.map(r=>r.top))) + 'px';
+  document.body.dataset.fonts='ready';
+})</script></body></html>`
   const html = join(directory, 'katex.html'), png = join(directory, 'katex.png')
   writeFileSync(html, page)
   const dom = run(chrome, ['--headless=new', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage',
@@ -156,16 +221,19 @@ function katexPng(tex: string, directory: string): Buffer {
     `--window-size=${options.window.replace('x', ',')}`, `--screenshot=${png}`, '--dump-dom',
     pathToFileURL(html).href], directory)
   if (!dom.includes('data-fonts="ready"')) throw new Error('Chromium did not finish loading fonts')
+  writeFileSync(join(directory, 'katex-dom.html'), dom)
   return readFileSync(png)
 }
 
 function latex(tex: string, directory: string): Buffer {
   const display = /^\s*\\begin\{(?:align\*?|alignat\*?|gather\*?|equation\*?)\}/.test(tex)
-  const document = String.raw`\documentclass[10pt,preview,border=2pt]{standalone}
+  const document = String.raw`\documentclass[10pt,preview,border=${reference_borders.get(tex) ?? 20}pt]{standalone}
 \usepackage{amsmath,amssymb,xcolor}
-${/\\begin\{(?:[pbBvV]?matrix\*|[dr]*cases)\}/.test(tex) ? '\\usepackage{mathtools}' : ''}
+${/\\begin\{(?:[pbBvV]?matrix\*|[dr]*cases)\}|\\(?:math[clr]lap|x(?:leftrightarrow|mapsto))/.test(tex) ? '\\usepackage{mathtools}' : ''}
 ${/\\hdashline|\\begin\{array\}\{[^}]*:/.test(tex) ? '\\usepackage{arydshln}' : ''}
 ${tex.includes('\\begin{darray}') ? '\\usepackage{nccmath}' : ''}
+${/\\[bx]?cancel/.test(tex) ? '\\usepackage{cancel}' : ''}
+${tex.includes('\\sout') ? '\\usepackage[normalem]{ulem}' : ''}
 \begin{document}
 ${display ? `\\begin{preview}${tex}\\end{preview}` : options.inline ? `$${tex}$` : `\\[${tex}\\]`}
 \end{document}
@@ -219,6 +287,9 @@ try {
         const png = (name === 'Gum' ? gum : name === 'KaTeX' ? katexPng : latex)(tex, directory)
         writeFileSync(join(directory, `${name.toLowerCase()}.png`), png)
         const canvas = trim(png)
+        if (expected_ink.get(tex) && canvas.width === 24 && canvas.height === 24) {
+          throw new Error('Renderer produced no visible ink for a nonempty formula; check the viewport')
+        }
         console.error(`${index + 1}/${formulas.length} ${name}: ${canvas.width - 24}×${canvas.height - 24} ink px`)
         return canvas
       } catch (error) {

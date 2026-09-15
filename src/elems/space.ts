@@ -2,10 +2,11 @@ import { draw_rect, make_rect, make_size, em, resolve_length } from 'gum-next-co
 import type { LayoutQuery, Length } from 'gum-next-core'
 import { MathElement } from './base'
 import { math_context, math_font_size, math_metrics, finish_math, MATH_AXIS, space_length, dimension_length } from '../metrics'
-import type { MathProps, MathSpace, MathDimension } from '../types'
+import type { MathProps, MathAtomProps, MathSpace, MathDimension } from '../types'
 
 type MathSpacerProps = MathProps & Readonly<{ advance?: MathSpace; axis?: Length; dimension?: MathDimension }>
-type MathRuleProps = MathProps & Readonly<{ thickness?: Length }>
+type MathRuleProps = MathAtomProps & Readonly<{ thickness?: Length; shift?: Length;
+  width_dimension?: MathDimension; height_dimension?: MathDimension; shift_dimension?: MathDimension }>
 
 class MathSpacer extends MathElement<MathSpacerProps> {
   static layout(props: MathSpacerProps, query: LayoutQuery) {
@@ -22,17 +23,24 @@ class MathSpacer extends MathElement<MathSpacerProps> {
 
 class MathRule extends MathElement<MathRuleProps> {
   static layout(props: MathRuleProps, query: LayoutQuery) {
-    const f = math_font_size(query, math_context(props, query))
-    const width = query.request.width.kind === 'exact' ? query.request.width.value : f
-    const thickness = resolve_length(props.thickness ?? em(0.04),
+    const math = math_context(props, query), f = math_font_size(query, math)
+    const width = props.width_dimension ? dimension_length(props.width_dimension, query, math)
+      : query.request.width.kind === 'exact' ? query.request.width.value : f
+    const raw_height = props.height_dimension ? dimension_length(props.height_dimension, query, math) : resolve_length(props.thickness ?? em(0.04),
       { font_size: f, fraction: query.reference.height }, 'MathRule.thickness')
-    if (thickness < 0) throw new RangeError('Math rule thickness must be nonnegative')
+    if (raw_height < 0 && !props.height_dimension) throw new RangeError('Math rule thickness must be nonnegative')
+    const thickness = Math.max(0, raw_height)
+    const shifted = props.shift !== undefined || props.shift_dimension !== undefined || props.height_dimension !== undefined
+    const shift = props.shift_dimension ? dimension_length(props.shift_dimension, query, math)
+      : resolve_length(props.shift ?? 0, { font_size: f, fraction: query.reference.height }, 'MathRule.shift')
+    const baseline = shifted ? raw_height + shift : thickness / 2 + MATH_AXIS * f
     return finish_math({
-      size: make_size(width, thickness), math: math_metrics(width, 'none'),
-      guides: { math_axis: thickness / 2, baseline: thickness / 2 + MATH_AXIS * f },
-      draw: [draw_rect(make_rect(0, 0, width, thickness), {
+      size: make_size(Math.max(0, width), thickness), math: math_metrics(width, props.left ?? props.klass ?? 'none',
+        { right: props.right ?? props.left ?? props.klass ?? 'none' }),
+      guides: { math_axis: baseline - MATH_AXIS * f, baseline },
+      draw: width > 0 && thickness > 0 ? [draw_rect(make_rect(0, 0, width, thickness), {
         fill: props.fill ?? query.style.color, stroke: 'none', stroke_width: 0, opacity: query.style.opacity,
-      })],
+      })] : [],
     }, query)
   }
 }

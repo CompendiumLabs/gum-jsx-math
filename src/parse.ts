@@ -6,6 +6,8 @@ import { MathError } from './errors'
 import { SYMBOL_CLASS } from './types'
 import type { SourceRange, SymbolFamily, SymbolMode, LimitPolicy, MathDimension, ArrayCol } from './types'
 import symbols from './symbols'
+import { DEFAULT_TEXT_FONT, text_command, text_font_face } from './text-fonts'
+import type { TextFont } from './text-fonts'
 
 // KaTeX's internal AST is confined to this adapter. No lexer/location instances
 // escape into Element props, and a parser upgrade has one compatibility boundary.
@@ -26,6 +28,11 @@ type Raw = {
   arraystretch?: number; addJot?: boolean; hskipBeforeAndAfter?: boolean
   rowGaps?: (Raw['dimension'] | null)[]; hLinesBeforeRow?: boolean[][]
   colSeparationType?: string; tags?: (boolean | Raw[])[]
+  label?: string; isStretchy?: boolean; isShifty?: boolean; isOver?: boolean; below?: Raw
+  smashHeight?: boolean; smashDepth?: boolean; alignment?: string
+  backgroundColor?: string; borderColor?: string
+  dy?: Raw['dimension']; shift?: Raw['dimension']; width?: Raw['dimension']; height?: Raw['dimension']
+  star?: boolean; newLine?: boolean; html?: Raw[]; mathml?: Raw[]
 }
 const parser = katex as typeof katex & { __parse: (source: string, options: KatexOptions) => Raw[] }
 type ParseOptions = Readonly<{
@@ -46,6 +53,19 @@ type MathSyntax = Located & (
   | Readonly<{ kind: 'fraction'; numerator: readonly MathSyntax[]; denominator: readonly MathSyntax[];
       has_bar: boolean; bar_size?: MathDimension; continued: boolean; left_delim: string | null; right_delim: string | null }>
   | Readonly<{ kind: 'root'; body: readonly MathSyntax[]; index?: readonly MathSyntax[] }>
+  | Readonly<{ kind: 'accent'; body: readonly MathSyntax[]; label: string; under: boolean; stretchy: boolean; shifty: boolean; mode: SymbolMode }>
+  | Readonly<{ kind: 'line'; body: readonly MathSyntax[]; over: boolean }>
+  | Readonly<{ kind: 'brace'; body: readonly MathSyntax[]; label?: readonly MathSyntax[]; over: boolean; bracket: boolean }>
+  | Readonly<{ kind: 'arrow'; label: string; above: readonly MathSyntax[]; below?: readonly MathSyntax[] }>
+  | Readonly<{ kind: 'phantom'; body: readonly MathSyntax[]; horizontal: boolean; vertical: boolean }>
+  | Readonly<{ kind: 'smash'; body: readonly MathSyntax[]; top: boolean; bottom: boolean }>
+  | Readonly<{ kind: 'lap'; body: readonly MathSyntax[]; align: 'left' | 'center' | 'right' }>
+  | Readonly<{ kind: 'enclose'; body: readonly MathSyntax[]; notation: 'box' | 'colorbox' | 'cancel' | 'bcancel' | 'xcancel' | 'sout'; background?: string; border_color?: string }>
+  | Readonly<{ kind: 'raise'; body: readonly MathSyntax[]; shift: MathDimension }>
+  | Readonly<{ kind: 'vcenter'; body: readonly MathSyntax[] }>
+  | Readonly<{ kind: 'pmb'; body: readonly MathSyntax[]; klass: MathClass }>
+  | Readonly<{ kind: 'rule'; width: MathDimension; height: MathDimension; shift: MathDimension }>
+  | Readonly<{ kind: 'verb'; text: string }>
   | Readonly<{ kind: 'bracket'; body: readonly MathSyntax[]; left: string; right: string; right_color?: string }>
   | Readonly<{ kind: 'delimiter'; text: string; level: number; klass: MathClass }>
   | Readonly<{ kind: 'middle'; text: string }>
@@ -61,7 +81,7 @@ const FONT_COMMANDS: Record<string, string> = {
   mathrm: 'KaTeX_Main', mathit: 'KaTeX_Main-Italic', mathbf: 'KaTeX_Main-Bold',
   mathnormal: 'KaTeX_Math', mathbb: 'KaTeX_AMS', mathcal: 'KaTeX_Caligraphic',
   mathfrak: 'KaTeX_Fraktur', mathscr: 'KaTeX_Script', mathsf: 'KaTeX_SansSerif',
-  mathtt: 'KaTeX_Typewriter', boldsymbol: 'KaTeX_Math-BoldItalic',
+  mathtt: 'KaTeX_Typewriter', mathsfit: 'KaTeX_SansSerif-Italic', boldsymbol: 'KaTeX_Math-BoldItalic',
 }
 const UNIT_EM: Record<string, number> = {
   mu: 1 / 18, em: 1, ex: 0.431,
@@ -70,24 +90,25 @@ const UNIT_EM: Record<string, number> = {
 }
 
 function raw_nodes(nodes: RawNodes | undefined): Raw[] {
-  return !nodes ? [] : Array.isArray(nodes) ? nodes.flatMap(raw_nodes) : [nodes]
+  // The verb node's body is a literal string in the private AST.
+  return !nodes || typeof nodes === 'string' ? [] : Array.isArray(nodes) ? nodes.flatMap(raw_nodes) : [nodes]
 }
 
 function source_range(node: Raw, source: string): SourceRange {
   if (node.loc) return { start: node.loc.start, end: node.loc.end }
-  const body = [node.body, node.base, node.sup, node.sub, node.numer, node.denom, node.index].flatMap(raw_nodes)
+  const body = [node.body, node.base, node.sup, node.sub, node.numer, node.denom, node.index, node.below, node.html].flatMap(raw_nodes)
   if (!body.length) return { start: 0, end: source.length }
   const ranges = body.map(child => source_range(child, source))
   return { start: Math.min(...ranges.map(range => range.start)), end: Math.max(...ranges.map(range => range.end)) }
 }
 
 function operator_nodes(nodes: RawNodes | undefined): Raw[] {
-  if (!nodes) return []
+  if (!nodes || typeof nodes === 'string') return []
   if (Array.isArray(nodes)) return nodes.flatMap(operator_nodes)
   return [
     ...(['op', 'operatorname'].includes(nodes.type) ? [nodes] : []),
     ...[nodes.body, nodes.base, nodes.sup, nodes.sub, nodes.numer, nodes.denom, nodes.index,
-      nodes.display, Array.isArray(nodes.text) ? nodes.text : undefined, nodes.script, nodes.scriptscript].flatMap(operator_nodes),
+      nodes.display, Array.isArray(nodes.text) ? nodes.text : undefined, nodes.script, nodes.scriptscript, nodes.below, nodes.html].flatMap(operator_nodes),
   ]
 }
 
@@ -135,7 +156,7 @@ function parse_math(source: string, options: ParseOptions = {}): readonly MathSy
     throw new MathError('parse', details.rawMessage ?? error.message, source, range, undefined, { cause: error })
   }
 
-  type Context = Attributes & { text_face?: string; upright?: boolean; literal?: boolean }
+  type Context = Attributes & { text_face?: string; text_font?: TextFont; upright?: boolean; literal?: boolean }
   function convert(nodes: RawNodes | undefined, context: Context = {}): MathSyntax[] {
     if (!nodes) return []
     if (Array.isArray(nodes)) return nodes.flatMap(node => convert(node, context))
@@ -157,16 +178,24 @@ function parse_math(source: string, options: ParseOptions = {}): readonly MathSy
         const mode = context.upright ? 'text' : node.mode ?? 'math'
         if (node.type === 'spacing' && symbols[mode][node.text]?.replace === null) return []
         const text = context.upright ? node.text.replace(/\u2212/g, '-').replace(/\u2217/g, '*') : node.text
-        const face = mode === 'text' ? context.text_face ?? font_family : font_family
+        let face = font_family
+        if (mode === 'text') face = context.text_face ?? (font_family && font_family !== 'auto' ? font_family
+          : text_font_face(context.text_font ?? DEFAULT_TEXT_FONT))
+        else if ((!face || face === 'auto') && node.type === 'textord' && context.text_font) {
+          // Nested math resets the text family, but textords retain the text
+          // weight/shape. Math letters and binary/relation symbols do not.
+          face = text_font_face({ ...context.text_font, family: 'main' })
+        }
         if (mode === 'text' && context.literal) {
-          return [{ ...attr, kind: 'literal', text: symbols.text[text]?.replace ?? text,
+          return [{ ...attr, kind: 'literal', text: face === 'KaTeX_Typewriter' && ['--', '---', '``', "''"].includes(text)
+            ? text : symbols.text[text]?.replace ?? text,
             ...(face === undefined ? {} : { font_family: face }) }]
         }
         return [{ ...attr, ...(face === undefined ? {} : { font_family: face }),
           kind: 'symbol', text, mode, ...(node.family ? { klass: SYMBOL_CLASS[node.family] } : {}) }]
       }
       case 'ordgroup': case 'mclass':
-        if (node.type === 'ordgroup' && node.semisimple) return convert(node.body, context)
+        if (node.type === 'ordgroup' && (node.semisimple || node.mode === 'text' && context.literal)) return convert(node.body, context)
         return [{ ...attr, kind: 'group', body: convert(node.body, context), klass: node.mclass ?? 'mord' }]
       case 'kern': {
         const dim = node.dimension
@@ -180,9 +209,14 @@ function parse_math(source: string, options: ParseOptions = {}): readonly MathSy
         if (!face) return unsupported(`font '${node.font}'`)
         return convert(node.body, { ...context, font_family: face })
       }
-      case 'text':
-        if (node.font && !['\\text', '\\textrm', '\\textnormal'].includes(node.font)) return unsupported(`text font '${node.font}'`)
-        return [{ ...attr, kind: 'text', body: convert(node.body, { ...context, text_face: 'KaTeX_Main', literal: true }) }]
+      case 'text': {
+        const text_font = text_command(context.text_font ?? DEFAULT_TEXT_FONT, node.font ?? '\\text')
+        if (!text_font) return unsupported(`text font '${node.font}'`)
+        return [{ ...attr, font_family: 'auto', kind: 'text',
+          body: convert(node.body, { ...context, text_font, font_family: 'auto', literal: true }) }]
+      }
+      case 'hbox':
+        return [{ ...attr, font_family: 'auto', kind: 'text', body: convert(node.body, { ...context, font_family: 'auto', literal: true }) }]
       case 'op':
         return [{ ...attr, kind: 'operator', text: node.name, symbol: node.symbol ?? false,
           ...(node.suppressBaseShift ? { center: false } : {}),
@@ -192,10 +226,69 @@ function parse_math(source: string, options: ParseOptions = {}): readonly MathSy
         return [{ ...attr, kind: 'operator', symbol: false, center: false,
           limits: node.explicitLimits ?? (node.alwaysHandleSupSub ? (node.limits ? 'always' : 'auto') : 'never'),
           body: convert(node.body, { ...context, font_family: 'KaTeX_Main', text_face: 'KaTeX_Main', upright: true }) }]
-      case 'supsub':
-        return [{ ...attr, kind: 'scripts', base: convert(node.base, context),
-          ...(node.sup ? { sup: convert(node.sup, context) } : {}),
-          ...(node.sub ? { sub: convert(node.sub, context) } : {}) }]
+      case 'supsub': {
+        const base = convert(node.base, context)
+        let sup = node.sup && convert(node.sup, context), sub = node.sub && convert(node.sub, context)
+        // The matching script labels the brace. Keep an opposite script as
+        // an ordinary side script, including when both occur on one brace.
+        if (base.length === 1 && base[0].kind === 'brace') {
+          const brace = base[0], label = brace.over ? sup : sub
+          if (label) { base[0] = { ...brace, label }; if (brace.over) sup = undefined; else sub = undefined }
+        }
+        return sup || sub ? [{ ...attr, kind: 'scripts', base, ...(sup ? { sup } : {}), ...(sub ? { sub } : {}) }] : base
+      }
+      case 'accent': case 'accentUnder':
+        return [{ ...attr, ...(node.mode === 'text' ? { font_family: context.text_face
+          ?? (font_family && font_family !== 'auto' ? font_family : text_font_face(context.text_font ?? DEFAULT_TEXT_FONT)) } : {}),
+          kind: 'accent', body: convert(node.base, context), label: node.label!,
+          under: node.type === 'accentUnder', stretchy: node.type === 'accentUnder' || !!node.isStretchy,
+          shifty: !!node.isShifty, mode: node.mode ?? 'math' }]
+      case 'underline': case 'overline':
+        return [{ ...attr, kind: 'line', body: convert(node.body, context), over: node.type === 'overline' }]
+      case 'horizBrace':
+        return [{ ...attr, kind: 'brace', body: convert(node.base, context), over: !!node.isOver, bracket: node.label!.endsWith('bracket') }]
+      case 'xArrow':
+        if (node.label!.startsWith('\\\\cd')) return unsupported('CD arrow')
+        return [{ ...attr, kind: 'arrow', label: node.label!, above: convert(node.body, context),
+          ...(node.below ? { below: convert(node.below, context) } : {}) }]
+      case 'phantom': {
+        // Full phantom is a transparent sequence, like color. Preserve atom
+        // cancellation/glue across its edges while suppressing every atom's ink.
+        const hide = (nodes: readonly MathSyntax[]): MathSyntax[] => nodes.map(child => child.kind === 'scope'
+          ? { ...child, body: hide(child.body) }
+          : { ...attr, kind: 'phantom', body: [child], horizontal: true, vertical: true })
+        return hide(convert(node.body, context))
+      }
+      case 'hphantom': case 'vphantom':
+        return [{ ...attr, kind: 'phantom', body: convert(node.body, context), horizontal: node.type !== 'vphantom', vertical: node.type !== 'hphantom' }]
+      case 'smash':
+        return [{ ...attr, kind: 'smash', body: convert(node.body, context), top: !!node.smashHeight, bottom: !!node.smashDepth }]
+      case 'lap': {
+        const align = ({ llap: 'right', clap: 'center', rlap: 'left' } as const)[node.alignment as 'llap' | 'clap' | 'rlap']
+        if (!align) return unsupported('lap alignment')
+        return [{ ...attr, kind: 'lap', body: convert(node.body, context), align }]
+      }
+      case 'enclose': {
+        const label = node.label!.replace(/^\\/, '')
+        const notation = label === 'fbox' || label === 'boxed' || label === 'fcolorbox' ? 'box' : label
+        if (!['box', 'colorbox', 'cancel', 'bcancel', 'xcancel', 'sout'].includes(notation)) return unsupported(`enclosure '${label}'`)
+        return [{ ...attr, kind: 'enclose', body: convert(node.body, context), notation: notation as 'box' | 'colorbox' | 'cancel' | 'bcancel' | 'xcancel' | 'sout',
+          background: node.backgroundColor, border_color: node.borderColor }]
+      }
+      case 'raisebox': return [{ ...attr, kind: 'raise', body: convert(node.body, context), shift: dimension(node.dy) }]
+      case 'vcenter': return [{ ...attr, kind: 'vcenter', body: convert(node.body, context) }]
+      case 'pmb': return [{ ...attr, kind: 'pmb', body: convert(node.body, context), klass: node.mclass ?? 'mord' }]
+      case 'rule': return [{ ...attr, kind: 'rule', width: dimension(node.width), height: dimension(node.height),
+        shift: node.shift ? dimension(node.shift) : { value: 0, unit: 'pt' } }]
+      case 'verb': {
+        const body = (node as unknown as { body: string }).body
+        if (typeof body !== 'string') throw new Error('Invalid KaTeX verb body')
+        return [{ ...attr, kind: 'verb', text: body.replace(/ /g, node.star ? '\u2423' : '\u00a0') }]
+      }
+      case 'htmlmathml': return convert(node.html, context)
+      case 'cr':
+        if (node.newLine) return unsupported('line break outside an array; use MathCol or an aligned environment')
+        return []
       case 'genfrac':
         return [{ ...attr, kind: 'fraction', numerator: convert(node.numer, context),
           denominator: convert(node.denom, context), has_bar: node.hasBarLine ?? true,

@@ -3,6 +3,7 @@ import type { Child, LayoutQuery } from 'gum-next-core'
 import { MathElement } from './base'
 import { operand_source, measure_operand, extent, baseline, advance } from './operands'
 import { limit_policy } from './operators'
+import { accent_nucleus } from './decorations'
 import { math_context, math_font_size, atom_metrics, math_metrics, finish_math, place_math, MATH_AXIS } from '../metrics'
 import type { MathPlacement } from '../metrics'
 import { sup_style, sub_style, tex_metrics } from '../styles'
@@ -16,13 +17,20 @@ class SupSub extends MathElement<SupSubProps> {
     const sources = query.prepare('script-operands', () => ({ base: operand_source(props.children, math),
       sup: props.sup == null || typeof props.sup === 'boolean' ? undefined : operand_source(props.sup, upper),
       sub: props.sub == null || typeof props.sub === 'boolean' ? undefined : operand_source(props.sub, lower) }))
-    const base = measure_operand(sources.base, query, math, 0), bm = atom_metrics(base)
+    const base = measure_operand(sources.base, query, math, 0)
     const sup = sources.sup && measure_operand(sources.sup, query, upper, 1)
     const sub = sources.sub && measure_operand(sources.sub, query, lower, 2)
-    if (!sup && !sub) return finish_math({ ...base, math: { ...bm,
-      left: props.left ?? props.klass ?? bm.left, right: props.right ?? props.left ?? props.klass ?? bm.right } }, query)
+    if (!sup && !sub) {
+      const bm = atom_metrics(base)
+      return finish_math({ ...base, math: { ...bm,
+        left: props.left ?? props.klass ?? bm.left, right: props.right ?? props.left ?? props.klass ?? bm.right } }, query)
+    }
+    const nucleus_source = query.prepare('accent-script-nucleus', () => accent_nucleus(sources.base))
+    const nucleus = nucleus_source && measure_operand(nucleus_source, query, math, 3)
+    const attachment = nucleus && atom_metrics(nucleus).nucleus === 'character' ? nucleus : base
+    const bm = atom_metrics(attachment)
     const sf = math_font_size(query, upper), tf = math_font_size(query, lower)
-    const be = extent(base, f), se = sup && extent(sup, sf), te = sub && extent(sub, tf)
+    const be = extent(attachment, f), se = sup && extent(sup, sf), te = sub && extent(sub, tf)
     const policy = limit_policy(props.limits, bm.limits ?? 'never')
     const stacked = policy === 'always' || policy === 'auto' && math.style.startsWith('display')
     let width: number, pad_top = 0, pad_bottom = 0
@@ -71,8 +79,9 @@ class SupSub extends MathElement<SupSubProps> {
       }
       width += 0.05 * query.style.font_size // TeX's font-size-independent 0.5pt script space.
     }
-    const metrics = math_metrics(width, props.left ?? props.klass ?? bm.left,
-      { right: props.right ?? props.left ?? props.klass ?? bm.right })
+    const classes = atom_metrics(base)
+    const metrics = math_metrics(width, props.left ?? props.klass ?? classes.left,
+      { right: props.right ?? props.left ?? props.klass ?? classes.right })
     let result = place_math(items, width, f, metrics)
     if (pad_top || pad_bottom) result = make_fragment({ size: make_size(width, result.size.height + pad_top + pad_bottom),
       children: [place_fragment(result, make_point(0, pad_top))], math: metrics,
