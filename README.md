@@ -1,7 +1,7 @@
 # gum-next-math
 
 Math elements and TeX parsing for the Gum rewrite. This package implements
-phases 1–3 of the [math roadmap](../docs/MATH.md), using KaTeX **0.16.47**
+phases 1–4 of the [math roadmap](../docs/MATH.md), using KaTeX **0.16.47**
 for parsing and fonts, Gum for layout, and Fontkit for outline geometry.
 
 ## Use
@@ -60,6 +60,7 @@ not require page fonts. Notify a reused pass of font replacements with
 | `Frac` | Fractions, no-bar/continued forms, custom rules, and binomials. |
 | `Sqrt` | Cramped radicands, scriptscript indices, and vertically growing surds. |
 | `Bracket` | Measured left/middle/right delimiter groups and fixed levels. |
+| `TextMode` | Literal text runs, preserved spaces and kerning, and nested math. |
 
 Nested `MathText` descriptions flatten before layout unless they specify sizing,
 atom classes, a strut, or visible error handling. `MathRow`, `MathBox`, and TeX
@@ -93,7 +94,7 @@ limits, style/size commands, `\mathchoice`, and left/middle/right or fixed-size
 delimiters are supported. All eighteen KaTeX faces are registered;
 font aliases such as `mathrm`, `mathbf`, and `mathbb` are exported for JSX.
 
-Arrays, decorations, full text-font composition, and inline math within prose `Text`
+Arrays, decorations, and full TeX text-font command composition
 remain in later phases. Standalone export helpers and a dedicated TeX CLI are
 also deferred. Unknown syntax cannot silently vanish.
 
@@ -116,6 +117,31 @@ resource failures and programming errors continue to throw. Parser warnings
 default to errors and can be set to `warn` or `ignore`. This does not enable
 unsupported nodes or trusted HTML commands.
 
+## Mixed content
+
+Core `Text` accepts generic inline elements. Use `Tex` for a text-style formula
+inside prose; `Latex` retains its display-style default. A formula is indivisible,
+shares the prose baseline, and expands its line using logical height/depth.
+An oversized formula overflows at its original size. Styled spans pass font
+size and color through, while math retains its own default faces.
+
+Mixed arrays work in text boxes, bullet items, captions, and titles. A sole
+element remains a block; wrap several elements without prose in `Text` for
+inline layout. See the [paragraph examples](../gum-next-docs/topics/code/InlineMath.jsx).
+
+In the other direction, math rows and compound operands measure ordinary Gum
+elements through the same pass. An existing math axis wins, a text baseline
+implies an axis using that element's own font size, and an unguided figure is
+centered. Wrapping text needs an explicit width. Give plots concrete dimensions
+and use `Fit` to scale intentionally; embedding does not shrink them into a
+script. See the [mixed formula examples](../gum-next-docs/topics/code/MathComposition.jsx).
+
+`TextMode` strings are literal, including spaces and kerning. Source newlines
+and tabs become spaces. Its `family`, `bold`, and `italic` controls select among
+the bundled text faces without changing nested math fonts. Missing face
+combinations are explicit errors. Parsed `\text`, `\textrm`, and `\textnormal`
+use the same literal-run layout, with nested `$…$` math supported.
+
 ## Verification
 
 From the workspace root:
@@ -129,6 +155,8 @@ bun run compare --suite -S 48 -o gum-next-math/out/comparison.png \
   --artifacts gum-next-math/out/comparison
 bun run compare --suite 3 -S 48 -o gum-next-math/out/phase3.png
 bun run compare --suite 3 --inline -S 48 -o gum-next-math/out/phase3-inline.png
+bun run compare --suite 4 -S 48 -o gum-next-math/out/phase4.png
+bun run compare --suite 4 --inline -S 48 -o gum-next-math/out/phase4-inline.png
 bun run compare 'a\!b' --inline -S 96 -o /tmp/negative-glue.png
 ```
 

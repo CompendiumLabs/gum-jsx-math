@@ -30,6 +30,8 @@ type Attributes = Readonly<{ color?: string; font_family?: string }>
 type Located = Attributes & Readonly<{ range?: SourceRange }>
 type MathSyntax = Located & (
   | Readonly<{ kind: 'symbol'; text: string; mode: SymbolMode; klass?: MathClass }>
+  | Readonly<{ kind: 'literal'; text: string }>
+  | Readonly<{ kind: 'text'; body: readonly MathSyntax[] }>
   | Readonly<{ kind: 'space'; advance: number; dimension: MathDimension }>
   | Readonly<{ kind: 'group'; body: readonly MathSyntax[]; klass: MathClass }>
   | Readonly<{ kind: 'operator'; text?: string; body?: readonly MathSyntax[]; symbol: boolean; limits: LimitPolicy; center?: boolean }>
@@ -120,7 +122,7 @@ function parse_math(source: string, options: ParseOptions = {}): readonly MathSy
     throw new MathError('parse', details.rawMessage ?? error.message, source, range, undefined, { cause: error })
   }
 
-  type Context = Attributes & { text_face?: string; upright?: boolean }
+  type Context = Attributes & { text_face?: string; upright?: boolean; literal?: boolean }
   function convert(nodes: Raw | Raw[] | undefined, context: Context = {}): MathSyntax[] {
     if (!nodes) return []
     if (Array.isArray(nodes)) return nodes.flatMap(node => convert(node, context))
@@ -143,6 +145,10 @@ function parse_math(source: string, options: ParseOptions = {}): readonly MathSy
         if (node.type === 'spacing' && symbols[mode][node.text]?.replace === null) return []
         const text = context.upright ? node.text.replace(/\u2212/g, '-').replace(/\u2217/g, '*') : node.text
         const face = mode === 'text' ? context.text_face ?? font_family : font_family
+        if (mode === 'text' && context.literal) {
+          return [{ ...attr, kind: 'literal', text: symbols.text[text]?.replace ?? text,
+            ...(face === undefined ? {} : { font_family: face }) }]
+        }
         return [{ ...attr, ...(face === undefined ? {} : { font_family: face }),
           kind: 'symbol', text, mode, ...(node.family ? { klass: SYMBOL_CLASS[node.family] } : {}) }]
       }
@@ -163,7 +169,7 @@ function parse_math(source: string, options: ParseOptions = {}): readonly MathSy
       }
       case 'text':
         if (node.font && !['\\text', '\\textrm', '\\textnormal'].includes(node.font)) return unsupported(`text font '${node.font}'`)
-        return convert(node.body, { ...context, text_face: 'KaTeX_Main' })
+        return [{ ...attr, kind: 'text', body: convert(node.body, { ...context, text_face: 'KaTeX_Main', literal: true }) }]
       case 'op':
         return [{ ...attr, kind: 'operator', text: node.name, symbol: node.symbol ?? false,
           ...(node.suppressBaseShift ? { center: false } : {}),

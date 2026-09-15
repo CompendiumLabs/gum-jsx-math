@@ -1,4 +1,4 @@
-import { Element, Text, LayoutError, make_request, make_size, make_point, make_fragment,
+import { Element, Text, Span, LayoutError, make_request, make_size, make_point, make_fragment,
   place_fragment, resolve_style, definite_reference, layout_content, resolve_insets,
   resolve_alignment, resolve_length, em } from 'gum-next-core'
 import type { Child, LayoutQuery, MathContext, MathMetrics, MathSizeStyle, Fragment, Style, Length, InsetSpec,
@@ -11,6 +11,7 @@ import { SupSub } from './scripts'
 import { Frac } from './fraction'
 import { Sqrt } from './radical'
 import { Bracket, SizedDelimiter, Middle } from './delimiters'
+import { TextMode } from './text'
 import { style_size } from '../styles'
 import { math_context, math_font_size, math_metrics, atom_metrics, math_axis,
   finish_math, place_math, MATH_AXIS } from '../metrics'
@@ -37,6 +38,10 @@ function syntax_elements(nodes: readonly MathSyntax[], source: string): Element[
     switch (node.kind) {
       case 'symbol': return new MathSymbol({ ...attr, text: node.text, mode: node.mode,
         klass: node.klass, source, source_range: node.range })
+      case 'literal': return new TextMode({ ...attr, text: node.text })
+      case 'text': return new TextMode({ ...attr, children: node.body.map(child => child.kind === 'literal'
+        ? new Span({ color: child.color, font_family: child.font_family, children: child.text })
+        : syntax_elements([child], source)[0]) })
       case 'operator': return new MathOp({ ...attr, symbol: node.symbol, limits: node.limits,
         center: node.center,
         ...(node.body ? { children: syntax_operand(node.body, source) } : { text: node.text }), source, source_range: node.range })
@@ -143,8 +148,11 @@ function measure_items(items: readonly Item[], query: LayoutQuery) {
   const reference = definite_reference(query.request, query.sizing)
   return items.map(({ element, style, math }, index) => {
     const fragment = query.child(element, make_request(), reference, index, { style, math, coordinates: null })
-    const font_size = math_font_size({ ...query, style: resolve_style(element.props, style) }, math_context(element.props, { ...query, math }))
-    return { fragment, font_size, axis: math_axis(fragment, font_size), math }
+    const child_style = resolve_style(element.props, style)
+    const font_size = math_font_size({ ...query, style: child_style }, math_context(element.props, { ...query, math }))
+    // Ordinary text retains its own font size in a math operand. Its first
+    // baseline implies an axis using that font, regardless of the TeX style.
+    return { fragment, font_size, axis: math_axis(fragment, fragment.math ? font_size : child_style.font_size), math }
   })
 }
 
@@ -154,7 +162,8 @@ function row_layout(props: MathTextProps, query: LayoutQuery, spaced: boolean) {
   return assemble_row(props, query, context, measured, spaced)
 }
 
-function assemble_row(props: MathTextProps, query: LayoutQuery, context: MathContext, measured: readonly MeasuredItem[], spaced: boolean) {
+function assemble_row(props: MathTextProps, query: LayoutQuery, context: MathContext, measured: readonly MeasuredItem[], spaced: boolean,
+  align_baselines = spaced) {
   const font_size = math_font_size(query, context)
   const metrics = measured.map(({ fragment }) => atom_metrics(fragment))
   const effective = spaced ? cancel_binary_atoms(metrics) : metrics
@@ -169,9 +178,11 @@ function assemble_row(props: MathTextProps, query: LayoutQuery, context: MathCon
     // A glyph's font advance and italic correction stay independently available
     // for scripts. Ordinary rows consume both; compound atoms clear correction.
     advance += atom.advance + atom.italic
-    // Explicit MathRow composition aligns axes. A TeX expression preserves the
-    // baseline across local style/size declarations, as ordinary typesetting does.
-    return spaced ? { fragment, x, axis: fragment.guides.baseline ?? axis + MATH_AXIS * child_font_size,
+    // TeX atoms preserve baselines across local style/size declarations.
+    // Foreign Gum operands honor their own axis; TextMode instead aligns all
+    // its children as literal prose, without inserting inter-atom glue.
+    return align_baselines && (fragment.math || !spaced)
+      ? { fragment, x, axis: fragment.guides.baseline ?? axis + MATH_AXIS * child_font_size,
       y: MATH_AXIS * font_size } : { fragment, x, axis }
   })
   const atoms = effective.filter(is_atom)

@@ -82,5 +82,5 @@ class MathSymbol extends MathElement<MathSymbolProps> {
   }
 }
 
-export { MathSpan, MathSymbol }
+export { MathSpan, MathSymbol, glyph_layout }
 export type { MathSpanProps, MathSymbolProps }

@@ -39,6 +39,15 @@ const ORDINARY = [
   String.raw`\bigl(\Bigl[\biggl\{\Biggl\langle x\Biggr\rangle\biggr\}\Bigr]\bigr)`,
   String.raw`{\scriptstyle a+b}\quad{\Huge x^{y^z}}\quad\mathchoice{D}{T}{S}{Q}`,
 ]
+const TEXT = [
+  String.raw`\text{AV office}`,
+  String.raw`\frac{\text{distance}}{\text{time}}`,
+  String.raw`v_{\text{average}}=\frac{d_{\text{total}}}{t}`,
+  String.raw`\text{if $x>0$ then }x^2>0`,
+  String.raw`\text{a \textcolor{blue}{blue} word}+x`,
+  String.raw`\text{100\% of }n\text{ samples}`,
+  String.raw`\text{left }x\text{ right}\quad\sqrt{\text{area}}`,
+]
 
 function positive(value: string): number {
   const number = Number(value)
@@ -49,7 +58,7 @@ const program = new Command().name('compare')
   .description('Compare Gum, KaTeX HTML in Chromium, and pdflatex at equal pixels per em.')
   .argument('[tex]', 'TeX source (otherwise read stdin)')
   .option('-F, --file <path>', 'Read TeX from a file')
-  .option('--suite [phase]', 'Render a comparison gallery: 1-2, 3, or all (default)')
+  .option('--suite [phase]', 'Render a comparison gallery: 1-2, 3, 4, or all (default)')
   .option('-i, --inline', 'Use inline math style')
   .option('-S, --font-size <pixels>', 'Pixels per em in all renderers', positive, 64)
   .option('-o, --output <path>', 'Output PNG (otherwise write PNG to stdout)')
@@ -65,8 +74,9 @@ const options = program.opts<{
 if ([options.file !== undefined, options.suite !== undefined, program.args.length > 0].filter(Boolean).length > 1) {
   program.error('Use a TeX argument, --file, or --suite, not more than one')
 }
-if (typeof options.suite === 'string' && !['1-2', '3', 'all'].includes(options.suite)) program.error('--suite must be 1-2, 3, or all')
-const formulas = options.suite ? options.suite === '1-2' ? BASIC : options.suite === '3' ? ORDINARY : [...BASIC, ...ORDINARY]
+if (typeof options.suite === 'string' && !['1-2', '3', '4', 'all'].includes(options.suite)) program.error('--suite must be 1-2, 3, 4, or all')
+const formulas = options.suite ? options.suite === '1-2' ? BASIC : options.suite === '3' ? ORDINARY
+  : options.suite === '4' ? TEXT : [...BASIC, ...ORDINARY, ...TEXT]
   : [program.args[0] ?? readFileSync(options.file ?? 0, 'utf8').trim()]
 const windowSize = /^(\d+)x(\d+)$/.exec(options.window)
 if (!windowSize || Number(windowSize[1]) < 100 || Number(windowSize[2]) < 100) {

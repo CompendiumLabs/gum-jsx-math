@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 // Exercise the actual editor production bundle: cold font loading, concurrent
 // formulas, reuse, typed errors, and self-contained outline SVG. Run after build.
-import { mkdtempSync, readdirSync, mkdirSync, rmSync } from 'node:fs'
+import { mkdtempSync, readdirSync, readFileSync, mkdirSync, rmSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
@@ -24,6 +24,8 @@ const browserSources = [
     <Latex text={${JSON.stringify(text)}} />
   </Box>
 </Svg>`)
+browserSources.unshift(...['topics/code/InlineMath.jsx', 'topics/code/MathComposition.jsx',
+  'elements/code/TextMode.jsx'].map(file => readFileSync(new URL('../../gum-next-docs/' + file, import.meta.url), 'utf8')))
 browserSources.push(`<Svg font-size={px(40)} color={blue}>
   <Box padding={em(0.5)}>
     <MathText style="display">
@@ -70,7 +72,7 @@ try {
   }
   await renderGum(sources[0]);
   document.body.dataset.result = 'passed';
-  status.textContent = 'Passed: no import-time font requests; 24 faces loaded once; concurrent formulas; repeat rendering; parse/unsupported failures and recovery; outline SVG.';
+  status.textContent = 'Passed: no import-time font requests; 24 faces loaded once; concurrent formulas and mixed-content docs; repeat rendering; parse/unsupported failures and recovery; outline SVG.';
 } catch (error) {
   document.body.dataset.result = 'failed'; status.textContent = String(error.stack ?? error);
 }
@@ -86,7 +88,7 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(request) 
 try {
   const child = Bun.spawn([chrome, '--headless=new', '--no-sandbox', '--disable-gpu',
     '--disable-dev-shm-usage', '--hide-scrollbars', `--user-data-dir=${scratch}`,
-    '--virtual-time-budget=10000', '--window-size=1100,1200', `--screenshot=${output}`,
+    '--virtual-time-budget=10000', '--window-size=1100,3200', `--screenshot=${output}`,
     '--dump-dom', server.url.href], { stdout: 'pipe', stderr: 'pipe' })
   const timeout = setTimeout(() => child.kill(), 30000)
   const [exit, dom, stderr] = await Promise.all([child.exited,
