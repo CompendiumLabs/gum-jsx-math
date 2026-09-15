@@ -6,7 +6,9 @@ package (MIT, Compendium Labs, LLC). The package license is reproduced in
 
 KaTeX provides the parser and eighteen unmodified font assets through the
 pinned npm dependency. `src/italic.ts` is generated from KaTeX's font metrics;
-symbol, skew, and spacing data also derive from KaTeX. Its license follows.
+`src/operator-metrics.ts` contains its logical operator height/depth data.
+Symbol, skew, spacing, style tables, and compound layout rules also derive from
+KaTeX and gum-1. Its license follows.
 
 The MIT License (MIT)
 

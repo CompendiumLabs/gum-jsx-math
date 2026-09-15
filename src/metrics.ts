@@ -1,19 +1,27 @@
 import { copy_math_context, make_fragment, make_size, make_point, place_fragment, finish_size,
   resolve_length } from 'gum-next-core'
 import type { Fragment, FragmentSpec, LayoutQuery, MathClass, MathContext, MathMetrics, MathStyle } from 'gum-next-core'
-import type { MathProps, MathSpace } from './types'
+import type { MathProps, MathSpace, MathDimension } from './types'
+import { font_scale, STYLE_SCALE, text_style } from './styles'
 
 const MATH_AXIS = 0.25
-const STYLE_SCALE = { display: 1, text: 1, script: 0.7, scriptscript: 0.5 } as const
 const SPACES = { thin: 3 / 18, medium: 4 / 18, thick: 5 / 18, quad: 1, qquad: 2 } as const
 
 function math_context(props: MathProps, query: LayoutQuery, fallback: MathStyle = 'text'): MathContext {
-  return copy_math_context({ style: props.style ?? query.math?.style ?? fallback, size: query.math?.size ?? 1 })
+  const inherited = query.math?.style ?? fallback
+  return copy_math_context({ style: props.style ?? (props.size_index === undefined ? inherited : text_style(inherited)), size: query.math?.size ?? 1,
+    size_index: props.size_index ?? query.math?.size_index })
 }
 
-function math_font_size(query: LayoutQuery, context = query.math ?? { style: 'text', size: 1 }): number {
-  const size = context.style.replace('-cramped', '') as keyof typeof STYLE_SCALE
-  return query.style.font_size * STYLE_SCALE[size] * context.size
+function dimension_length(dimension: MathDimension, query: LayoutQuery, context: MathContext): number {
+  if (dimension.unit === 'pt') return dimension.value * query.style.font_size / 10
+  if (dimension.unit === 'mu') return dimension.value * math_font_size(query, context) / 18
+  const font_size = math_font_size(query, { ...context, style: text_style(context.style) })
+  return dimension.value * font_size * (dimension.unit === 'ex' ? 0.431 : 1)
+}
+
+function math_font_size(query: LayoutQuery, context: MathContext = query.math ?? { style: 'text', size: 1 }): number {
+  return query.style.font_size * font_scale(context)
 }
 
 function space_length(value: MathSpace, font_size: number, reference?: number): number {
@@ -67,5 +75,5 @@ function place_math(items: readonly MathPlacement[], advance: number, font_size:
 }
 
 export { MATH_AXIS, STYLE_SCALE, math_context, math_font_size, space_length,
-  math_metrics, atom_metrics, math_axis, finish_math, place_math }
+  math_metrics, atom_metrics, math_axis, finish_math, place_math, dimension_length }
 export type { MathPlacement }

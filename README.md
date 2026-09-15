@@ -1,7 +1,7 @@
 # gum-next-math
 
 Math elements and TeX parsing for the Gum rewrite. This package implements
-phases 1 and 2 of the [math roadmap](../docs/MATH.md), using KaTeX **0.16.47**
+phases 1–3 of the [math roadmap](../docs/MATH.md), using KaTeX **0.16.47**
 for parsing and fonts, Gum for layout, and Fontkit for outline geometry.
 
 ## Use
@@ -55,6 +55,11 @@ not require page fonts. Notify a reused pass of font replacements with
 | `MathText` | Flattenable source sequence with TeX spacing and binary cancellation. |
 | `Latex` | Display-style formula with an optional one-em strut, enabled by default. |
 | `Tex` | Text-style counterpart to `Latex`. |
+| `MathOp` | Upright names, large glyph operators, and explicit limit policies. |
+| `SupSub` | Side scripts or limits with TeX style descent and italic correction. |
+| `Frac` | Fractions, no-bar/continued forms, custom rules, and binomials. |
+| `Sqrt` | Cramped radicands, scriptscript indices, and vertically growing surds. |
+| `Bracket` | Measured left/middle/right delimiter groups and fixed levels. |
 
 Nested `MathText` descriptions flatten before layout unless they specify sizing,
 atom classes, a strut, or visible error handling. `MathRow`, `MathBox`, and TeX
@@ -68,7 +73,11 @@ correction exactly once. An ink overhang is not a substitute for TeX correction.
 `baseline` and `math_axis` are vertical guides in pixels and may lie outside a
 zero-sized logical box. Fragments remain immutable and physically nonnegative.
 
-The pass transports all eight math styles and a size multiplier. Math-specific
+The pass transports all eight math styles, a size multiplier, and an optional
+TeX size index. `size_index` selects the `\tiny`…`\Huge` font-size table, including
+its script sizes; `MathText.choices` is the direct JSX counterpart of `\mathchoice`.
+Automatic rows preserve baselines across size changes; explicit `MathRow`
+composition aligns axes. Math-specific
 lengths use the active math em; ordinary Gum sizing props use the inherited Gum
 font size. Available widths are advisory. Exact widths allocate without scaling,
 and overflow preserves the drawing. `Fit` explicitly scales a formula. Leave
@@ -78,13 +87,27 @@ padding inside an explicit `Svg` viewport when ink extends beyond the advance.
 
 Symbols and aliases, atom classes, ordinary groups, named operators and
 `\operatorname`, signed kerns/glue, color, local macros, plain `\text`, and basic
-math font commands are implemented. All eighteen KaTeX faces are registered;
+math font commands are implemented. Scripts, fractions and generalized fractions,
+continued fractions, binomials, indexed roots, named/large operators, explicit
+limits, style/size commands, `\mathchoice`, and left/middle/right or fixed-size
+delimiters are supported. All eighteen KaTeX faces are registered;
 font aliases such as `mathrm`, `mathbf`, and `mathbb` are exported for JSX.
 
-Scripts, fractions, roots, large operators/limits, scalable delimiters, arrays,
-decorations, full text-font composition, and inline math within prose `Text`
+Arrays, decorations, full text-font composition, and inline math within prose `Text`
 remain in later phases. Standalone export helpers and a dedicated TeX CLI are
 also deferred. Unknown syntax cannot silently vanish.
+
+`limits: 'auto'` stacks limits in display style; `'always'` forces stacking and
+`'never'` keeps side scripts. Operator glyphs use TeX logical height/depth while
+retaining independent outline ink. Fraction bars inherit the formula color;
+explicit TeX point dimensions retain their size in scripts.
+The adapter restores explicit controls on `\operatorname` as well, including
+inside macros; KaTeX's AST otherwise drops some of those controls.
+
+Delimiters try Main and Size1–4, skipping missing glyphs. Beyond the largest
+glyph, ordinary fences scale uniformly; vertical bars and tall radicals keep
+their width. Extensible-piece assembly is deferred. Root rules overlap the
+surd to prevent a rasterization seam.
 
 `MathError.kind` distinguishes `parse`, `unsupported`, `symbol`, and `glyph`
 failures, with source/range details where available. Layout wraps these in
@@ -104,6 +127,8 @@ bun run build
 bun gum-next-math/scripts/check-browser.ts
 bun run compare --suite -S 48 -o gum-next-math/out/comparison.png \
   --artifacts gum-next-math/out/comparison
+bun run compare --suite 3 -S 48 -o gum-next-math/out/phase3.png
+bun run compare --suite 3 --inline -S 48 -o gum-next-math/out/phase3-inline.png
 bun run compare 'a\!b' --inline -S 96 -o /tmp/negative-glue.png
 ```
 
@@ -123,7 +148,8 @@ face once, repeated renders reuse them, and formula failures permit recovery.
 Visual comparison is not a pixel-equality test: outline rasterization and font
 metrics have small differences. TeX color groups can also classify atoms
 differently from KaTeX; Gum follows KaTeX's transparent color boundaries. Plain
-text spacing inside math can differ from LaTeX's text fonts.
+text spacing inside math can differ from LaTeX's text fonts. Size declarations
+inside math follow KaTeX; standard LaTeX warns and ignores `\Huge` there.
 
 `bun scripts/update-font-data.ts` regenerates italic corrections from the pinned
 KaTeX version. Review the parser adapter, symbol/skew data, tests, and comparison

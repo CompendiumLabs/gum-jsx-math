@@ -14,6 +14,30 @@ if (!chrome) throw new Error('Chromium is required; set GUM_CHROME to its path')
 const output = resolve(process.argv[2] ?? fileURLToPath(new URL('../out/browser.png', import.meta.url)))
 mkdirSync(dirname(output), { recursive: true })
 const scratch = mkdtempSync(join(tmpdir(), 'gum-next-browser-'))
+const browserSources = [
+  String.raw`e^{i\pi}+1=0`,
+  String.raw`x=\frac{-b\pm\sqrt{b^2-4ac}}{2a}`,
+  String.raw`\int_{-\infty}^{\infty}e^{-x^2}\,dx=\sqrt{\pi}`,
+  String.raw`\left\{x\middle|\frac{1}{x}>0\right\}`,
+].map(text => `<Svg font-size={px(40)}>
+  <Box padding={em(0.5)}>
+    <Latex text={${JSON.stringify(text)}} />
+  </Box>
+</Svg>`)
+browserSources.push(`<Svg font-size={px(40)} color={blue}>
+  <Box padding={em(0.5)}>
+    <MathText style="display">
+      <SupSub sub="n=0" sup="∞">
+        <MathOp>∑</MathOp>
+      </SupSub>
+      <Frac>
+        <SupSub sup="n">x</SupSub>
+        <MathText>n!</MathText>
+      </Frac>
+    </MathText>
+  </Box>
+</Svg>`)
+const failures = [['<Latex text="{" />', 'parse:'], [String.raw`<Latex text="\hat{x}" />`, 'unsupported:']]
 const html = `<!doctype html><html><meta charset="utf-8"><title>Gum math browser verification</title>
 <style>body{font:16px sans-serif;margin:24px;background:#f6f7f9;color:#182330}figure{margin:12px 0;padding:16px;background:white;border:1px solid #ddd}svg{display:block}pre{white-space:pre-wrap}</style>
 <h1>Gum math · browser verification</h1><pre id="status">Loading…</pre><main></main>
@@ -23,22 +47,23 @@ const status = document.querySelector('#status');
 const fontRequests = () => performance.getEntriesByType('resource').filter(item => item.name.endsWith('.ttf'));
 try {
   if (fontRequests().length) throw Error('Importing the math renderer loaded fonts');
-  const sources = [
-    '<Svg font-size={px(48)}><Box padding={em(0.5)}><Latex>f+f=ff</Latex></Box></Svg>',
-    '<Svg font-size={px(40)} color={blue}><Box padding={em(0.5)}><MathText>α+β=γ</MathText></Box></Svg>',
-    '<Svg font-size={px(32)}><Box padding={em(0.5)}><MathText>a<MathText color={red}>+b</MathText>=c</MathText></Box></Svg>',
-    '<Svg font-size={px(48)}><Box padding={em(0.5)}><MathSpan font-family="KaTeX_Size2">∮</MathSpan></Box></Svg>',
-  ];
+  const sources = ${JSON.stringify(browserSources)};
   const svgs = await Promise.all(sources.map(source => renderGum(source)));
   for (const svg of svgs) {
     if (!svg.includes('<path') || svg.includes('<text')) throw Error('Expected outline-only SVG');
-    const figure = document.createElement('figure'); figure.innerHTML = svg; document.querySelector('main').append(figure);
+    // Each preview is a standalone SVG, like the docs images. Inlining several
+    // exports into one DOM would make their local clip IDs collide.
+    const figure = document.createElement('figure');
+    const image = document.createElement('img');
+    image.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+    figure.append(image); document.querySelector('main').append(figure);
+    await image.decode();
   }
   const fonts = fontRequests();
   if (fonts.length !== 24 || new Set(fonts.map(item => item.name)).size !== 24) throw Error('Font loads were missing or duplicated: '+fonts.length);
   await renderGum(sources[0]);
   if (fontRequests().length !== 24) throw Error('Rendering again reloaded fonts');
-  for (const [source, expected] of [['<Latex text="{" />', 'parse:'], ['<Latex>x^2</Latex>', 'unsupported:']]) {
+  for (const [source, expected] of ${JSON.stringify(failures)}) {
     let failure;
     try { await renderGum(source) } catch (error) { failure = String(error) }
     if (!failure?.includes(expected)) throw Error('Expected '+expected+' diagnostic, got '+failure);
@@ -61,7 +86,7 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(request) 
 try {
   const child = Bun.spawn([chrome, '--headless=new', '--no-sandbox', '--disable-gpu',
     '--disable-dev-shm-usage', '--hide-scrollbars', `--user-data-dir=${scratch}`,
-    '--virtual-time-budget=10000', '--window-size=1100,950', `--screenshot=${output}`,
+    '--virtual-time-budget=10000', '--window-size=1100,1200', `--screenshot=${output}`,
     '--dump-dom', server.url.href], { stdout: 'pipe', stderr: 'pipe' })
   const timeout = setTimeout(() => child.kill(), 30000)
   const [exit, dom, stderr] = await Promise.all([child.exited,

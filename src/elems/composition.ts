@@ -1,27 +1,35 @@
 import { Element, Text, LayoutError, make_request, make_size, make_point, make_fragment,
   place_fragment, resolve_style, definite_reference, layout_content, resolve_insets,
   resolve_alignment, resolve_length, em } from 'gum-next-core'
-import type { Child, LayoutQuery, MathContext, MathMetrics, Style, Length, InsetSpec,
+import type { Child, LayoutQuery, MathContext, MathMetrics, MathSizeStyle, Fragment, Style, Length, InsetSpec,
   Alignment, ElementType, FontProvider } from 'gum-next-core'
 import { MathElement } from './base'
-import { MathSpan, MathSymbol } from './glyphs'
+import { MathSymbol } from './glyphs'
 import { MathSpacer } from './space'
+import { MathOp } from './operators'
+import { SupSub } from './scripts'
+import { Frac } from './fraction'
+import { Sqrt } from './radical'
+import { Bracket, SizedDelimiter, Middle } from './delimiters'
+import { style_size } from '../styles'
 import { math_context, math_font_size, math_metrics, atom_metrics, math_axis,
   finish_math, place_math, MATH_AXIS } from '../metrics'
 import { is_atom, cancel_binary_atoms, atom_spacing } from '../spacing'
 import { parse_math } from '../parse'
 import type { MathSyntax, ParseOptions } from '../parse'
 import { MathError } from '../errors'
-import type { MathAtomProps } from '../types'
+import type { MathAtomProps, SourceRange } from '../types'
 
 type MathRowProps = MathAtomProps & Readonly<{ strut?: boolean }>
 type MathTextProps = MathRowProps & Readonly<{
   text?: string; inline?: boolean; macros?: ParseOptions['macros']; warnings?: ParseOptions['warnings']
   on_error?: 'throw' | 'render'
+  choices?: Readonly<Record<MathSizeStyle, Child>>
 }>
 type MathColProps = MathAtomProps & Readonly<{ gap?: Length; justify?: Alignment; axis?: Length }>
 type MathBoxProps = MathAtomProps & Readonly<{ padding?: InsetSpec; align?: Alignment }>
 type Item = Readonly<{ element: Element; style: Style; math: MathContext }>
+type MeasuredItem = Readonly<{ fragment: Fragment; axis: number; font_size: number; math: MathContext }>
 
 function syntax_elements(nodes: readonly MathSyntax[], source: string): Element[] {
   return nodes.map(node => {
@@ -29,16 +37,61 @@ function syntax_elements(nodes: readonly MathSyntax[], source: string): Element[
     switch (node.kind) {
       case 'symbol': return new MathSymbol({ ...attr, text: node.text, mode: node.mode,
         klass: node.klass, source, source_range: node.range })
-      case 'operator': return new MathSpan({ ...attr, font_family: node.font_family ?? 'KaTeX_Main',
-        text: node.text, klass: 'mop', source, source_range: node.range })
-      case 'space': return new MathSpacer({ advance: em(node.advance) })
+      case 'operator': return new MathOp({ ...attr, symbol: node.symbol, limits: node.limits,
+        center: node.center,
+        ...(node.body ? { children: syntax_operand(node.body, source) } : { text: node.text }), source, source_range: node.range })
+      case 'space': return new MathSpacer({ ...attr, dimension: node.dimension })
       case 'group': return new MathRow({ ...attr, klass: node.klass,
         children: new MathText({ children: syntax_elements(node.body, source) }) })
+      case 'scripts': return new SupSub({ ...attr, children: syntax_operand(node.base, source),
+        sup: node.sup && syntax_operand(node.sup, source), sub: node.sub && syntax_operand(node.sub, source) })
+      case 'fraction': return new Frac({ ...attr, children: [syntax_operand(node.numerator, source), syntax_operand(node.denominator, source)],
+        has_bar: node.has_bar, bar_size: node.bar_size, continued: node.continued,
+        left_delim: node.left_delim, right_delim: node.right_delim })
+      case 'root': return new Sqrt({ ...attr, children: syntax_operand(node.body, source),
+        index: node.index && syntax_operand(node.index, source) })
+      case 'bracket': return new Bracket({ ...attr, children: syntax_elements(node.body, source),
+        left_delim: node.left, right_delim: node.right, right_color: node.right_color })
+      case 'delimiter': return new SizedDelimiter({ ...attr, text: node.text, level: node.level, klass: node.klass })
+      case 'middle': return new Middle({ ...attr, text: node.text })
+      case 'scope': return new MathText({ ...attr, children: syntax_elements(node.body, source), style: node.style, size_index: node.size_index })
+      case 'choice': return new MathText({ ...attr, choices: {
+        display: syntax_elements(node.choices.display, source), text: syntax_elements(node.choices.text, source),
+        script: syntax_elements(node.choices.script, source), scriptscript: syntax_elements(node.choices.scriptscript, source),
+      } })
+      case 'unsupported': return new UnsupportedMath({ node: node.node, source, range: node.range })
     }
   })
 }
 
-function source_children(props: MathTextProps): Child {
+class UnsupportedMath extends MathElement<MathAtomProps & { node: string; source: string; range?: SourceRange }> {
+  static layout(props: { node: string; source: string; range?: SourceRange }): Fragment {
+    throw new MathError('unsupported', `Unsupported TeX node '${props.node}'`, props.source, props.range, props.node)
+  }
+}
+
+// TeX treats a braced single character as a character nucleus for scripts.
+// Strip only that operand wrapper, preserving the group's atom classification.
+function syntax_operand(nodes: readonly MathSyntax[], source: string): Element {
+  if (nodes.length === 1) {
+    const node = nodes[0]
+    if (node.kind === 'group') {
+      let inner = node
+      while (inner.body.length === 1 && inner.body[0].kind === 'group') inner = inner.body[0]
+      if (inner.body.length === 1 && inner.body[0].kind === 'symbol') {
+        return syntax_elements([{ ...inner.body[0], klass: node.klass }], source)[0]
+      }
+    }
+    return syntax_elements(nodes, source)[0]
+  }
+  return new MathText({ children: syntax_elements(nodes, source) })
+}
+
+function source_children(props: MathTextProps, math: MathContext): Child {
+  if (props.choices !== undefined) {
+    if (props.text !== undefined || props.children !== undefined) throw new TypeError('Use choices or text/children, not both')
+    return props.choices[style_size(math.style)]
+  }
   if (props.text !== undefined && props.children !== undefined) throw new TypeError('Use text or children, not both')
   return props.text ?? props.children
 }
@@ -65,21 +118,21 @@ function prepare_items(props: MathTextProps, query: LayoutQuery, context: MathCo
       if (typeof child === 'string' || typeof child === 'number') {
         const source = String(child)
         const elements = syntax_elements(parse_math(source, options), source)
-        if (sequences) elements.forEach(element => result.push({ element, style, math }))
+        if (sequences) collect(elements, style, math, options)
         else result.push({ element: new MathText({ children: elements }), style, math })
         return
       }
       if (!(child instanceof Element)) throw new TypeError('Expected a math child')
       if (sequences && is_sequence(child)) {
         const nested = child.props
-        const nested_math = { ...math, style: nested.style ?? math.style }
-        collect(source_children(nested), resolve_style(nested, style), nested_math, {
+        const nested_math = math_context(nested, { ...query, math })
+        collect(source_children(nested, nested_math), resolve_style(nested, style), nested_math, {
           ...options, display: nested_math.style.startsWith('display'),
           macros: nested.macros ?? options.macros, warnings: nested.warnings ?? options.warnings,
         })
       } else result.push({ element: child, style, math })
     }
-    collect(source_children(props), query.style, context, {
+    collect(source_children(props, context), query.style, context, {
       display: context.style.startsWith('display'), macros: props.macros, warnings: props.warnings,
     })
     return Object.freeze(result.map(item => Object.freeze(item)))
@@ -90,29 +143,36 @@ function measure_items(items: readonly Item[], query: LayoutQuery) {
   const reference = definite_reference(query.request, query.sizing)
   return items.map(({ element, style, math }, index) => {
     const fragment = query.child(element, make_request(), reference, index, { style, math, coordinates: null })
-    const font_size = math_font_size({ ...query, style: resolve_style(element.props, style) }, math)
+    const font_size = math_font_size({ ...query, style: resolve_style(element.props, style) }, math_context(element.props, { ...query, math }))
     return { fragment, font_size, axis: math_axis(fragment, font_size), math }
   })
 }
 
 function row_layout(props: MathTextProps, query: LayoutQuery, spaced: boolean) {
   const context = math_context(props, query, props.inline === false ? 'display' : 'text')
-  const font_size = math_font_size(query, context)
   const measured = measure_items(prepare_items(props, query, context, spaced), query)
+  return assemble_row(props, query, context, measured, spaced)
+}
+
+function assemble_row(props: MathTextProps, query: LayoutQuery, context: MathContext, measured: readonly MeasuredItem[], spaced: boolean) {
+  const font_size = math_font_size(query, context)
   const metrics = measured.map(({ fragment }) => atom_metrics(fragment))
   const effective = spaced ? cancel_binary_atoms(metrics) : metrics
   let advance = 0, previous: MathMetrics | undefined
-  const placements = measured.map(({ fragment, axis, font_size, math }, index) => {
+  const placements = measured.map(({ fragment, axis, font_size: child_font_size, math }, index) => {
     const atom = effective[index]
     if (spaced && is_atom(atom)) {
-      if (previous) advance += atom_spacing(previous.right, atom.left, math.style.includes('script')) * font_size
+      if (previous) advance += atom_spacing(previous.right, atom.left, math.style.includes('script')) * child_font_size
       previous = atom
     }
     const x = advance
     // A glyph's font advance and italic correction stay independently available
     // for scripts. Ordinary rows consume both; compound atoms clear correction.
     advance += atom.advance + atom.italic
-    return { fragment, x, axis }
+    // Explicit MathRow composition aligns axes. A TeX expression preserves the
+    // baseline across local style/size declarations, as ordinary typesetting does.
+    return spaced ? { fragment, x, axis: fragment.guides.baseline ?? axis + MATH_AXIS * child_font_size,
+      y: MATH_AXIS * font_size } : { fragment, x, axis }
   })
   const atoms = effective.filter(is_atom)
   const left = props.left ?? props.klass ?? (spaced ? atoms[0]?.left ?? 'none' : 'mord')
@@ -213,5 +273,5 @@ class MathBox extends MathElement<MathBoxProps> {
   }
 }
 
-export { MathRow, MathText, MathCol, MathBox, Latex, Tex }
+export { MathRow, MathText, MathCol, MathBox, Latex, Tex, syntax_operand, prepare_items, measure_items, assemble_row }
 export type { MathRowProps, MathTextProps, MathColProps, MathBoxProps }

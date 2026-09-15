@@ -16,7 +16,7 @@ import { LayoutPass, px, make_fragment, make_size, make_point, make_rect,
 import { rasterize_svg } from 'gum-next-png'
 import { createMathFonts, Latex } from '../src'
 
-const SUITE = [
+const BASIC = [
   'a+b=c', '-x+a+-b', '(a+b)=c',
   String.raw`a{+}b+a\textcolor{red}{+}b`,
   String.raw`a\!b\quad ab\quad a\!+b`,
@@ -24,6 +24,20 @@ const SUITE = [
   String.raw`\alpha+\beta\leq\Gamma\quad\mathbb{R}`,
   String.raw`\mathrm{speed}+\mathbf{F}=\mathit{f}`,
   'f+f=ff', String.raw`\text{if }a=b\text{ then }c=d`,
+]
+const ORDINARY = [
+  String.raw`e^{i\pi}+1=0`,
+  String.raw`x=\frac{-b\pm\sqrt{b^2-4ac}}{2a}`,
+  String.raw`\int_{-\infty}^{\infty}e^{-x^2}\,dx=\sqrt{\pi}`,
+  String.raw`\sum_{n=0}^{\infty}\frac{x^n}{n!}`,
+  String.raw`f_i^j+x^{y^{z^w}}`,
+  String.raw`\frac{1}{1+\frac{1}{1+x}}\quad\cfrac{1}{1+\cfrac{1}{1+x}}`,
+  String.raw`\binom{n}{k}\quad\genfrac{[}{]}{2pt}{}{a}{b}\quad{a\atop b}`,
+  String.raw`\sqrt[3]{x}+\sqrt{\frac{a}{b}}`,
+  String.raw`\left\{x\middle|\frac{1}{x}>0\right\}`,
+  String.raw`\int\limits_0^1+\sum\nolimits_{i=0}^n+\lim_{x\to0}f(x)`,
+  String.raw`\bigl(\Bigl[\biggl\{\Biggl\langle x\Biggr\rangle\biggr\}\Bigr]\bigr)`,
+  String.raw`{\scriptstyle a+b}\quad{\Huge x^{y^z}}\quad\mathchoice{D}{T}{S}{Q}`,
 ]
 
 function positive(value: string): number {
@@ -35,7 +49,7 @@ const program = new Command().name('compare')
   .description('Compare Gum, KaTeX HTML in Chromium, and pdflatex at equal pixels per em.')
   .argument('[tex]', 'TeX source (otherwise read stdin)')
   .option('-F, --file <path>', 'Read TeX from a file')
-  .option('--suite', 'Render the phase 1–2 comparison gallery')
+  .option('--suite [phase]', 'Render a comparison gallery: 1-2, 3, or all (default)')
   .option('-i, --inline', 'Use inline math style')
   .option('-S, --font-size <pixels>', 'Pixels per em in all renderers', positive, 64)
   .option('-o, --output <path>', 'Output PNG (otherwise write PNG to stdout)')
@@ -45,13 +59,15 @@ const program = new Command().name('compare')
   .option('--no-latex', 'Explicitly omit the LaTeX comparison')
   .parse()
 const options = program.opts<{
-  file?: string; suite?: boolean; inline?: boolean; fontSize: number; output?: string
+  file?: string; suite?: boolean | string; inline?: boolean; fontSize: number; output?: string
   artifacts?: string; chrome?: string; window: string; latex: boolean
 }>()
-if ([options.file !== undefined, options.suite === true, program.args.length > 0].filter(Boolean).length > 1) {
+if ([options.file !== undefined, options.suite !== undefined, program.args.length > 0].filter(Boolean).length > 1) {
   program.error('Use a TeX argument, --file, or --suite, not more than one')
 }
-const formulas = options.suite ? SUITE : [program.args[0] ?? readFileSync(options.file ?? 0, 'utf8').trim()]
+if (typeof options.suite === 'string' && !['1-2', '3', 'all'].includes(options.suite)) program.error('--suite must be 1-2, 3, or all')
+const formulas = options.suite ? options.suite === '1-2' ? BASIC : options.suite === '3' ? ORDINARY : [...BASIC, ...ORDINARY]
+  : [program.args[0] ?? readFileSync(options.file ?? 0, 'utf8').trim()]
 const windowSize = /^(\d+)x(\d+)$/.exec(options.window)
 if (!windowSize || Number(windowSize[1]) < 100 || Number(windowSize[2]) < 100) {
   program.error('--window must be WxH, at least 100 pixels on each axis')

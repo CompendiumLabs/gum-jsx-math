@@ -1,16 +1,17 @@
 import { draw_rect, make_rect, make_size, em, resolve_length } from 'gum-next-core'
 import type { LayoutQuery, Length } from 'gum-next-core'
 import { MathElement } from './base'
-import { math_context, math_font_size, math_metrics, finish_math, MATH_AXIS, space_length } from '../metrics'
-import type { MathProps, MathSpace } from '../types'
+import { math_context, math_font_size, math_metrics, finish_math, MATH_AXIS, space_length, dimension_length } from '../metrics'
+import type { MathProps, MathSpace, MathDimension } from '../types'
 
-type MathSpacerProps = MathProps & Readonly<{ advance?: MathSpace; axis?: Length }>
+type MathSpacerProps = MathProps & Readonly<{ advance?: MathSpace; axis?: Length; dimension?: MathDimension }>
 type MathRuleProps = MathProps & Readonly<{ thickness?: Length }>
 
 class MathSpacer extends MathElement<MathSpacerProps> {
   static layout(props: MathSpacerProps, query: LayoutQuery) {
-    const f = math_font_size(query, math_context(props, query))
-    const advance = space_length(props.advance ?? em(0), f, query.reference.width)
+    const math = math_context(props, query), f = math_font_size(query, math)
+    const advance = props.dimension ? dimension_length(props.dimension, query, math)
+      : space_length(props.advance ?? em(0), f, query.reference.width)
     const height = query.request.height.kind === 'exact' ? query.request.height.value : query.sizing.height.min
     const axis = props.axis === undefined ? height / 2
       : resolve_length(props.axis, { font_size: f, fraction: height }, 'MathSpacer.axis')

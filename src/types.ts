@@ -6,9 +6,11 @@ type SymbolFamily = 'accent-token' | 'bin' | 'close' | 'inner' | 'mathord' | 'op
   | 'open' | 'punct' | 'rel' | 'spacing' | 'textord'
 type SymbolEntry = { font: SymbolFont; family: SymbolFamily; replace: string | null }
 type SourceRange = Readonly<{ start: number; end: number }>
-type MathProps = ElementProps & Readonly<{ style?: MathStyle }>
+type MathProps = ElementProps & Readonly<{ style?: MathStyle; size_index?: number }>
 type MathAtomProps = MathProps & Readonly<{ klass?: MathClass; left?: MathClass; right?: MathClass }>
 type MathSpace = Length | 'thin' | 'medium' | 'thick' | 'quad' | 'qquad'
+type LimitPolicy = 'auto' | 'always' | 'never'
+type MathDimension = Readonly<{ value: number; unit: 'em' | 'ex' | 'mu' | 'pt' }>
 
 const SYMBOL_CLASS: Record<SymbolFamily, MathClass> = {
   mathord: 'mord', textord: 'mord', bin: 'mbin', rel: 'mrel', open: 'mopen',
@@ -17,5 +19,5 @@ const SYMBOL_CLASS: Record<SymbolFamily, MathClass> = {
 }
 
 export { SYMBOL_CLASS }
-export type { SymbolMode, SymbolFont, SymbolFamily, SymbolEntry, SourceRange, MathProps, MathAtomProps, MathSpace }
+export type { SymbolMode, SymbolFont, SymbolFamily, SymbolEntry, SourceRange, MathProps, MathAtomProps, MathSpace, LimitPolicy, MathDimension }
 export type { MathStyle, MathSizeStyle, MathClass, MathContext, MathMetrics } from 'gum-next-core'
