@@ -1,7 +1,7 @@
 # gum-next-math
 
 Math elements and TeX parsing for the Gum rewrite. This package implements
-phases 1–4 of the [math roadmap](../docs/MATH.md), using KaTeX **0.16.47**
+phases 1–5 of the [math roadmap](../docs/MATH.md), using KaTeX **0.16.47**
 for parsing and fonts, Gum for layout, and Fontkit for outline geometry.
 
 ## Use
@@ -51,6 +51,7 @@ not require page fonts. Notify a reused pass of font replacements with
 | `MathRule` | Axis-centered rule; default thickness `em(0.04)`. |
 | `MathRow` | Grouped atom with explicit axis-aligned placement, no automatic glue. |
 | `MathCol` | Vertical math composition with a gap and horizontal justification. |
+| `MathArray` | Natural columns, row baselines, cell styles, gaps, struts, and solid/dashed rules. |
 | `MathBox` | Single-child padding, allocation, alignment, and reclassification. |
 | `MathText` | Flattenable source sequence with TeX spacing and binary cancellation. |
 | `Latex` | Display-style formula with an optional one-em strut, enabled by default. |
@@ -94,8 +95,9 @@ limits, style/size commands, `\mathchoice`, and left/middle/right or fixed-size
 delimiters are supported. All eighteen KaTeX faces are registered;
 font aliases such as `mathrm`, `mathbf`, and `mathbb` are exported for JSX.
 
-Arrays, decorations, and full TeX text-font command composition
-remain in later phases. Standalone export helpers and a dedicated TeX CLI are
+Arrays and multiline environments are supported as described below. Decorations
+and full TeX text-font command composition remain in later phases.
+Standalone export helpers and a dedicated TeX CLI are
 also deferred. Unknown syntax cannot silently vanish.
 
 `limits: 'auto'` stacks limits in display style; `'always'` forces stacking and
@@ -142,6 +144,44 @@ the bundled text faces without changing nested math fonts. Missing face
 combinations are explicit errors. Parsed `\text`, `\textrm`, and `\textnormal`
 use the same literal-run layout, with nested `$…$` math supported.
 
+## Arrays and multiline math
+
+`MathArray` measures each cell naturally, then assigns shared column widths and
+row baselines. It accepts nested `rows` data (including `null` empty cells), or
+flat JSX children with `ncol`. A `cols` string such as `"r|c:l"` combines
+alignment and rules; descriptors can supply explicit pre/post column gaps.
+Use Gum lengths for `colsep`, `rowgaps`, and `thickness`. `stretch` changes row
+struts, and `jot` adds leading only between rows. `small` selects the defaults
+for a small matrix. See the [MathArray reference](../gum-next-docs/elements/text/MathArray.md).
+
+Cells can contain ordinary Gum elements with explicit dimensions. Offers do
+not shrink a table; exact allocations preserve its geometry and report overflow.
+A `Bracket` measures the finished table to select delimiters. Rule intersections
+have precise ink bounds; outer separators can overhang the logical advance.
+
+The supported environment inventory is:
+
+| Family | Environments / variants |
+| --- | --- |
+| Arrays | `array`, `darray` with `l`/`c`/`r`, `|`/`:`, repeated separators, `\hline`, `\hdashline`, row gaps, and array stretch. |
+| Matrices | `matrix`, `pmatrix`, `bmatrix`, `Bmatrix`, `vmatrix`, `Vmatrix`, and all six starred variants with optional `[l]`/`[c]`/`[r]`. |
+| Cases | `cases`, `dcases`, `rcases`, `drcases`. |
+| Small tables | `smallmatrix`, `subarray` with `{l}`/`{c}`, and the `\substack` macro. |
+| Embedded multiline | `aligned`, `alignedat`, `gathered`, `split`. |
+| Display-only | `align`, `align*`, `alignat`, `alignat*`, `gather`, `gather*`, `equation`, `equation*`. |
+
+These 32 environments have named tests. Cells retain environment-specific math
+styles, font resets, relation spacing, and leading. TeX row-gap units remain
+distinct from Gum lengths, including in scripts. Array font resets select the
+automatic math alphabet (`font_family: 'auto'`); local cell commands can override it.
+
+Starred and unstarred display environments currently render without numbers.
+Explicit `\tag` and the entire `CD` environment fail visibly; numbering and
+commutative diagrams remain deferred. Optional positioning arguments on aligned
+environments and general LaTeX column preambles are outside the pinned parser's
+supported syntax. See [matrices](../gum-next-docs/topics/text/MathArrays.md) and
+[aligned equations](../gum-next-docs/topics/text/AlignedMath.md).
+
 ## Verification
 
 From the workspace root:
@@ -157,6 +197,8 @@ bun run compare --suite 3 -S 48 -o gum-next-math/out/phase3.png
 bun run compare --suite 3 --inline -S 48 -o gum-next-math/out/phase3-inline.png
 bun run compare --suite 4 -S 48 -o gum-next-math/out/phase4.png
 bun run compare --suite 4 --inline -S 48 -o gum-next-math/out/phase4-inline.png
+bun run compare --suite 5 -S 48 -o gum-next-math/out/phase5.png
+bun run compare --suite 5 --inline -S 48 -o gum-next-math/out/phase5-inline.png
 bun run compare 'a\!b' --inline -S 96 -o /tmp/negative-glue.png
 ```
 
@@ -166,7 +208,10 @@ per em. It expands Gum's viewport to include ink before trimming, checks for
 clipped reference images, retains optional artifacts, and labels errors while
 returning a failing exit code. Chromium and the two TeX binaries are required;
 `--no-latex` explicitly requests only Gum/KaTeX. LaTeX needs the `standalone`,
-`amsmath`, `amssymb`, and `xcolor` packages. Child processes have a 30-second
+`amsmath`, `amssymb`, and `xcolor` packages. Array comparisons also use `mathtools`
+for starred matrices/cases, `arydshln` for dashed rules, and `nccmath` for `darray`.
+Display-only environments are wrapped as displays in the LaTeX document; the
+inline suite omits those cases. Child processes have a 30-second
 timeout and run in temporary directories; pdflatex disables shell escape.
 
 The browser check exercises the built editor bundle using a temporary localhost
@@ -178,6 +223,9 @@ metrics have small differences. TeX color groups can also classify atoms
 differently from KaTeX; Gum follows KaTeX's transparent color boundaries. Plain
 text spacing inside math can differ from LaTeX's text fonts. Size declarations
 inside math follow KaTeX; standard LaTeX warns and ignores `\Huge` there.
+Small matrices and substacks can differ from LaTeX in script font metrics.
+Tall braces and matrix bars still use the existing glyph-scaling fallback,
+so they differ from KaTeX/LaTeX's assembled delimiters. Dash patterns vary too.
 
 `bun scripts/update-font-data.ts` regenerates italic corrections from the pinned
 KaTeX version. Review the parser adapter, symbol/skew data, tests, and comparison

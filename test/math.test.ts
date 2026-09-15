@@ -248,7 +248,7 @@ describe('parser and host boundaries', () => {
   test('unsupported and malformed sources carry distinct diagnostics and do not poison a pass', () => {
     const malformed = cause(new Latex({ text: '{' }))
     expect(malformed.kind).toBe('parse')
-    for (const text of [String.raw`\begin{matrix}a&b\end{matrix}`, String.raw`\hat{x}`, String.raw`\htmlClass{x}{a}`]) {
+    for (const text of [String.raw`\begin{CD}a\end{CD}`, String.raw`\hat{x}`, String.raw`\htmlClass{x}{a}`]) {
       expect(cause(new Latex({ text })).kind).toBe('unsupported')
     }
     const unsupported = cause(new Latex({ text: String.raw`a+\hat{x}` }))

@@ -11,6 +11,11 @@ type MathAtomProps = MathProps & Readonly<{ klass?: MathClass; left?: MathClass;
 type MathSpace = Length | 'thin' | 'medium' | 'thick' | 'quad' | 'qquad'
 type LimitPolicy = 'auto' | 'always' | 'never'
 type MathDimension = Readonly<{ value: number; unit: 'em' | 'ex' | 'mu' | 'pt' }>
+type ArrayAlign = 'l' | 'c' | 'r'
+type ArrayCol = Readonly<
+  | { type: 'align'; align: ArrayAlign; pregap?: Length; postgap?: Length }
+  | { type: 'separator'; separator: '|' | ':' }
+>
 
 const SYMBOL_CLASS: Record<SymbolFamily, MathClass> = {
   mathord: 'mord', textord: 'mord', bin: 'mbin', rel: 'mrel', open: 'mopen',
@@ -19,5 +24,6 @@ const SYMBOL_CLASS: Record<SymbolFamily, MathClass> = {
 }
 
 export { SYMBOL_CLASS }
-export type { SymbolMode, SymbolFont, SymbolFamily, SymbolEntry, SourceRange, MathProps, MathAtomProps, MathSpace, LimitPolicy, MathDimension }
+export type { SymbolMode, SymbolFont, SymbolFamily, SymbolEntry, SourceRange, MathProps, MathAtomProps, MathSpace, LimitPolicy, MathDimension,
+  ArrayAlign, ArrayCol }
 export type { MathStyle, MathSizeStyle, MathClass, MathContext, MathMetrics } from 'gum-next-core'

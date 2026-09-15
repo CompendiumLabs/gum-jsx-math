@@ -1,16 +1,18 @@
 import katex from 'katex'
 import type { KatexOptions } from 'katex'
+import { em } from 'gum-next-core'
 import type { MathClass, MathStyle, MathSizeStyle } from 'gum-next-core'
 import { MathError } from './errors'
 import { SYMBOL_CLASS } from './types'
-import type { SourceRange, SymbolFamily, SymbolMode, LimitPolicy, MathDimension } from './types'
+import type { SourceRange, SymbolFamily, SymbolMode, LimitPolicy, MathDimension, ArrayCol } from './types'
 import symbols from './symbols'
 
 // KaTeX's internal AST is confined to this adapter. No lexer/location instances
 // escape into Element props, and a parser upgrade has one compatibility boundary.
+type RawNodes = Raw | RawNodes[]
 type Raw = {
   type: string; mode?: SymbolMode; text?: string | Raw[]; family?: SymbolFamily
-  loc?: SourceRange; body?: Raw | Raw[]; color?: string; font?: string
+  loc?: SourceRange; body?: RawNodes; color?: string; font?: string
   mclass?: MathClass; name?: string; symbol?: boolean; semisimple?: boolean
   dimension?: { number: number; unit: string }
   base?: Raw; sup?: Raw; sub?: Raw; numer?: Raw; denom?: Raw; index?: Raw
@@ -18,7 +20,12 @@ type Raw = {
   hasBarLine?: boolean; barSize?: { number: number; unit: string } | null; continued?: boolean
   leftDelim?: string | null; rightDelim?: string | null
   left?: string; right?: string; rightColor?: string; delim?: string
-  size?: number; style?: MathStyle; display?: Raw[]; script?: Raw[]; scriptscript?: Raw[]
+  size?: number; style?: MathStyle; resetFont?: boolean; display?: Raw[]; script?: Raw[]; scriptscript?: Raw[]
+  cols?: ({ type: 'align'; align: string; pregap?: number; postgap?: number }
+    | { type: 'separator'; separator: string })[]
+  arraystretch?: number; addJot?: boolean; hskipBeforeAndAfter?: boolean
+  rowGaps?: (Raw['dimension'] | null)[]; hLinesBeforeRow?: boolean[][]
+  colSeparationType?: string; tags?: (boolean | Raw[])[]
 }
 const parser = katex as typeof katex & { __parse: (source: string, options: KatexOptions) => Raw[] }
 type ParseOptions = Readonly<{
@@ -44,6 +51,9 @@ type MathSyntax = Located & (
   | Readonly<{ kind: 'middle'; text: string }>
   | Readonly<{ kind: 'scope'; body: readonly MathSyntax[]; style?: MathStyle; size_index?: number }>
   | Readonly<{ kind: 'choice'; choices: Readonly<Record<MathSizeStyle, readonly MathSyntax[]>> }>
+  | Readonly<{ kind: 'array'; rows: readonly (readonly (readonly MathSyntax[])[])[];
+      cols: readonly ArrayCol[]; stretch: number; jot: boolean; outer: boolean; small: boolean;
+      rowgaps: readonly (MathDimension | null)[]; hlines: readonly (readonly boolean[])[] }>
   | Readonly<{ kind: 'unsupported'; node: string }>
 )
 
@@ -59,16 +69,19 @@ const UNIT_EM: Record<string, number> = {
   pc: 1.2, dd: 1238 / 11570, cc: 14856 / 11570, nd: 685 / 6420, nc: 1370 / 1070, sp: 1 / 655360,
 }
 
+function raw_nodes(nodes: RawNodes | undefined): Raw[] {
+  return !nodes ? [] : Array.isArray(nodes) ? nodes.flatMap(raw_nodes) : [nodes]
+}
+
 function source_range(node: Raw, source: string): SourceRange {
   if (node.loc) return { start: node.loc.start, end: node.loc.end }
-  const body = [...(Array.isArray(node.body) ? node.body : node.body ? [node.body] : []),
-    ...[node.base, node.sup, node.sub, node.numer, node.denom, node.index].filter((child): child is Raw => !!child)]
+  const body = [node.body, node.base, node.sup, node.sub, node.numer, node.denom, node.index].flatMap(raw_nodes)
   if (!body.length) return { start: 0, end: source.length }
   const ranges = body.map(child => source_range(child, source))
   return { start: Math.min(...ranges.map(range => range.start)), end: Math.max(...ranges.map(range => range.end)) }
 }
 
-function operator_nodes(nodes: Raw | Raw[] | undefined): Raw[] {
+function operator_nodes(nodes: RawNodes | undefined): Raw[] {
   if (!nodes) return []
   if (Array.isArray(nodes)) return nodes.flatMap(operator_nodes)
   return [
@@ -123,7 +136,7 @@ function parse_math(source: string, options: ParseOptions = {}): readonly MathSy
   }
 
   type Context = Attributes & { text_face?: string; upright?: boolean; literal?: boolean }
-  function convert(nodes: Raw | Raw[] | undefined, context: Context = {}): MathSyntax[] {
+  function convert(nodes: RawNodes | undefined, context: Context = {}): MathSyntax[] {
     if (!nodes) return []
     if (Array.isArray(nodes)) return nodes.flatMap(node => convert(node, context))
     const node = nodes, range = source_range(node, source)
@@ -191,13 +204,38 @@ function parse_math(source: string, options: ParseOptions = {}): readonly MathSy
       case 'sqrt':
         return [{ ...attr, kind: 'root', body: convert(node.body, context),
           ...(node.index ? { index: convert(node.index, context) } : {}) }]
+      case 'array': {
+        if (node.colSeparationType === 'CD') return unsupported('CD environment')
+        // Automatic numbering belongs to a future display container. Named
+        // display environments render their body without numbers; explicit
+        // tags must still fail visibly instead of disappearing from a table.
+        if (node.tags?.some(Array.isArray)) return unsupported('equation tags')
+        if (!Array.isArray(node.body) || !node.body.every(Array.isArray)) throw new Error('Invalid KaTeX array body')
+        const cols: ArrayCol[] = (node.cols ?? []).map(col => {
+          if (col.type === 'separator') {
+            if (col.separator !== '|' && col.separator !== ':') return unsupported('array separator')
+            return { type: 'separator', separator: col.separator }
+          }
+          if (col.align !== 'l' && col.align !== 'c' && col.align !== 'r') return unsupported('array alignment')
+          return { type: 'align', align: col.align,
+            ...(col.pregap === undefined ? {} : { pregap: em(col.pregap) }),
+            ...(col.postgap === undefined ? {} : { postgap: em(col.postgap) }) }
+        })
+        return [{ ...attr, kind: 'array', rows: node.body.map(row => row.map(cell => convert(cell, context))), cols,
+          stretch: node.arraystretch ?? 1, jot: node.addJot ?? false, outer: node.hskipBeforeAndAfter ?? false,
+          small: node.colSeparationType === 'small', rowgaps: (node.rowGaps ?? []).map(gap => gap ? dimension(gap) : null),
+          hlines: (node.hLinesBeforeRow ?? []).map(flags => [...flags]) }]
+      }
       case 'leftright':
         return [{ ...attr, kind: 'bracket', body: convert(node.body, context),
           left: node.left!, right: node.right!, right_color: node.rightColor }]
       case 'middle': return [{ ...attr, kind: 'middle', text: node.delim! }]
       case 'delimsizing': return [{ ...attr, kind: 'delimiter', text: node.delim!, level: node.size!, klass: node.mclass! }]
       case 'styling': case 'sizing':
-        return [{ ...attr, kind: 'scope', body: convert(node.body, context),
+        // Environment cells reset the outer math alphabet, as KaTeX's
+        // resetFont flag requests. Local font commands inside the cell win.
+        return [{ ...attr, ...(node.resetFont ? { font_family: 'auto' } : {}), kind: 'scope',
+          body: convert(node.body, node.resetFont ? { ...context, font_family: 'auto' } : context),
           ...(node.type === 'styling' ? { style: node.style } : { size_index: node.size }) }]
       case 'mathchoice': {
         // All branches must be syntactically valid, but only the selected one

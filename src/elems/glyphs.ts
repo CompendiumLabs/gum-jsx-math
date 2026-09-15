@@ -52,7 +52,8 @@ function glyph_layout(props: MathSpanProps, query: LayoutQuery, text: string, fa
 
 class MathSpan extends MathElement<MathSpanProps> {
   static layout(props: MathSpanProps, query: LayoutQuery) {
-    const face = props.font_family ?? (query.style.font_family.startsWith('KaTeX_') ? query.style.font_family : 'KaTeX_Main')
+    const requested = props.font_family ?? (query.style.font_family.startsWith('KaTeX_') ? query.style.font_family : 'KaTeX_Main')
+    const face = requested === 'auto' ? 'KaTeX_Main' : requested
     return glyph_layout(props, query, literal_text(props), face, 'mord')
   }
 }
@@ -69,7 +70,8 @@ class MathSymbol extends MathElement<MathSymbolProps> {
     const value = entry?.replace ?? text
     const fallback = entry?.font === 'ams' ? 'KaTeX_AMS'
       : family === 'mathord' && mode === 'math' ? 'KaTeX_Math' : 'KaTeX_Main'
-    const override = props.font_family ?? (query.style.font_family.startsWith('KaTeX_') ? query.style.font_family : undefined)
+    const requested = props.font_family ?? (query.style.font_family.startsWith('KaTeX_') ? query.style.font_family : undefined)
+    const override = requested === 'auto' ? undefined : requested
     let face = fallback
     if (override) {
       const candidates = override === 'KaTeX_Math-BoldItalic'

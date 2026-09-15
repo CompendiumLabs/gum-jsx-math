@@ -48,6 +48,30 @@ const TEXT = [
   String.raw`\text{100\% of }n\text{ samples}`,
   String.raw`\text{left }x\text{ right}\quad\sqrt{\text{area}}`,
 ]
+const ARRAYS = [
+  String.raw`A=\begin{pmatrix}a&bb\\ccc&d\end{pmatrix}`,
+  String.raw`\begin{bmatrix}\frac1x&0\\0&\frac{a+b}{c}\end{bmatrix}`,
+  String.raw`\begin{Bmatrix}a&b\\c&d\end{Bmatrix}\quad\begin{vmatrix}a&b\\c&d\end{vmatrix}\quad\begin{Vmatrix}a&b\\c&d\end{Vmatrix}`,
+  String.raw`\begin{pmatrix*}[l]a&bb\\ccc&d\end{pmatrix*}\quad\begin{pmatrix*}[r]a&bb\\ccc&d\end{pmatrix*}`,
+  String.raw`\begin{array}{lcr}a&&ccc\\[0.4em]dd&e&f\\[-0.2em]g&hh&i\end{array}`,
+  String.raw`\begin{array}{|r||c:l|}\hline\hline a&\frac12&c\\[0.3em]\hdashline dd&e&f\\\hline\end{array}`,
+  String.raw`{\def\arraystretch{1.5}\begin{array}{rl}a&=b\\c&=d\end{array}}`,
+  String.raw`f(x)=\begin{cases}\frac1x&x>0\\0&x=0\end{cases}\quad\begin{dcases}\frac1x&x>0\\0&x=0\end{dcases}`,
+  String.raw`\begin{rcases}a&x>0\\b&x<0\end{rcases}`,
+  String.raw`\begin{aligned}a&=b&c&=d\\aa&+b&cc&-d\end{aligned}`,
+  String.raw`\begin{alignedat}{2}a&=b&c&=d\\aa&=bb&cc&=dd\end{alignedat}`,
+  String.raw`\begin{gathered}a+b=c\\\frac{1}{x}=y\end{gathered}`,
+  String.raw`A=\left(\begin{smallmatrix}a&b\\c&d\end{smallmatrix}\right)`,
+  String.raw`\sum_{\substack{i<n\\j<m}}a_{ij}\quad\sum_{\begin{subarray}{l}i<n\\j<m\end{subarray}}a_{ij}`,
+  String.raw`\begin{gathered}x\end{gathered}=x`,
+  String.raw`\mathbf{\begin{matrix}x&\mathbf{x}\\\sin x&\text{word}\end{matrix}}`,
+]
+const DISPLAY_ARRAYS = [
+  String.raw`\begin{align*}a+b&=c\\a&=c-b\end{align*}`,
+  String.raw`\begin{alignat*}{2}a&=b&c&=d\\aa&=bb&cc&=dd\end{alignat*}`,
+  String.raw`\begin{gather*}a+b=c\\\frac1x=y\end{gather*}`,
+  String.raw`\begin{equation*}\begin{split}a+b&=c\\a&=c-b\end{split}\end{equation*}`,
+]
 
 function positive(value: string): number {
   const number = Number(value)
@@ -58,7 +82,7 @@ const program = new Command().name('compare')
   .description('Compare Gum, KaTeX HTML in Chromium, and pdflatex at equal pixels per em.')
   .argument('[tex]', 'TeX source (otherwise read stdin)')
   .option('-F, --file <path>', 'Read TeX from a file')
-  .option('--suite [phase]', 'Render a comparison gallery: 1-2, 3, 4, or all (default)')
+  .option('--suite [phase]', 'Render a comparison gallery: 1-2, 3, 4, 5, or all (default)')
   .option('-i, --inline', 'Use inline math style')
   .option('-S, --font-size <pixels>', 'Pixels per em in all renderers', positive, 64)
   .option('-o, --output <path>', 'Output PNG (otherwise write PNG to stdout)')
@@ -74,9 +98,11 @@ const options = program.opts<{
 if ([options.file !== undefined, options.suite !== undefined, program.args.length > 0].filter(Boolean).length > 1) {
   program.error('Use a TeX argument, --file, or --suite, not more than one')
 }
-if (typeof options.suite === 'string' && !['1-2', '3', '4', 'all'].includes(options.suite)) program.error('--suite must be 1-2, 3, 4, or all')
+if (typeof options.suite === 'string' && !['1-2', '3', '4', '5', 'all'].includes(options.suite)) program.error('--suite must be 1-2, 3, 4, 5, or all')
+// AMS display environments are invalid in inline mode in both reference tools.
+const arrays = [...ARRAYS, ...(options.inline ? [] : DISPLAY_ARRAYS)]
 const formulas = options.suite ? options.suite === '1-2' ? BASIC : options.suite === '3' ? ORDINARY
-  : options.suite === '4' ? TEXT : [...BASIC, ...ORDINARY, ...TEXT]
+  : options.suite === '4' ? TEXT : options.suite === '5' ? arrays : [...BASIC, ...ORDINARY, ...TEXT, ...arrays]
   : [program.args[0] ?? readFileSync(options.file ?? 0, 'utf8').trim()]
 const windowSize = /^(\d+)x(\d+)$/.exec(options.window)
 if (!windowSize || Number(windowSize[1]) < 100 || Number(windowSize[2]) < 100) {
@@ -134,10 +160,14 @@ function katexPng(tex: string, directory: string): Buffer {
 }
 
 function latex(tex: string, directory: string): Buffer {
+  const display = /^\s*\\begin\{(?:align\*?|alignat\*?|gather\*?|equation\*?)\}/.test(tex)
   const document = String.raw`\documentclass[10pt,preview,border=2pt]{standalone}
 \usepackage{amsmath,amssymb,xcolor}
+${/\\begin\{(?:[pbBvV]?matrix\*|[dr]*cases)\}/.test(tex) ? '\\usepackage{mathtools}' : ''}
+${/\\hdashline|\\begin\{array\}\{[^}]*:/.test(tex) ? '\\usepackage{arydshln}' : ''}
+${tex.includes('\\begin{darray}') ? '\\usepackage{nccmath}' : ''}
 \begin{document}
-${options.inline ? `$${tex}$` : `\\[${tex}\\]`}
+${display ? `\\begin{preview}${tex}\\end{preview}` : options.inline ? `$${tex}$` : `\\[${tex}\\]`}
 \end{document}
 `
   writeFileSync(join(directory, 'doc.tex'), document)

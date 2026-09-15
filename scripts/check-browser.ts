@@ -24,7 +24,8 @@ const browserSources = [
     <Latex text={${JSON.stringify(text)}} />
   </Box>
 </Svg>`)
-browserSources.unshift(...['topics/code/InlineMath.jsx', 'topics/code/MathComposition.jsx',
+browserSources.unshift(...['topics/code/MathArrays.jsx', 'topics/code/AlignedMath.jsx', 'elements/code/MathArray.jsx',
+  'topics/code/InlineMath.jsx', 'topics/code/MathComposition.jsx',
   'elements/code/TextMode.jsx'].map(file => readFileSync(new URL('../../gum-next-docs/' + file, import.meta.url), 'utf8')))
 browserSources.push(`<Svg font-size={px(40)} color={blue}>
   <Box padding={em(0.5)}>
@@ -39,7 +40,8 @@ browserSources.push(`<Svg font-size={px(40)} color={blue}>
     </MathText>
   </Box>
 </Svg>`)
-const failures = [['<Latex text="{" />', 'parse:'], [String.raw`<Latex text="\hat{x}" />`, 'unsupported:']]
+const failures = [['<Latex text="{" />', 'parse:'], [String.raw`<Latex text="\hat{x}" />`, 'unsupported:'],
+  [String.raw`<Latex text="\begin{align*}a&=b\tag{A}\end{align*}" />`, 'unsupported:']]
 const html = `<!doctype html><html><meta charset="utf-8"><title>Gum math browser verification</title>
 <style>body{font:16px sans-serif;margin:24px;background:#f6f7f9;color:#182330}figure{margin:12px 0;padding:16px;background:white;border:1px solid #ddd}svg{display:block}pre{white-space:pre-wrap}</style>
 <h1>Gum math · browser verification</h1><pre id="status">Loading…</pre><main></main>
@@ -72,7 +74,7 @@ try {
   }
   await renderGum(sources[0]);
   document.body.dataset.result = 'passed';
-  status.textContent = 'Passed: no import-time font requests; 24 faces loaded once; concurrent formulas and mixed-content docs; repeat rendering; parse/unsupported failures and recovery; outline SVG.';
+  status.textContent = 'Passed: no import-time font requests; 24 faces loaded once; concurrent formulas, arrays and mixed-content docs; repeat rendering; parse/unsupported failures and recovery; outline SVG.';
 } catch (error) {
   document.body.dataset.result = 'failed'; status.textContent = String(error.stack ?? error);
 }
@@ -88,7 +90,7 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(request) 
 try {
   const child = Bun.spawn([chrome, '--headless=new', '--no-sandbox', '--disable-gpu',
     '--disable-dev-shm-usage', '--hide-scrollbars', `--user-data-dir=${scratch}`,
-    '--virtual-time-budget=10000', '--window-size=1100,3200', `--screenshot=${output}`,
+    '--virtual-time-budget=10000', '--window-size=1100,4900', `--screenshot=${output}`,
     '--dump-dom', server.url.href], { stdout: 'pipe', stderr: 'pipe' })
   const timeout = setTimeout(() => child.kill(), 30000)
   const [exit, dom, stderr] = await Promise.all([child.exited,

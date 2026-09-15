@@ -12,6 +12,7 @@ import { Frac } from './fraction'
 import { Sqrt } from './radical'
 import { Bracket, SizedDelimiter, Middle } from './delimiters'
 import { TextMode } from './text'
+import { MathArray } from './array'
 import { style_size } from '../styles'
 import { math_context, math_font_size, math_metrics, atom_metrics, math_axis,
   finish_math, place_math, MATH_AXIS } from '../metrics'
@@ -55,6 +56,9 @@ function syntax_elements(nodes: readonly MathSyntax[], source: string): Element[
         left_delim: node.left_delim, right_delim: node.right_delim })
       case 'root': return new Sqrt({ ...attr, children: syntax_operand(node.body, source),
         index: node.index && syntax_operand(node.index, source) })
+      case 'array': return new MathArray({ ...attr, rows: node.rows.map(row => row.map(cell => syntax_operand(cell, source))),
+        cols: node.cols, stretch: node.stretch, jot: node.jot, outer: node.outer, small: node.small,
+        row_gap_dimensions: node.rowgaps, hlines: node.hlines })
       case 'bracket': return new Bracket({ ...attr, children: syntax_elements(node.body, source),
         left_delim: node.left, right_delim: node.right, right_color: node.right_color })
       case 'delimiter': return new SizedDelimiter({ ...attr, text: node.text, level: node.level, klass: node.klass })

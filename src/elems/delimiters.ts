@@ -43,7 +43,7 @@ function fit_glyph(query: LayoutQuery, math: MathContext, text: string, target: 
     for (const style of styles) {
       const fragment = query.child(source, make_request(), {}, 0, { math: { ...text_math, style }, style: query.style, coordinates: null })
       if (!largest || fragment.size.height > largest.size.height) largest = fragment
-      if (fragment.size.height + math_font_size(query, text_math) * 0.001 >= target) {
+      if (fragment.size.height >= target) {
         return stretch_glyph(fragment, 1, 1, f)
       }
     }
