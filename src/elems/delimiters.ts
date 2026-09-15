@@ -119,7 +119,7 @@ class Bracket extends MathElement<BracketProps> {
       return { fragment, axis: math_axis(fragment, font_size), font_size, math: item.math }
     })
     const fence = (text: string | null, klass: MathClass, color?: string) => {
-      const q = color === undefined ? query : { ...query, style: { ...query.style, color } }
+      const q = color === undefined ? query : { ...query, style: resolve_style({ color }, query.style) }
       const fragment = delimiter(q, math, text, target, klass)
       return { fragment, axis: math_axis(fragment, f), font_size: f, math }
     }

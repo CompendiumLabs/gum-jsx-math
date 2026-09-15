@@ -1,4 +1,4 @@
-import { draw_rect, make_rect, make_size, make_fragment, make_point, place_fragment, resolve_length } from 'gum-next-core'
+import { draw_rect, make_rect, make_size, make_fragment, make_point, place_fragment, resolve_length, theme_color } from 'gum-next-core'
 import type { Child, Element, ElementType, Fragment, LayoutQuery, Length, MathContext } from 'gum-next-core'
 import { MathElement } from './base'
 import { MathSymbol } from './glyphs'
@@ -106,7 +106,7 @@ function line_layout(props: LineProps, query: LayoutQuery, over: boolean) {
   const top = over ? 5 * t : 0, height = body.size.height + 5 * t
   const line = make_fragment({ name: 'DecorationRule', size: make_size(Math.max(0, width), t),
     draw: t > 0 && width > 0 ? [draw_rect(make_rect(0, 0, width, t), {
-      fill: props.fill ?? query.style.color, stroke: 'none', stroke_width: 0, opacity: query.style.opacity,
+      fill: theme_color(props.fill ?? query.style.color, query.style.theme), stroke: 'none', stroke_width: 0, opacity: query.style.opacity,
     })] : [] })
   return finish_math({ size: make_size(Math.max(0, width), height), math: atom(props, width),
     guides: { baseline: baseline(body, f) + top, math_axis: baseline(body, f) + top - MATH_AXIS * f },

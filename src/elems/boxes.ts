@@ -1,4 +1,4 @@
-import { draw_path, draw_rect, make_rect, make_fragment, make_size, make_point, place_fragment, resolve_length } from 'gum-next-core'
+import { draw_path, draw_rect, make_rect, make_fragment, make_size, make_point, place_fragment, resolve_length, theme_color } from 'gum-next-core'
 import type { LayoutQuery, Length, PathCommand } from 'gum-next-core'
 import { MathElement } from './base'
 import { operand_source, measure_operand, advance, baseline, extent } from './operands'
@@ -98,7 +98,8 @@ class Enclose extends MathElement<EncloseProps> {
     if (!Number.isFinite(t) || t < 0 || !Number.isFinite(sep) || sep < 0) throw new RangeError('Enclosure thickness and padding must be nonnegative')
     const pad = box ? sep + (border ? t : 0) : 0
     const width = Math.max(0, advance(body)) + 2 * pad, height = body.size.height + 2 * pad
-    const paint = { fill: props.border_color ?? query.style.color, stroke: 'none', stroke_width: 0, opacity: query.style.opacity }
+    const paint = { fill: theme_color(props.border_color ?? query.style.color, query.style.theme),
+      stroke: 'none', stroke_width: 0, opacity: query.style.opacity }
     const draw = []
     if (border && t > 0) {
       for (const rect of [make_rect(0, 0, width, t), make_rect(0, height - t, width, t),
@@ -121,7 +122,8 @@ class Enclose extends MathElement<EncloseProps> {
     const decoration = make_fragment({ name: 'EnclosureInk', size: make_size(width, height), draw })
     return finish_math({ size: make_size(width, height), math: atom(props, width),
       guides: { baseline: baseline(body, f) + pad, math_axis: baseline(body, f) + pad - MATH_AXIS * f },
-      draw: box && props.background ? [draw_rect(make_rect(0, 0, width, height), { ...paint, fill: props.background })] : [],
+      draw: box && props.background ? [draw_rect(make_rect(0, 0, width, height),
+        { ...paint, fill: theme_color(props.background, query.style.theme) })] : [],
       children: [place_fragment(body, make_point(pad, pad)), place_fragment(decoration)] }, query)
   }
 }
