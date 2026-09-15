@@ -1,5 +1,5 @@
 {
-  "name": "gum-next-math",
+  "name": "gum-jsx-math",
   "version": "0.1.0",
   "description": "Math elements and TeX parsing for gum-next.",
   "type": "module",
