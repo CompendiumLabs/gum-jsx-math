@@ -26,12 +26,12 @@ const browserSources = [
     <Latex text={${JSON.stringify(text)}} />
   </Box>
 </Svg>`)
-browserSources.unshift(...['topics/code/MathExport.jsx', 'topics/code/MathPlotLabels.jsx', 'topics/code/MathSlides.jsx',
-  'topics/code/MathDecorations.jsx', 'topics/code/MathBoxes.jsx', 'topics/code/MathFonts.jsx',
-  'elements/code/MathStretch.jsx', 'elements/code/Phantom.jsx',
-  'topics/code/MathArrays.jsx', 'topics/code/AlignedMath.jsx', 'elements/code/MathArray.jsx',
-  'topics/code/InlineMath.jsx', 'topics/code/MathComposition.jsx',
-  'elements/code/TextMode.jsx'].map(file => readFileSync(new URL('../../gum-jsx-docs/' + file, import.meta.url), 'utf8')))
+browserSources.unshift(...['docs/gallery/code/MathExport.jsx', 'docs/gallery/code/MathPlotLabels.jsx', 'docs/gallery/code/MathSlides.jsx',
+  'docs/gallery/code/MathDecorations.jsx', 'docs/gallery/code/MathBoxes.jsx', 'docs/gallery/code/MathFonts.jsx',
+  'docs/elements/code/MathStretch.jsx', 'docs/elements/code/Phantom.jsx',
+  'docs/gallery/code/MathArrays.jsx', 'docs/gallery/code/AlignedMath.jsx', 'docs/elements/code/MathArray.jsx',
+  'docs/gallery/code/InlineMath.jsx', 'docs/gallery/code/MathComposition.jsx',
+  'docs/elements/code/TextMode.jsx'].map(file => readFileSync(new URL('../../gum-jsx-docs/' + file, import.meta.url), 'utf8')))
 browserSources.push(`<Svg font-size={px(40)} color={blue}>
   <Box padding={em(0.5)}>
     <MathText style="display">

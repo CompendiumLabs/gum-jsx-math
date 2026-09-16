@@ -82,7 +82,7 @@ bun run gum-tex 'x^2' --fit -W 320
 ```
 
 PNG/kitty output stays in the host packages. See the
-[standalone export guide](../gum-jsx-docs/topics/text/MathExport.md) for all
+[standalone export guide](../gum-jsx-docs/docs/gallery/text/MathExport.md) for all
 options, browser loading, PNG library composition, and runnable sizing examples.
 
 ## Elements and layout
@@ -115,7 +115,7 @@ options, browser loading, PNG library composition, and runnable sizing examples.
 Nested `MathText` descriptions flatten before layout unless they specify sizing,
 atom classes, a strut, or visible error handling. `MathRow`, `MathBox`, and TeX
 brace groups remain atoms. Color changes in a sequence preserve operator
-classification. See the [runnable reference pages](../gum-jsx-docs/topics/text/Math.md).
+classification. See the [runnable reference pages](../gum-jsx-docs/docs/gallery/text/Math.md).
 
 `Fragment.math` keeps signed advance, edge classes, italic correction, skew,
 and character-nucleus information. Font advances, TeX italic corrections, and
@@ -149,8 +149,8 @@ wide hats/checks/tildes, over/under rules and decorations, labeled braces and
 arrows, overset/underset/stackrel, phantom/smash/lap, enclosures/cancellation,
 rules, raisebox, vcenter, hbox, verbatim, and poor-man's bold are implemented.
 Standalone exports and the `gum-tex` CLI use the same layout. Unknown
-syntax cannot silently vanish. See [decorations](../gum-jsx-docs/topics/text/MathDecorations.md),
-[boxes](../gum-jsx-docs/topics/text/MathBoxes.md), and [fonts/macros](../gum-jsx-docs/topics/text/MathFonts.md).
+syntax cannot silently vanish. See [decorations](../gum-jsx-docs/docs/gallery/text/MathDecorations.md),
+[boxes](../gum-jsx-docs/docs/gallery/text/MathBoxes.md), and [fonts/macros](../gum-jsx-docs/docs/gallery/text/MathFonts.md).
 
 Macros support arguments, declarations, and local scope within the pinned
 parser. A supplied macro dictionary is snapshotted, and even `\gdef` cannot
@@ -189,14 +189,14 @@ size and color through, while math retains its own default faces.
 
 Mixed arrays work in text boxes, bullet items, captions, and titles. A sole
 element remains a block; wrap several elements without prose in `Text` for
-inline layout. See the [paragraph examples](../gum-jsx-docs/topics/code/InlineMath.jsx).
+inline layout. See the [paragraph examples](../gum-jsx-docs/docs/gallery/code/InlineMath.jsx).
 
 In the other direction, math rows and compound operands measure ordinary Gum
 elements through the same pass. An existing math axis wins, a text baseline
 implies an axis using that element's own font size, and an unguided figure is
 centered. Wrapping text needs an explicit width. Give plots concrete dimensions
 and use `Fit` to scale intentionally; embedding does not shrink them into a
-script. See the [mixed formula examples](../gum-jsx-docs/topics/code/MathComposition.jsx).
+script. See the [mixed formula examples](../gum-jsx-docs/docs/gallery/code/MathComposition.jsx).
 
 `TextMode` strings are literal, including spaces and kerning. Source newlines
 and tabs become spaces. Its `family`, `bold`, and `italic` controls select among
@@ -214,7 +214,7 @@ flat JSX children with `ncol`. A `cols` string such as `"r|c:l"` combines
 alignment and rules; descriptors can supply explicit pre/post column gaps.
 Use Gum lengths for `colsep`, `rowgaps`, and `thickness`. `stretch` changes row
 struts, and `jot` adds leading only between rows. `small` selects the defaults
-for a small matrix. See the [MathArray reference](../gum-jsx-docs/elements/text/MathArray.md).
+for a small matrix. See the [MathArray reference](../gum-jsx-docs/docs/elements/text/MathArray.md).
 
 Cells can contain ordinary Gum elements with explicit dimensions. Offers do
 not shrink a table; exact allocations preserve its geometry and report overflow.
@@ -241,8 +241,8 @@ Starred and unstarred display environments currently render without numbers.
 Explicit `\tag` and the entire `CD` environment fail visibly; numbering and
 commutative diagrams remain deferred. Optional positioning arguments on aligned
 environments and general LaTeX column preambles are outside the pinned parser's
-supported syntax. See [matrices](../gum-jsx-docs/topics/text/MathArrays.md) and
-[aligned equations](../gum-jsx-docs/topics/text/AlignedMath.md).
+supported syntax. See [matrices](../gum-jsx-docs/docs/gallery/text/MathArrays.md) and
+[aligned equations](../gum-jsx-docs/docs/gallery/text/AlignedMath.md).
 
 ## Verification
 
