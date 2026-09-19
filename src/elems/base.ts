@@ -4,7 +4,9 @@ import type { MathProps } from '../types'
 
 // A source-language distinction for math containers, like core's inline Span.
 // Construction still uses Element's immutable data protocol and never measures.
-abstract class MathElement<Props extends MathProps = MathProps> extends Element<Props> {}
+abstract class MathElement<Props extends MathProps = MathProps> extends Element<Props> {
+  static auto_fit = true
+}
 
 function literal_text(props: { text?: string; children?: Child }): string {
   if (props.text !== undefined && props.children !== undefined) throw new TypeError('Use text or children, not both')

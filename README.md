@@ -62,8 +62,9 @@ valid export. Default typography is display style at `px(24)` with a strut;
 An existing Gum element is also accepted as the source.
 
 Use Gum lengths for `font_size` and `padding`; `width` and `height` are explicit
-SVG `px()` dimensions that clip without scaling. Wrap the natural source in
-`Fit` when you want uniform scaling. Inline prose continues to use `Tex` and
+SVG `px()` dimensions that shrink the completed formula when necessary. Set
+`fit: 'contain'` to permit enlargement or `fit: false` to retain clipping at the
+original size. Inline prose continues to use `Tex` and
 its ordinary typographic advance.
 
 SVG helpers accept `title`, `background`, `id_prefix`, `request`, and optional
@@ -130,9 +131,15 @@ its script sizes; `MathText.choices` is the direct JSX counterpart of `\mathchoi
 Automatic rows preserve baselines across size changes; explicit `MathRow`
 composition aligns axes. Math-specific
 lengths use the active math em; ordinary Gum sizing props use the inherited Gum
-font size. Available widths are advisory. Exact widths allocate without scaling,
-and overflow preserves the drawing. `Fit` explicitly scales a formula. Leave
-padding inside an explicit `Svg` viewport when ink extends beyond the advance.
+font size. Whole formulas automatically shrink into finite offers or own maxima,
+without enlarging. Set `fit={false}` to retain unscaled layout and overflow.
+Internal math allocations and inline formulas keep their normal typographic
+scale. MathSpacer, MathRule, and MathStretch are allocation primitives and do not
+automatically scale. Use explicit `fit` if their complete drawing should scale.
+Percentage-sized Gum operands require a natural design size on the formula, or
+`fit={false}` to use the parent's allocation. Leave padding inside an explicit
+`Svg` viewport when ink extends beyond the advance, or use `mathToElement` for an
+ink-safe export. Custom MathElement subclasses inherit automatic fitting.
 
 ## Supported TeX
 
@@ -195,7 +202,7 @@ In the other direction, math rows and compound operands measure ordinary Gum
 elements through the same pass. An existing math axis wins, a text baseline
 implies an axis using that element's own font size, and an unguided figure is
 centered. Wrapping text needs an explicit width. Give plots concrete dimensions
-and use `Fit` to scale intentionally; embedding does not shrink them into a
+and use `fit` to scale intentionally; embedding does not shrink them into a
 script. See the [mixed formula examples](../gum-jsx-docs/docs/gallery/code/MathComposition.jsx).
 
 `TextMode` strings are literal, including spaces and kerning. Source newlines

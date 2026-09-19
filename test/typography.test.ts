@@ -391,7 +391,7 @@ test('verbatim preserves syntax and visible spaces, including text size in scrip
 })
 
 test('decorated and suppressed sources survive reuse, exact offers and resource invalidation', () => {
-  const source = new MathRow({ children: [new Accent({ accent: 'widehat', children: 'ABC' }),
+  const source = new MathRow({ fit: false, children: [new Accent({ accent: 'widehat', children: 'ABC' }),
     new Smash({ children: new Lap({ children: 'W', align: 'right' }) }), new XArrow({ above: 'f' })] })
   const plain = layout(source), saved = render_svg(plain)
   const narrow = pass.layout(source, make_request({ width: exact(10), height: exact(10) }), context)

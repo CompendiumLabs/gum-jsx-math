@@ -26,6 +26,9 @@ function atom(props: MathAtomProps, width: number, klass: 'mord' | 'minner' | 'm
 }
 
 class MathStretch extends MathElement<MathStretchProps> {
+  // Stretch builds its shape at the requested dimensions; explicit fit can
+  // instead scale its natural shape like any other element.
+  static auto_fit = false
   static layout(props: MathStretchProps, query: LayoutQuery) {
     const f = math_font_size(query, math_context(props, query)), label = props.label ?? 'overbrace'
     const width = query.request.width.kind === 'exact' ? query.request.width.value : stretch_entry(label).min_width * f

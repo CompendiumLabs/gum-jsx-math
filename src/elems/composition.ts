@@ -142,7 +142,7 @@ const ATOM_PROPS = ['width', 'height', 'min_width', 'max_width', 'min_height', '
 const sequence_layouts = new WeakSet<ElementType['layout']>()
 function is_sequence(element: Element): element is Element<MathTextProps> {
   const props = element.props as MathTextProps
-  return sequence_layouts.has(element.type.layout) && !props.strut && props.on_error !== 'render'
+  return sequence_layouts.has(element.type.layout) && !props.strut && !props.fit && props.on_error !== 'render'
     && ATOM_PROPS.every(key => props[key] === undefined)
 }
 

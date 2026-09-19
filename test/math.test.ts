@@ -208,8 +208,8 @@ describe('math rows and source sequences', () => {
     }
   })
 
-  test('exact small boxes retain glyphs and report overflow; available sizes hug', () => {
-    const source = new Latex({ text: 'a+b=c', font_size: px(36) })
+  test('fit=false preserves unscaled glyphs and overflow even in exact small boxes', () => {
+    const source = new Latex({ text: 'a+b=c', font_size: px(36), fit: false })
     const natural = pass.layout(source)
     const offered = pass.layout(source, make_request({ width: available(5) }))
     const exactBox = pass.layout(source, make_request({ width: exact(5), height: exact(4) }))

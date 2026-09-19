@@ -1,7 +1,7 @@
 import { Element, Svg, Fonts, LayoutPass, make_request, make_rect, make_size, make_point,
   make_fragment, place_fragment, union_rects, transform_guides, resolve_insets, finish_size, px,
   render_svg } from 'gum-jsx-core'
-import type { ElementProps, LayoutQuery, LayoutRequest, InsetSpec, UnitLength, SvgOptions,
+import type { ElementProps, FitSpec, LayoutQuery, LayoutRequest, InsetSpec, UnitLength, SvgOptions,
   FontProvider } from 'gum-jsx-core'
 import { Latex } from './elems/composition'
 import type { MathTextProps } from './elems/composition'
@@ -10,7 +10,7 @@ import { createMathFonts } from './fonts'
 type MathSource = string | Element
 type MathElementOptions = Pick<MathTextProps,
   'font_size' | 'font_family' | 'color' | 'opacity' | 'inline' | 'style' | 'size_index'
-  | 'strut' | 'macros' | 'warnings' | 'on_error'> & Readonly<{
+  | 'strut' | 'macros' | 'warnings' | 'on_error'> & FitSpec & Readonly<{
   padding?: InsetSpec
   width?: UnitLength
   height?: UnitLength
@@ -24,6 +24,7 @@ type MathLoadOptions = MathElementOptions & (
 )
 
 class MathViewport extends Element<ElementProps & { padding?: InsetSpec }> {
+  static auto_fit = true
   static layout(props: ElementProps & { padding?: InsetSpec }, query: LayoutQuery) {
     const child = props.children as Element
     const fragment = query.child(child, make_request(), query.reference, 0, { coordinates: null, math: null })
@@ -52,9 +53,9 @@ function mathToElement(source: MathSource, options: MathElementOptions = {}): Sv
     throw new TypeError('Math source must be a TeX string or an Element')
   }
   const { font_size = px(24), font_family, color, opacity, width, height, padding,
-    inline, style, size_index, strut, macros, warnings, on_error } = options
+    inline, style, size_index, strut, macros, warnings, on_error, fit, fit_align } = options
   return new Svg({ width, height, font_size, font_family, color, opacity,
-    children: new MathViewport({ padding, children: new Latex({
+    children: new MathViewport({ padding, fit, fit_align, children: new Latex({
       inline, style, size_index, strut, macros, warnings, on_error,
       ...(typeof source === 'string' ? { text: source } : { children: source }),
     }) }),

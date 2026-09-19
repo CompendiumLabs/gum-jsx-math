@@ -247,7 +247,7 @@ test('arrays preserve explicit Gum operands, inline baselines, cache reuse and o
   const local = new LayoutPass({ fonts: { value: provider, version: 0 } })
   const shared = new MathText({ text: 'f+x' })
   const rows: Child[][] = [[shared, shared], [new Frac({ children: ['1', 'x'] }), 'y']]
-  const source = new MathArray({ rows })
+  const source = new MathArray({ rows, fit: false })
   rows[0][0] = 'changed'
   const f = local.layout(source, natural, context), svg = render_svg(f), count = shaped
   const offered = local.layout(source, make_request({ width: available(1) }), context)
@@ -274,7 +274,8 @@ test('arrays preserve explicit Gum operands, inline baselines, cache reuse and o
   expect(named(mixed, 'Plot')[0].size).toEqual({ width: 100, height: 60 })
   expect(named(mixed, 'Text')[0].size.width).toBe(90)
   expect(named(mixed, 'Text')[0].children.length).toBeGreaterThan(1)
-  const relative = new MathArray({ rows: [[new Box({ width: 0.5, height: px(10) })]] })
+  // Percentage-sized operands opt into allocated layout instead of natural fitting.
+  const relative = new MathArray({ fit: false, rows: [[new Box({ width: 0.5, height: px(10) })]] })
   const inside = pass.layout(relative, make_request({ width: exact(200) }), context)
   expect(inside.children[0].fragment.size.width).toBe(100)
   expect(() => pass.layout(relative, make_request({ width: available(200) }), context)).toThrow('definite')

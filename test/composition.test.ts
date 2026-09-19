@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test'
-import { LayoutPass, Text, Span, Rect, Circle, Plot, Polyline, Box, Fit, TextRow,
+import { LayoutPass, Text, Span, Rect, Circle, Plot, Polyline, Box, TextRow,
   Rotate, TransformBox, TextBox, TitleBox, TextFigure, Bullets, Slide, px, em,
   make_request, exact, available, resolve_style, render_svg, evaluate } from 'gum-jsx-core'
 import type { Fragment, FontProvider } from 'gum-jsx-core'
@@ -117,13 +117,18 @@ test('padding, fitting, baseline rows, and transforms preserve representable gui
   const padded = pass.layout(new Box({ padding: px(5), children: formula }), make_request(), context)
   near(padded.guides.baseline!, bare.guides.baseline! + 5)
   near(padded.guides.math_axis!, bare.guides.math_axis! + 5)
-  const fitted = pass.layout(new Fit({ height: px(bare.size.height / 2), children: formula }), make_request(), context)
+  const fitted_source = new Tex({ ...formula.props, fit: true, max_height: px(bare.size.height / 2) })
+  const fitted = pass.layout(fitted_source, make_request(), context)
   near(fitted.guides.baseline!, bare.guides.baseline! / 2)
   near(fitted.ink!.height, bare.ink!.height / 2)
   const embedded = pass.layout(new MathText({ children: [
-    new Fit({ height: px(bare.size.height / 2), children: formula }), new MathSymbol({ text: '=' }),
+    fitted_source, new MathSymbol({ text: '=' }),
   ] }), make_request(), context)
-  near(embedded.children[0].offset.y + embedded.children[0].fragment.guides.math_axis!, embedded.guides.math_axis!)
+  // A fitted math element remains a math atom, unlike an opaque wrapper:
+  // spaced math rows preserve its baseline and its boundary classes.
+  near(embedded.children[0].offset.y + embedded.children[0].fragment.guides.baseline!, embedded.guides.baseline!)
+  expect(embedded.children[0].fragment.math!.left).toBe(bare.math!.left)
+  near(embedded.children[0].fragment.math!.advance, bare.math!.advance / 2)
   const row = pass.layout(new TextRow({ children: [new Text({ text: 'Answer:' }), formula] }), make_request(), context)
   for (const child of row.children) near(child.offset.y + child.fragment.guides.baseline!, row.guides.baseline!)
   const scaled = pass.layout(new TransformBox({ matrix: [2, 0, 0, 2, 3, 7], children: formula }), make_request(), context)
@@ -137,6 +142,15 @@ test('padding, fitting, baseline rows, and transforms preserve representable gui
   const nested = pass.layout(new Text({ children: ['label ', new Box({ padding: px(3), children: new Rotate({ angle: -90, children: formula }) })] }), make_request(), context)
   expect(named(nested, 'Tex')[0].size).toEqual(bare.size)
   expect(nested.ink).not.toBeNull()
+})
+
+test('fitted math sequences remain atomic while disabled fitting preserves source flattening', () => {
+  for (const fit of [true, false]) {
+    const source = new MathText({ fit, text: 'a+b' })
+    const result = pass.layout(new MathText({ children: [source, '=c'] }), make_request(), context)
+    expect(result.children[0].fragment.name).toBe(fit ? 'MathText' : 'MathSymbol')
+    expect(result.children[0].fragment.math).toBeDefined()
+  }
 })
 
 test('shared formula sources keep style and placement local while reusing preparation', () => {

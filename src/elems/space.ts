@@ -9,6 +9,8 @@ type MathRuleProps = MathAtomProps & Readonly<{ thickness?: Length; shift?: Leng
   width_dimension?: MathDimension; height_dimension?: MathDimension; shift_dimension?: MathDimension }>
 
 class MathSpacer extends MathElement<MathSpacerProps> {
+  // Signed glue is an allocation primitive, not a drawing to scale.
+  static auto_fit = false
   static layout(props: MathSpacerProps, query: LayoutQuery) {
     const math = math_context(props, query), f = math_font_size(query, math)
     const advance = props.dimension ? dimension_length(props.dimension, query, math)
@@ -22,6 +24,8 @@ class MathSpacer extends MathElement<MathSpacerProps> {
 }
 
 class MathRule extends MathElement<MathRuleProps> {
+  // Rules obey their allocation without scaling their authored thickness.
+  static auto_fit = false
   static layout(props: MathRuleProps, query: LayoutQuery) {
     const math = math_context(props, query), f = math_font_size(query, math)
     const width = props.width_dimension ? dimension_length(props.width_dimension, query, math)

@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test'
-import { Svg, Fit, Rect, LayoutPass, FontNotLoadedError, px, em, make_request,
+import { Svg, Rect, LayoutPass, FontNotLoadedError, px, em, make_request,
   available, exact, render_svg, inspect_fragment } from 'gum-jsx-core'
 import type { Fragment, FontProvider } from 'gum-jsx-core'
 import { Latex, mathToElement, mathToElementAsync, mathToSvg, mathToSvgAsync,
@@ -69,7 +69,7 @@ describe('standalone math exports', () => {
     expect(() => pass.layout(mathToElement('x', { padding: px(-1) }))).toThrow('nonnegative')
   })
 
-  test('source reuse responds to inherited em sizes and advisory offers without fitting', () => {
+  test('source reuse responds to inherited em sizes and automatically fits advisory offers', () => {
     const { pass } = setup()
     const source = mathToElement('x^2', { font_size: em(1) })
     const small = pass.layout(new Svg({ font_size: px(20), children: source }))
@@ -78,24 +78,25 @@ describe('standalone math exports', () => {
     near(large.size.height, small.size.height * 2)
     const natural = pass.layout(source)
     const narrow = pass.layout(source, make_request({ width: available(1) }))
-    expect(narrow.size).toEqual(natural.size)
+    near(narrow.size.width, 1)
+    near(narrow.size.height, natural.size.height / natural.size.width)
     expect(pass.layout(source)).toBe(natural)
     expect(pass.stats.hits).toBeGreaterThan(0)
   })
 
-  test('explicit viewports clip while Fit deliberately scales a completed formula', () => {
+  test('fit=false opts out of automatic export fitting while contain permits enlargement', () => {
     const { pass } = setup()
-    const source = mathToElement('x+y')
+    const source = mathToElement('x+y', { fit: false })
     const natural = pass.layout(source)
     const clipped = pass.layout(source, make_request({ width: exact(5) }))
     expect(clipped.size.width).toBe(5)
     expect(clipped.overflow.right).toBeGreaterThan(0)
     expect(formula(clipped).fragment).toEqual(formula(natural).fragment)
     expect(clipped.ink!.x + clipped.ink!.width).toBeLessThanOrEqual(5)
-    const fit = pass.layout(new Fit({ width: px(200), children: source }))
+    const fit = pass.layout(mathToElement('x+y', { fit: 'contain', width: px(200) }))
     near(fit.size.height, natural.size.height * 200 / natural.size.width)
-    near(fit.children[0].transform![0], 200 / natural.size.width)
-    expect(fit.children[0].fragment).toEqual(natural)
+    near(fit.children[0].fragment.children[0].transform![0], 200 / natural.size.width)
+    expect(fit.children[0].fragment.children[0].fragment.children).toEqual(natural.children[0].fragment.children)
     expect(pass.layout(mathToElement('x', { width: px(0), height: px(0) })).ink).toBeNull()
   })
 
@@ -113,6 +114,23 @@ describe('standalone math exports', () => {
     expect(() => mathToSvg('x', { id_prefix: '1invalid' })).toThrow('identifier')
     expect(() => mathToSvg(String.raw`\phase{x}`)).toThrow('unsupported:')
     expect(mathToSvg('{', { on_error: 'render' }).includes('parse:')).toBe(true)
+  })
+
+  test('export fitting props scale the complete ink-safe viewport without a wrapper', () => {
+    const { pass } = setup()
+    const text = String.raw`\mathllap{f}\!\int_0^\infty e^{-x^2}\,dx`
+    const natural = pass.layout(mathToElement(text, { padding: em(0.2) }))
+    const small = pass.layout(mathToElement(text, { padding: em(0.2) }),
+      make_request({ width: available(natural.size.width / 2) }))
+    near(small.size.width, natural.size.width / 2)
+    near(small.size.height, natural.size.height / 2)
+    near(small.guides.baseline!, natural.guides.baseline! / 2)
+    expect(small.ink!.x).toBeGreaterThanOrEqual(0)
+    expect(small.ink!.x + small.ink!.width).toBeLessThanOrEqual(small.size.width + 1e-8)
+    const enlarged = pass.layout(mathToElement(text, { padding: em(0.2),
+      width: px(natural.size.width * 2), fit: 'contain' }))
+    near(enlarged.size.width, natural.size.width * 2)
+    near(enlarged.size.height, natural.size.height * 2)
   })
 
   test('supplied resources remain caller-owned and synchronous custom providers work', async () => {
