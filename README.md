@@ -61,8 +61,10 @@ valid export. Default typography is display style at `px(24)` with a strut;
 `inline`, `style`, `strut`, `macros`, and error controls follow `Latex`.
 An existing Gum element is also accepted as the source.
 
-Use Gum lengths for `font_size` and `padding`; `width` and `height` are explicit
-SVG `px()` dimensions that shrink the completed formula when necessary. Set
+Use Gum lengths for `font_size` and `padding`, including unit strings such as
+`"24px"`, `"0.25em"`, and `"4vh"`; `width` and `height` are explicit SVG pixel
+dimensions, written as `px(320)` or `"320px"`, that shrink the completed formula
+when necessary. Set
 `fit: 'contain'` to permit enlargement or `fit: false` to retain clipping at the
 original size. Inline prose continues to use `Tex` and
 its ordinary typographic advance.

@@ -1,7 +1,7 @@
 import { Element, Svg, Fonts, LayoutPass, make_request, make_rect, make_size, make_point,
   make_fragment, place_fragment, union_rects, transform_guides, resolve_insets, finish_size, px,
   render_svg } from 'gum-jsx-core'
-import type { ElementProps, FitSpec, LayoutQuery, LayoutRequest, InsetSpec, UnitLength, SvgOptions,
+import type { ElementProps, FitSpec, LayoutQuery, LayoutRequest, InsetSpec, SvgProps, SvgOptions,
   FontProvider } from 'gum-jsx-core'
 import { Latex } from './elems/composition'
 import type { MathTextProps } from './elems/composition'
@@ -12,8 +12,8 @@ type MathElementOptions = Pick<MathTextProps,
   'font_size' | 'font_family' | 'color' | 'opacity' | 'inline' | 'style' | 'size_index'
   | 'strut' | 'macros' | 'warnings' | 'on_error'> & FitSpec & Readonly<{
   padding?: InsetSpec
-  width?: UnitLength
-  height?: UnitLength
+  width?: SvgProps['width']
+  height?: SvgProps['height']
 }>
 type MathResources = Readonly<{ fonts?: Fonts; pass?: LayoutPass }>
 type MathSvgOptions = MathElementOptions & SvgOptions & MathResources & Readonly<{ request?: LayoutRequest }>

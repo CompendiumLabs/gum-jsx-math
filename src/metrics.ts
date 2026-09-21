@@ -1,6 +1,6 @@
 import { copy_math_context, make_fragment, make_size, make_point, place_fragment, finish_size,
   em, resolve_length } from 'gum-jsx-core'
-import type { Fragment, FragmentSpec, LayoutQuery, LengthContext, MathClass, MathContext, MathMetrics, MathStyle } from 'gum-jsx-core'
+import type { Fragment, FragmentSpec, LayoutQuery, Length, LengthContext, MathClass, MathContext, MathMetrics, MathStyle } from 'gum-jsx-core'
 import type { MathProps, MathSpace, MathDimension } from './types'
 import { font_scale, STYLE_SCALE, text_style } from './styles'
 
@@ -25,11 +25,10 @@ function math_font_size(query: LayoutQuery, context: MathContext = query.math ??
 }
 
 function space_length(value: MathSpace, measure: LengthContext): number {
-  if (typeof value === 'string') {
-    if (!(value in SPACES)) throw new TypeError(`Unknown math space: ${value}`)
-    value = em(SPACES[value])
+  if (typeof value === 'string' && Object.hasOwn(SPACES, value)) {
+    value = em(SPACES[value as keyof typeof SPACES])
   }
-  return resolve_length(value, measure, measure.reference.width, 'advance')
+  return resolve_length(value as Length, measure, measure.reference.width, 'advance')
 }
 
 function math_metrics(advance: number, klass: MathClass = 'mord', patch: Partial<MathMetrics> = {}): MathMetrics {
