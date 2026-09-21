@@ -261,7 +261,7 @@ From the workspace root:
 bun run test
 bun run typecheck
 bun run build
-bun gum-jsx-math/scripts/check-browser.ts
+bun --filter @gum-jsx/math test:browser
 bun run compare --suite -S 48 -o gum-jsx-math/out/comparison.png \
   --artifacts gum-jsx-math/out/comparison
 bun run compare --suite 3 -S 48 -o gum-jsx-math/out/phase3.png

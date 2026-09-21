@@ -61,10 +61,15 @@ const html = `<!doctype html><html><meta charset="utf-8"><title>Gum math browser
 import {renderGum} from '/assets/${bundle}';
 const status = document.querySelector('#status');
 const fontRequests = () => performance.getEntriesByType('resource').filter(item => item.name.endsWith('.ttf'));
+const expectedFontCount = 25; // Six Plex faces, eighteen KaTeX faces, and emoji metrics.
 try {
   if (fontRequests().length) throw Error('Importing the math renderer loaded fonts');
   const sources = ${JSON.stringify(browserSources)};
-  const svgs = await Promise.all(sources.map(source => renderGum(source)));
+  const results = await Promise.all(sources.map(source => renderGum(source)));
+  const svgs = results.map(result => {
+    if (result.kind !== 'svg') throw Error('Expected an SVG render result');
+    return result.svg;
+  });
   const expected = ${JSON.stringify(expectedExports)};
   if (svgs.slice(-expected.length).some((svg, index) => svg !== expected[index])) throw Error('Browser exports differ from library SVG');
   for (const svg of svgs) {
@@ -78,9 +83,9 @@ try {
     await image.decode();
   }
   const fonts = fontRequests();
-  if (fonts.length !== 24 || new Set(fonts.map(item => item.name)).size !== 24) throw Error('Font loads were missing or duplicated: '+fonts.length);
+  if (fonts.length !== expectedFontCount || new Set(fonts.map(item => item.name)).size !== expectedFontCount) throw Error('Font loads were missing or duplicated: '+fonts.length);
   await renderGum(sources[0]);
-  if (fontRequests().length !== 24) throw Error('Rendering again reloaded fonts');
+  if (fontRequests().length !== expectedFontCount) throw Error('Rendering again reloaded fonts');
   for (const [source, expected] of ${JSON.stringify(failures)}) {
     let failure;
     try { await renderGum(source) } catch (error) { failure = String(error) }
@@ -88,7 +93,7 @@ try {
   }
   await renderGum(sources[0]);
   document.body.dataset.result = 'passed';
-  status.textContent = 'Passed: no import-time font requests; 24 faces loaded once; concurrent exports, plot labels, slides and math docs; exact browser/library SVG agreement; dark decorations; repeat rendering; parse/unsupported failures and recovery; outline SVG.';
+  status.textContent = 'Passed: no import-time font requests; '+expectedFontCount+' faces loaded once; concurrent exports, plot labels, slides and math docs; exact browser/library SVG agreement; dark decorations; repeat rendering; parse/unsupported failures and recovery; outline SVG.';
 } catch (error) {
   document.body.dataset.result = 'failed'; status.textContent = String(error.stack ?? error);
 }
