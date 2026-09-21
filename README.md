@@ -69,7 +69,7 @@ when necessary. Set
 original size. Inline prose continues to use `Tex` and
 its ordinary typographic advance.
 
-SVG helpers accept `title`, `background`, `id_prefix`, `request`, and optional
+SVG helpers accept `title`, `background`, `id_prefix`, `precision`, `request`, and optional
 caller-owned `fonts`/`pass`. Supplied resources must already register the math
 faces; custom registrations are preserved. The helpers refresh a reused pass's
 font version after replacement. Async helpers preload every registered face,
