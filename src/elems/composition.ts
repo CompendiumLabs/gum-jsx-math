@@ -1,4 +1,4 @@
-import { Element, Text, Span, LayoutError, make_request, make_size, make_point, make_fragment,
+import { make_measure, Element, Text, Span, LayoutError, make_request, make_size, make_point, make_fragment,
   place_fragment, resolve_style, definite_reference, layout_content, resolve_insets,
   resolve_alignment, resolve_length, em } from 'gum-jsx-core'
 import type { Child, LayoutQuery, MathContext, MathMetrics, MathSizeStyle, Fragment, Style, Length, InsetSpec,
@@ -164,7 +164,7 @@ function prepare_items(props: MathTextProps, query: LayoutQuery, context: MathCo
       if (sequences && is_sequence(child)) {
         const nested = child.props
         const nested_math = math_context(nested, { ...query, math })
-        collect(source_children(nested, nested_math), resolve_style(nested, style), nested_math, {
+        collect(source_children(nested, nested_math), resolve_style(nested, style, query.measure), nested_math, {
           ...options, display: nested_math.style.startsWith('display'),
           macros: nested.macros ?? options.macros, warnings: nested.warnings ?? options.warnings,
         })
@@ -181,7 +181,7 @@ function measure_items(items: readonly Item[], query: LayoutQuery) {
   const reference = definite_reference(query.request, query.sizing)
   return items.map(({ element, style, math }, index) => {
     const fragment = query.child(element, make_request(), reference, index, { style, math, coordinates: null })
-    const child_style = resolve_style(element.props, style)
+    const child_style = resolve_style(element.props, style, query.measure)
     const font_size = math_font_size({ ...query, style: child_style }, math_context(element.props, { ...query, math }))
     // Ordinary text retains its own font size in a math operand. Its first
     // baseline implies an axis using that font, regardless of the TeX style.
@@ -274,8 +274,9 @@ class Tex extends MathText {
 class MathCol extends MathElement<MathColProps> {
   static layout(props: MathColProps, query: LayoutQuery) {
     const context = math_context(props, query), font_size = math_font_size(query, context)
+    const measure = make_measure(query.measure, { font_size })
     const items = measure_items(prepare_items(props, query, context, false), query)
-    const gap = resolve_length(props.gap ?? em(0), { font_size, fraction: query.reference.height }, 'MathCol.gap')
+    const gap = resolve_length(props.gap ?? em(0), measure, query.measure.reference.height, 'gap')
     if (gap < 0) throw new RangeError('MathCol.gap must be nonnegative')
     const align = resolve_alignment(props.justify ?? 'center')
     if (typeof align.x !== 'number') throw new TypeError('MathCol.justify must be start, center, end, or a fraction')
@@ -289,7 +290,7 @@ class MathCol extends MathElement<MathColProps> {
       return placement
     })
     const axis = props.axis === undefined ? height / 2
-      : resolve_length(props.axis, { font_size, fraction: height }, 'MathCol.axis')
+      : resolve_length(props.axis, measure, height, 'axis')
     return finish_math({ size: make_size(width, height), children,
       guides: { math_axis: axis, baseline: axis + MATH_AXIS * font_size },
       math: math_metrics(width, props.left ?? props.klass, { right: props.right ?? props.left ?? props.klass ?? 'mord' }),
@@ -300,12 +301,13 @@ class MathCol extends MathElement<MathColProps> {
 class MathBox extends MathElement<MathBoxProps> {
   static layout(props: MathBoxProps, query: LayoutQuery) {
     const math = math_context(props, query), font_size = math_font_size(query, math)
+    const measure = make_measure(query.measure, { font_size })
     const items = prepare_items(props, query, math, false)
     if (items.length > 1) throw new TypeError('MathBox expects one content element or TeX string')
     const child_query: LayoutQuery = { ...query, math,
       child: (child, offer, reference, index, context) =>
         query.child(child, offer, reference, index, { math, coordinates: null, ...context }) }
-    const insets = resolve_insets(props.padding, { font_size, reference: query.reference, path: query.path })
+    const insets = resolve_insets(props.padding, measure)
     const { placement, ...layout } = layout_content(items[0]?.element, child_query, insets, props.align)
     const axis = layout.guides.math_axis ?? (layout.guides.baseline === undefined
       ? layout.size.height / 2 : layout.guides.baseline - MATH_AXIS * font_size)

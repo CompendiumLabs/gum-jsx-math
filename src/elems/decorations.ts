@@ -1,4 +1,4 @@
-import { draw_rect, make_rect, make_size, make_fragment, make_point, place_fragment, resolve_length, theme_color } from 'gum-jsx-core'
+import { make_measure, draw_rect, make_rect, make_size, make_fragment, make_point, place_fragment, resolve_length, theme_color } from 'gum-jsx-core'
 import type { Child, Element, ElementType, Fragment, LayoutQuery, Length, MathContext } from 'gum-jsx-core'
 import { MathElement } from './base'
 import { MathSymbol } from './glyphs'
@@ -18,8 +18,9 @@ type HorizBraceProps = LineProps & Readonly<{ label?: Child; over?: boolean; bra
 type XArrowProps = MathStretchProps & Readonly<{ above?: Child; below?: Child }>
 
 function thickness(props: LineProps, query: LayoutQuery, f: number): number | undefined {
+  const measure = make_measure(query.measure, { font_size: f })
   return props.thickness === undefined ? undefined : resolve_length(props.thickness,
-    { font_size: f, fraction: query.reference.height }, 'decoration thickness')
+    measure, measure.reference.height, 'thickness')
 }
 function atom(props: MathAtomProps, width: number, klass: 'mord' | 'minner' | 'mrel' = 'mord') {
   return math_metrics(width, props.left ?? props.klass ?? klass, { right: props.right ?? props.left ?? props.klass ?? klass })

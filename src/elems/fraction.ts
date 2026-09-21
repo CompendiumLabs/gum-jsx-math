@@ -1,4 +1,4 @@
-import { make_size, make_fragment, make_point, place_fragment, draw_rect, make_rect, resolve_length } from 'gum-jsx-core'
+import { make_measure, make_size, make_fragment, make_point, place_fragment, draw_rect, make_rect, resolve_length } from 'gum-jsx-core'
 import type { LayoutQuery, Length } from 'gum-jsx-core'
 import { MathElement } from './base'
 import { math_children, operand_source, measure_operand, extent, baseline, advance } from './operands'
@@ -15,6 +15,7 @@ type FracProps = MathAtomProps & Readonly<{
 class Frac extends MathElement<FracProps> {
   static layout(props: FracProps, query: LayoutQuery) {
     const math = math_context(props, query), f = math_font_size(query, math), tex = tex_metrics(math)
+    const measure = make_measure(query.measure, { font_size: f })
     const upper = { ...math, style: numerator_style(math.style) }, lower = { ...math, style: denominator_style(math.style) }
     const sources = query.prepare('fraction-operands', () => {
       const children = math_children(props.children)
@@ -32,7 +33,7 @@ class Frac extends MathElement<FracProps> {
     }
     const ne = extent(num, nf), de = extent(den, df)
     const thickness = props.has_bar === false ? 0 : props.thickness !== undefined
-      ? resolve_length(props.thickness, { font_size: f, fraction: query.reference.height }, 'Frac.thickness')
+      ? resolve_length(props.thickness, measure, query.measure.reference.height, 'thickness')
       : props.bar_size ? dimension_length(props.bar_size, query, math) : tex.rule * f
     if (thickness < 0) throw new RangeError('Fraction rule thickness must be nonnegative')
     const display = math.style.startsWith('display'), has_bar = thickness > 0
@@ -60,7 +61,7 @@ class Frac extends MathElement<FracProps> {
     const left = delimiter(query, math, props.left_delim ?? null, target, 'mopen')
     const right = delimiter(query, math, props.right_delim ?? null, target, 'mclose')
     const padding = props.padding === undefined ? 0.12 * query.style.font_size
-      : resolve_length(props.padding, { font_size: f, fraction: query.reference.width }, 'Frac.padding')
+      : resolve_length(props.padding, measure, query.measure.reference.width, 'padding')
     if (padding < 0) throw new RangeError('Fraction padding must be nonnegative')
     const lx = props.left_delim ? left.size.width : padding
     const rx = props.continued ? 0 : props.right_delim ? right.size.width : padding

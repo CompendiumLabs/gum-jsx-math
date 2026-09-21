@@ -1,4 +1,4 @@
-import { make_size, make_fragment, draw_rect, make_rect, resolve_length } from 'gum-jsx-core'
+import { make_measure, make_size, make_fragment, draw_rect, make_rect, resolve_length } from 'gum-jsx-core'
 import type { Child, LayoutQuery, Length } from 'gum-jsx-core'
 import { MathElement } from './base'
 import { operand_source, measure_operand, advance, baseline, extent } from './operands'
@@ -12,13 +12,14 @@ type SqrtProps = MathAtomProps & Readonly<{ index?: Child; thickness?: Length }>
 class Sqrt extends MathElement<SqrtProps> {
   static layout(props: SqrtProps, query: LayoutQuery) {
     const math = math_context(props, query), f = math_font_size(query, math), tex = tex_metrics(math)
+    const measure = make_measure(query.measure, { font_size: f })
     const cramped = { ...math, style: cramped_style(math.style) }, tiny = { ...math, style: 'scriptscript' as const }
     const sources = query.prepare('root-operands', () => ({ body: operand_source(props.children, cramped),
       index: props.index == null || typeof props.index === 'boolean' ? undefined : operand_source(props.index, tiny) }))
     const body = measure_operand(sources.body, query, cramped, 0), be = extent(body, f)
     const index = sources.index && measure_operand(sources.index, query, tiny, 1)
     const rule = props.thickness === undefined ? 0.04 * f
-      : resolve_length(props.thickness, { font_size: f, fraction: query.reference.height }, 'Sqrt.thickness')
+      : resolve_length(props.thickness, measure, query.measure.reference.height, 'thickness')
     if (rule < 0) throw new RangeError('Root rule thickness must be nonnegative')
     let gap = rule + (math.style.startsWith('display') ? tex.x_height * f : rule) / 4
     const body_height = Math.max(body.size.height, tex.x_height * f)

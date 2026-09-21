@@ -1,4 +1,4 @@
-import { draw_path, draw_rect, make_rect, make_fragment, make_size, make_point, place_fragment, resolve_length, theme_color } from 'gum-jsx-core'
+import { make_measure, draw_path, draw_rect, make_rect, make_fragment, make_size, make_point, place_fragment, resolve_length, theme_color } from 'gum-jsx-core'
 import type { LayoutQuery, Length, PathCommand } from 'gum-jsx-core'
 import { MathElement } from './base'
 import { operand_source, measure_operand, advance, baseline, extent } from './operands'
@@ -62,8 +62,9 @@ class Lap extends MathElement<LapProps> {
 class RaiseBox extends MathElement<RaiseBoxProps> {
   static layout(props: RaiseBoxProps, query: LayoutQuery) {
     const { math, f, body } = operand(props, query)
+    const measure = make_measure(query.measure, { font_size: f })
     const shift = props.shift_dimension ? dimension_length(props.shift_dimension, query, math)
-      : resolve_length(props.shift ?? 0, { font_size: f, fraction: query.reference.height }, 'RaiseBox.shift')
+      : resolve_length(props.shift ?? 0, measure, query.measure.reference.height, 'shift')
     const b = baseline(body, f) + shift
     return finish_math({ size: body.size, math: atom(props, advance(body)),
       guides: { baseline: b, math_axis: b - MATH_AXIS * f }, children: [place_fragment(body)] }, query)
@@ -89,12 +90,13 @@ class Pmb extends MathElement<MathAtomProps> {
 class Enclose extends MathElement<EncloseProps> {
   static layout(props: EncloseProps, query: LayoutQuery) {
     const { body, bm, math, f } = operand(props, query), notation = props.notation ?? 'box'
+    const measure = make_measure(query.measure, { font_size: f })
     if (!['box', 'colorbox', 'cancel', 'bcancel', 'xcancel', 'sout'].includes(notation)) throw new TypeError('Unknown enclosure notation')
     const box = notation === 'box' || notation === 'colorbox', border = notation === 'box'
     const t = props.thickness === undefined ? (notation.includes('cancel') ? 0.046 : tex_metrics(math).rule) * f
-      : resolve_length(props.thickness, { font_size: f, fraction: query.reference.height }, 'Enclose.thickness')
+      : resolve_length(props.thickness, measure, query.measure.reference.height, 'thickness')
     const sep = props.padding === undefined ? 0.3 * f
-      : resolve_length(props.padding, { font_size: f, fraction: query.reference.width }, 'Enclose.padding')
+      : resolve_length(props.padding, measure, query.measure.reference.width, 'padding')
     if (!Number.isFinite(t) || t < 0 || !Number.isFinite(sep) || sep < 0) throw new RangeError('Enclosure thickness and padding must be nonnegative')
     const pad = box ? sep + (border ? t : 0) : 0
     const width = Math.max(0, advance(body)) + 2 * pad, height = body.size.height + 2 * pad

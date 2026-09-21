@@ -1,4 +1,4 @@
-import { em, resolve_length, resolve_style, make_size, make_point, make_rect,
+import { make_measure, em, resolve_length, resolve_style, make_size, make_point, make_rect,
   make_fragment, place_fragment, draw_rect, draw_path } from 'gum-jsx-core'
 import type { Child, LayoutQuery, Length, Drawing, PathCommand, Placement } from 'gum-jsx-core'
 import { MathElement } from './base'
@@ -84,13 +84,14 @@ function array_rule(x: number, y: number, width: number, height: number, dashed:
 class MathArray extends MathElement<MathArrayProps> {
   static layout(props: MathArrayProps, query: LayoutQuery) {
     const math = math_context(props, query), f = math_font_size(query, math)
+    const measure = make_measure(query.measure, { font_size: f })
     const cell_math = { ...math, style: props.cell_style ?? (props.small ? 'script' : math.style) }
     const prepared = query.prepare('array-cells', () => {
       const cols = columns(props.cols)
       return { cols, rows: rows(props, cols).map(row => row.map(cell => operand_source(cell, cell_math))) }
     })
     const length = (value: Length, key: string, vertical = false) => resolve_length(value,
-      { font_size: f, fraction: vertical ? query.reference.height : query.reference.width }, `MathArray.${key}`)
+      measure, vertical ? measure.reference.height : measure.reference.width, key)
     const stretch = props.stretch ?? (props.small ? 0.5 : 1)
     if (!Number.isFinite(stretch) || stretch <= 0) throw new RangeError('MathArray.stretch must be positive and finite')
     const thickness = length(props.thickness ?? em(0.04), 'thickness', true)
@@ -122,7 +123,7 @@ class MathArray extends MathElement<MathArrayProps> {
     const measured = prepared.rows.map((row, r) => {
       const cells = row.map(source => {
         const fragment = measure_operand(source, query, cell_math, index++)
-        const style = resolve_style(source.props, query.style)
+        const style = resolve_style(source.props, query.style, query.measure)
         const font_size = fragment.math ? math_font_size({ ...query, style }, math_context(source.props, { ...query, math: cell_math }))
           : style.font_size
         return { fragment, baseline: baseline(fragment, font_size), width: Math.max(0, advance(fragment)) }

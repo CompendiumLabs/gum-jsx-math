@@ -82,7 +82,7 @@ function stretch_fragment(label: string, desired: number, f: number, query: Layo
   const h = Math.max(height ?? (wide ? Math.min(0.42, 0.22 + 0.045 * w / f) : entry.height) * f, 2 * t)
   const size = make_size(w, h), request = make_request({ width: exact(w), height: exact(h) })
   const style = resolve_style({ fill: 'none', stroke: query.style.color, stroke_width: px(t),
-    stroke_linecap: 'butt', stroke_linejoin: 'round', stroke_dasharray: [] }, query.style)
+    stroke_linecap: 'butt', stroke_linejoin: 'round', stroke_dasharray: [] }, query.style, query.measure)
   const children: Placement[] = []
   const point = ([x, y]: Point): PositionValue => [px(x), px(y)]
   const add = (element: Element) => {

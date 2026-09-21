@@ -27,13 +27,11 @@ class MathViewport extends Element<ElementProps & { padding?: InsetSpec }> {
   static auto_fit = true
   static layout(props: ElementProps & { padding?: InsetSpec }, query: LayoutQuery) {
     const child = props.children as Element
-    const fragment = query.child(child, make_request(), query.reference, 0, { coordinates: null, math: null })
+    const fragment = query.child(child, make_request(), query.measure.reference, 0, { coordinates: null, math: null })
     // Logical space (including phantom) and visible ink both belong in a
     // standalone export. Unpainted overflow alone must not enlarge its viewport.
     const bounds = union_rects(make_rect(0, 0, fragment.size.width, fragment.size.height), fragment.ink)!
-    const padding = resolve_insets(props.padding, {
-      font_size: query.style.font_size, reference: query.reference, path: query.path,
-    })
+    const padding = resolve_insets(props.padding, query.measure)
     const offset = make_point(padding.left - bounds.x, padding.top - bounds.y)
     // A one-pixel floor gives even an empty, unstrutted formula a usable raster
     // viewport. Explicit SVG dimensions can still request zero and clip normally.

@@ -47,7 +47,7 @@ class TextMode extends MathElement<TextModeProps> {
         if (child == null || typeof child === 'boolean') return
         if (Array.isArray(child)) { child.forEach(item => collect(item, style)); return }
         if (child instanceof Span) {
-          collect(child.props.children, resolve_style(child.props, style))
+          collect(child.props.children, resolve_style(child.props, style, query.measure))
         } else if (child instanceof Element) runs.push({ element: child, style })
         else if (typeof child === 'string' || typeof child === 'number') {
           const text = String(child), last = runs.at(-1)

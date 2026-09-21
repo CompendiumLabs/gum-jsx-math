@@ -1,4 +1,4 @@
-import { make_fragment, make_size, make_point, place_fragment, make_request } from 'gum-jsx-core'
+import { make_measure, make_fragment, make_size, make_point, place_fragment, make_request } from 'gum-jsx-core'
 import type { Element, FontProvider, LayoutQuery, MathContext, MathClass, Length, Fragment } from 'gum-jsx-core'
 import { resolve_length, resolve_style } from 'gum-jsx-core'
 import { MathElement } from './base'
@@ -87,6 +87,7 @@ type BracketProps = MathAtomProps & Readonly<{
 class Bracket extends MathElement<BracketProps> {
   static layout(props: BracketProps, query: LayoutQuery) {
     const math = math_context(props, query), f = math_font_size(query, math)
+    const measure = make_measure(query.measure, { font_size: f })
     const pair = PAIRS[props.delim ?? 'round']
     if (!pair) throw new TypeError('Unknown delimiter pair')
     const left = props.left_delim === undefined ? pair[0] : props.left_delim
@@ -108,18 +109,19 @@ class Bracket extends MathElement<BracketProps> {
     const target = props.level !== undefined ? (SIZE_HEIGHT[props.level] - 0.01) * math_font_size(query, { ...math, style: 'text' })
       : props.delimiter_height === undefined
       ? Math.max(2 * 0.901 * extent, 2 * extent - 0.5 * query.style.font_size)
-      : resolve_length(props.delimiter_height, { font_size: f, fraction: query.reference.height }, 'Bracket.delimiter_height')
+      : resolve_length(props.delimiter_height, measure, query.measure.reference.height, 'delimiter_height')
     if (target < 0) throw new RangeError('Delimiter height must be nonnegative')
     let index = 0
     const body = items.map(item => {
       if (!is_middle(item.element)) return measured[index++]
-      const middle_query = { ...query, style: resolve_style(item.element.props, item.style) }
+      const style = resolve_style(item.element.props, item.style, query.measure)
+      const middle_query = { ...query, style, measure: make_measure(query.measure, { font_size: style.font_size }) }
       const fragment = delimiter(middle_query, item.math, item.element.props.text, target, 'none')
       const font_size = math_font_size(middle_query, item.math)
       return { fragment, axis: math_axis(fragment, font_size), font_size, math: item.math }
     })
     const fence = (text: string | null, klass: MathClass, color?: string) => {
-      const q = color === undefined ? query : { ...query, style: resolve_style({ color }, query.style) }
+      const q = color === undefined ? query : { ...query, style: resolve_style({ color }, query.style, query.measure) }
       const fragment = delimiter(q, math, text, target, klass)
       return { fragment, axis: math_axis(fragment, f), font_size: f, math }
     }
