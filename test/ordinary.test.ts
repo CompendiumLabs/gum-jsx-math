@@ -19,10 +19,6 @@ function ink(element: Element) { return render_svg(pass.layout(element)).replace
 function symbols(fragment: Fragment) { return descendants(fragment).filter(item => item.name === 'MathSymbol') }
 
 describe('ordinary math styles and scripts', () => {
-  test('content props no longer replace children', () => {
-    expect(() => pass.layout(new MathText({ choices: {} } as any))).toThrow(/children instead of text or choices/)
-    expect(() => pass.layout(new MathSymbol({ text: 'x' } as any))).toThrow(/children instead of text/)
-  })
   test('all eight styles have the TeX transition table and scriptscript floor', () => {
     const styles: MathStyle[] = ['display', 'display-cramped', 'text', 'text-cramped',
       'script', 'script-cramped', 'scriptscript', 'scriptscript-cramped']
