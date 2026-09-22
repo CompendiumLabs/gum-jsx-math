@@ -15,7 +15,7 @@ function descendants(f: Fragment): Fragment[] { return [f, ...f.children.flatMap
 function named(f: Fragment, name: string) { return descendants(f).filter(item => item.name === name) }
 
 test('paragraphs wrap at the formula boundary and keep each formula at its natural size', () => {
-  const a = new Tex({ text: 'x^2' }), b = new Tex({ text: String.raw`\frac{1}{1+x}` })
+  const a = new Tex({ children: 'x^2' }), b = new Tex({ children: String.raw`\frac{1}{1+x}` })
   const source = new Text({ children: ['a ', a, ' ', b] })
   const natural = pass.layout(source, make_request(), context)
   const at = pass.layout(source, make_request({ width: exact(natural.size.width) }), context)
@@ -39,7 +39,7 @@ test('paragraphs wrap at the formula boundary and keep each formula at its natur
 })
 
 test('inline fractions expand logical line extents and inherit a styled span', () => {
-  const formula = new Tex({ text: String.raw`\frac{a}{b}` })
+  const formula = new Tex({ children: String.raw`\frac{a}{b}` })
   const source = new Text({ children: ['Result: ', new Span({ font_size: em(1.5), color: '#176b9b',
     font_family: 'IBM Plex Mono', children: formula }), '\nNext line.'] })
   const result = pass.layout(source, make_request(), context)
@@ -58,25 +58,25 @@ test('inline fractions expand logical line extents and inherit a styled span', (
 
 test('TextMode is literal, preserves spaces and kerning, and isolates its text face from nested math', () => {
   const literal = String.raw` AV  x^2 & \alpha `
-  const result = pass.layout(new TextMode({ text: literal }), make_request(), context)
+  const result = pass.layout(new TextMode({ children: literal }), make_request(), context)
   near(result.size.width, fonts.resolve('KaTeX_Main', 400, 'normal').shape(literal).advance * 32)
   expect(result.label).toBe(literal)
-  const lines = pass.layout(new TextMode({ text: 'one\r\ntwo\tthree' }), make_request(), context)
+  const lines = pass.layout(new TextMode({ children: 'one\r\ntwo\tthree' }), make_request(), context)
   expect(lines.label).toBe('one two three')
   near(lines.size.width, fonts.resolve('KaTeX_Main', 400, 'normal').shape('one two three').advance * 32)
   const split = pass.layout(new TextMode({ children: ['A', new Span({ children: 'V' })] }), make_request(), context)
   near(split.size.width, fonts.resolve('KaTeX_Main', 400, 'normal').shape('AV').advance * 32)
-  const formula = new MathText({ text: 'x^2' })
+  const formula = new MathText({ children: 'x^2' })
   const mixed = pass.layout(new TextMode({ children: ['speed ', formula, ' m/s'] }), make_request(), context)
   const standalone = pass.layout(formula, make_request(), context)
   near(named(mixed, 'MathText')[0].size.width, standalone.size.width)
   expect(render_svg(named(mixed, 'MathText')[0])).toBe(render_svg(standalone))
-  const parsed = pass.layout(new Latex({ text: String.raw`\text{speed $x^2$ m/s}`, strut: false }), make_request(), context)
+  const parsed = pass.layout(new Latex({ children: String.raw`\text{speed $x^2$ m/s}`, strut: false }), make_request(), context)
   near(parsed.size.width, mixed.size.width)
-  const kerned = pass.layout(new Tex({ text: String.raw`\text{AV office}`, strut: false }), make_request(), context)
+  const kerned = pass.layout(new Tex({ children: String.raw`\text{AV office}`, strut: false }), make_request(), context)
   near(kerned.size.width, fonts.resolve('KaTeX_Main', 400, 'normal').shape('AV office').advance * 32)
-  const scripted = pass.layout(new SupSub({ children: 'x', sub: new TextMode({ text: 'average' }) }), make_request(), context)
-  const normal = pass.layout(new TextMode({ text: 'average' }), make_request(), context)
+  const scripted = pass.layout(new SupSub({ children: 'x', sub: new TextMode({ children: 'average' }) }), make_request(), context)
+  const normal = pass.layout(new TextMode({ children: 'average' }), make_request(), context)
   near(named(scripted, 'TextMode')[0].size.width / normal.size.width, 0.7)
   for (const [options, face] of [[{ bold: true, italic: true }, 'KaTeX_Main-BoldItalic'],
     [{ family: 'sans', italic: true }, 'KaTeX_SansSerif-Italic'], [{ family: 'mono' }, 'KaTeX_Typewriter']] as const) {
@@ -84,9 +84,9 @@ test('TextMode is literal, preserves spaces and kerning, and isolates its text f
     near(styled.size.width, fonts.resolve(face, 400, 'normal').shape('AV ').advance * 32 + standalone.size.width)
     expect(render_svg(named(styled, 'MathText')[0])).toBe(render_svg(standalone))
   }
-  const fallback = pass.layout(new TextMode({ family: 'sans', bold: true, italic: true, text: 'x' }), make_request(), context)
+  const fallback = pass.layout(new TextMode({ family: 'sans', bold: true, italic: true, children: 'x' }), make_request(), context)
   near(fallback.size.width, fonts.resolve('KaTeX_Main-BoldItalic', 400, 'normal').shape('x').advance * 32)
-  expect(new TextMode({ text: literal }).props.text).toBe(literal)
+  expect(new TextMode({ children: literal }).props.children).toBe(literal)
 })
 
 test('ordinary shapes, plots, and wrapping text retain explicit dimensions in compound math', () => {
@@ -96,23 +96,23 @@ test('ordinary shapes, plots, and wrapping text retain explicit dimensions in co
   const result = pass.layout(new Frac({ children: [plot, circle] }), make_request(), context)
   expect(named(result, 'Plot')[0].size).toEqual({ width: 120, height: 65 })
   expect(named(result, 'Circle')[0].size).toEqual({ width: 24, height: 24 })
-  const text = new Text({ text: 'First line and a second line', width: px(95), font_size: px(20) })
+  const text = new Text({ children: 'First line and a second line', width: px(95), font_size: px(20) })
   const operand = pass.layout(new Frac({ children: [text, 'n'] }), make_request(), context)
   expect(named(operand, 'Text')[0].size.width).toBe(95)
   expect(named(operand, 'Text')[0].children.length).toBeGreaterThan(1)
   for (const Row of [MathRow, MathText]) {
-    const row = pass.layout(new Row({ style: 'script', children: [text, new MathSymbol({ text: '=' })] }), make_request(), context)
+    const row = pass.layout(new Row({ style: 'script', children: [text, new MathSymbol({ children: '=' })] }), make_request(), context)
     const placement = row.children[0]
     near(placement.offset.y + placement.fragment.guides.baseline! - 0.25 * 20, row.guides.math_axis!)
   }
-  const shapes = pass.layout(new MathRow({ children: [circle, new MathSymbol({ text: '=' })] }), make_request(), context)
+  const shapes = pass.layout(new MathRow({ children: [circle, new MathSymbol({ children: '=' })] }), make_request(), context)
   near(shapes.children[0].offset.y + 12, shapes.guides.math_axis!)
   const root = pass.layout(new Sqrt({ children: plot }), make_request(), context)
   expect(named(root, 'Plot')[0].size).toEqual({ width: 120, height: 65 })
 })
 
 test('padding, fitting, baseline rows, and transforms preserve representable guides and ink', () => {
-  const formula = new Tex({ text: String.raw`\frac{x}{y}` })
+  const formula = new Tex({ children: String.raw`\frac{x}{y}` })
   const bare = pass.layout(formula, make_request(), context)
   const padded = pass.layout(new Box({ padding: px(5), children: formula }), make_request(), context)
   near(padded.guides.baseline!, bare.guides.baseline! + 5)
@@ -122,14 +122,14 @@ test('padding, fitting, baseline rows, and transforms preserve representable gui
   near(fitted.guides.baseline!, bare.guides.baseline! / 2)
   near(fitted.ink!.height, bare.ink!.height / 2)
   const embedded = pass.layout(new MathText({ children: [
-    fitted_source, new MathSymbol({ text: '=' }),
+    fitted_source, new MathSymbol({ children: '=' }),
   ] }), make_request(), context)
   // A fitted math element remains a math atom, unlike an opaque wrapper:
   // spaced math rows preserve its baseline and its boundary classes.
   near(embedded.children[0].offset.y + embedded.children[0].fragment.guides.baseline!, embedded.guides.baseline!)
   expect(embedded.children[0].fragment.math!.left).toBe(bare.math!.left)
   near(embedded.children[0].fragment.math!.advance, bare.math!.advance / 2)
-  const row = pass.layout(new TextRow({ children: [new Text({ text: 'Answer:' }), formula] }), make_request(), context)
+  const row = pass.layout(new TextRow({ children: [new Text({ children: 'Answer:' }), formula] }), make_request(), context)
   for (const child of row.children) near(child.offset.y + child.fragment.guides.baseline!, row.guides.baseline!)
   const scaled = pass.layout(new TransformBox({ matrix: [2, 0, 0, 2, 3, 7], children: formula }), make_request(), context)
   near(scaled.guides.baseline!, bare.guides.baseline! * 2)
@@ -146,7 +146,7 @@ test('padding, fitting, baseline rows, and transforms preserve representable gui
 
 test('fitted math sequences remain atomic while disabled fitting preserves source flattening', () => {
   for (const fit of [true, false]) {
-    const source = new MathText({ fit, text: 'a+b' })
+    const source = new MathText({ fit, children: 'a+b' })
     const result = pass.layout(new MathText({ children: [source, '=c'] }), make_request(), context)
     expect(result.children[0].fragment.name).toBe(fit ? 'MathText' : 'MathSymbol')
     expect(result.children[0].fragment.math).toBeDefined()
@@ -160,7 +160,7 @@ test('shared formula sources keep style and placement local while reusing prepar
     return { ...font, shape(text) { shaped++; return font.shape(text) } }
   } }
   const local = new LayoutPass({ fonts: { value: provider, version: 0 } })
-  const formula = new MathText({ text: 'x+1' })
+  const formula = new MathText({ children: 'x+1' })
   const source = new Text({ children: [formula, ' then ', formula] })
   const natural = local.layout(source, make_request(), context), saved = render_svg(natural), count = shaped
   const narrow = local.layout(source, make_request({ width: exact(100) }), context)
@@ -181,9 +181,9 @@ test('shared formula sources keep style and placement local while reusing prepar
 })
 
 test('math composes through document helpers, plot labels, and indented JSX', () => {
-  const formula = new Tex({ text: 'x^2' }), mixed = ['The value ', formula, ' stays inline.']
-  for (const source of [new TextBox({ children: mixed }), new Bullets({ items: [mixed] }),
-    new TitleBox({ title: mixed, children: new Text({ text: 'Body' }) }),
+  const formula = new Tex({ children: 'x^2' }), mixed = ['The value ', formula, ' stays inline.']
+  for (const source of [new TextBox({ children: mixed }), new Bullets({ children: new Text({ children: mixed }) }),
+    new TitleBox({ title: mixed, children: new Text({ children: 'Body' }) }),
     new TextFigure({ caption: mixed, children: new Rect({ width: px(80), height: px(30) }) }),
     new Slide({ title: mixed, width: px(400), height: px(260), children: new Text({ children: mixed }) }),
     new Plot({ width: px(360), height: px(240), xlim: [0, 1], ylim: [0, 1],

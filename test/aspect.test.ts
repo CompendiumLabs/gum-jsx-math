@@ -8,9 +8,9 @@ const pass = new LayoutPass({ fonts: { value: fonts, version: fonts.version } })
 
 test('math elements use the shared aspect allocation without changing glyph scale', () => {
   const sources = [
-    new MathSymbol({ text: 'x' }), new MathText({ children: 'x' }),
+    new MathSymbol({ children: 'x' }), new MathText({ children: 'x' }),
     new MathRow({ children: 'x' }), new MathCol({ children: ['x', 'y'] }),
-    new MathBox({ children: 'x' }), new Latex({ text: 'x^2' }), new Tex({ text: 'x^2' }),
+    new MathBox({ children: 'x' }), new Latex({ children: 'x^2' }), new Tex({ children: 'x^2' }),
     new Frac({ children: ['1', '2'] }), new Sqrt({ children: 'x' }),
     new SupSub({ children: 'x', sup: '2' }),
   ]
@@ -24,8 +24,8 @@ test('math elements use the shared aspect allocation without changing glyph scal
     expect(pass.layout(sized, make_request({ width: exact(40), height: exact(20) })).size)
       .toEqual({ width: 40, height: 20 })
   }
-  const glyph = pass.layout(new MathSymbol({ text: 'x', aspect: 1 }))
-  const natural = pass.layout(new MathSymbol({ text: 'x' }))
+  const glyph = pass.layout(new MathSymbol({ children: 'x', aspect: 1 }))
+  const natural = pass.layout(new MathSymbol({ children: 'x' }))
   expect(glyph.size.width).toBeCloseTo(glyph.size.height, 10)
   expect(glyph.draw).toEqual(natural.draw)
   expect(glyph.guides).toEqual(natural.guides)

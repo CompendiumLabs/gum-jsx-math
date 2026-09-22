@@ -33,7 +33,7 @@ describe('standalone math exports', () => {
       String.raw`\kern-2em x`, String.raw`\raisebox{2em}{x}\raisebox{-2em}{y}`]
     for (const font_size of [px(20), px(48)]) for (const text of sources) {
       const { pass } = setup()
-      const raw = pass.layout(new Latex({ text, font_size, strut: false }))
+      const raw = pass.layout(new Latex({ children: text, font_size, strut: false }))
       const exported = pass.layout(mathToElement(text, { font_size, strut: false }))
       const child = formula(exported)
       expect(child.fragment.draw).toEqual(raw.draw)

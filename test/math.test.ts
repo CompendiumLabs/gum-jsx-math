@@ -13,7 +13,7 @@ function setup() {
 }
 const { pass, fonts } = setup()
 function formula(text: string, size = 36, style: MathStyle = 'text') {
-  return pass.layout(new MathText({ text, font_size: px(size), style }))
+  return pass.layout(new MathText({ children: text, font_size: px(size), style }))
 }
 function width(text: string, size = 36) { return formula(text, size).math!.advance }
 function near(a: number, b: number) { expect(a).toBeCloseTo(b, 9) }
@@ -31,12 +31,12 @@ function paths(fragment: Fragment): unknown[] {
 
 describe('glyph and font contracts', () => {
   test('construction snapshots source without resolving fonts or parsing TeX', () => {
-    const args = { text: String.raw`\frac{` }
+    const args = { children: String.raw`\frac{` }
     const source = new Latex(args)
-    args.text = 'changed'
-    expect(source.props.text).toBe(String.raw`\frac{`)
+    args.children = 'changed'
+    expect(source.props.children).toBe(String.raw`\frac{`)
     expect(Object.isFrozen(source)).toBe(true)
-    expect(new MathSpan({ text: 'x', font_family: 'unregistered' }).props.text).toBe('x')
+    expect(new MathSpan({ children: 'x', font_family: 'unregistered' }).props.children).toBe('x')
     expect(cause(source).kind).toBe('parse')
   })
 
@@ -45,7 +45,7 @@ describe('glyph and font contracts', () => {
       const shape = fonts.resolve(face, 400, 'normal').shape(text)
       expect(shape.ink!.x + shape.ink!.width).toBeGreaterThan(shape.advance)
       for (const size of [20, 48]) {
-        const glyph = pass.layout(new MathSpan({ text, font_family: face, font_size: px(size) }))
+        const glyph = pass.layout(new MathSpan({ children: text, font_family: face, font_size: px(size) }))
         near(glyph.math!.advance, shape.advance * size)
         near(glyph.guides.baseline!, -shape.ink!.y * size)
         near(glyph.guides.math_axis!, glyph.guides.baseline! - size / 4)
@@ -62,11 +62,11 @@ describe('glyph and font contracts', () => {
   test('coverage chooses a supported face and reports missing glyphs', () => {
     expect(fonts.resolve('KaTeX_Main', 400, 'normal').has_glyphs('abc')).toBe(true)
     expect(fonts.resolve('KaTeX_Main', 400, 'normal').has_glyphs('🦄')).toBe(false)
-    expect(cause(new MathSymbol({ text: '🦄' })).kind).toBe('glyph')
-    expect(cause(new MathSymbol({ text: String.raw`\notacommand` })).kind).toBe('symbol')
+    expect(cause(new MathSymbol({ children: '🦄' })).kind).toBe('glyph')
+    expect(cause(new MathSymbol({ children: String.raw`\notacommand` })).kind).toBe('symbol')
     // Caligraphic has no lowercase; fallback retains the math italic glyph.
-    const fallback = pass.layout(new MathSymbol({ text: 'x', font_family: 'KaTeX_Caligraphic' }))
-    expect(fallback.draw).toEqual(pass.layout(new MathSymbol({ text: 'x' })).draw)
+    const fallback = pass.layout(new MathSymbol({ children: 'x', font_family: 'KaTeX_Caligraphic' }))
+    expect(fallback.draw).toEqual(pass.layout(new MathSymbol({ children: 'x' })).draw)
     for (const face of MATH_FONTS) {
       const font = fonts.resolve(face, 400, 'normal')
       const char = face.startsWith('KaTeX_Size') ? '(' : 'A'
@@ -111,7 +111,7 @@ describe('glyph and font contracts', () => {
       return { ...font, shape(text) { shapes++; return font.shape(text) } }
     } }
     const pass = new LayoutPass({ fonts: { value: provider, version: 0 } })
-    const source = new MathSymbol({ text: 'f', font_size: px(30) })
+    const source = new MathSymbol({ children: 'f', font_size: px(30) })
     const a = pass.layout(source)
     pass.layout(source, make_request({ width: available(10) }))
     expect(shapes).toBe(1)
@@ -159,7 +159,7 @@ describe('math rows and source sequences', () => {
   })
 
   test('TeX italic correction is independent of ink overhang and is consumed once', () => {
-    const f = pass.layout(new MathSymbol({ text: 'f', font_size: px(48) }))
+    const f = pass.layout(new MathSymbol({ children: 'f', font_size: px(48) }))
     near(f.math!.italic, 0.10764 * 48)
     expect(f.math!.italic).toBeGreaterThan(f.overflow.right)
     near(width('ff', 48), 2 * (f.math!.advance + f.math!.italic))
@@ -177,16 +177,16 @@ describe('math rows and source sequences', () => {
     const fragment = pass.layout(nested)
     near(fragment.math!.advance, width('a+b'))
     expect(fragment.children[1].fragment.draw[0].fill).toBe('red')
-    const ColoredSequence = define_component('ColoredSequence', () => new MathText({ text: '+b', color: 'red' }))
+    const ColoredSequence = define_component('ColoredSequence', () => new MathText({ children: '+b', color: 'red' }))
     const adopted = pass.layout(new MathText({ font_size: px(36), children: ['a', new ColoredSequence()] }))
     near(adopted.math!.advance, width('a+b'))
     class GroupedText extends MathText {
       static layout(props: MathTextProps, query: LayoutQuery) { return MathRow.layout(props, query) }
     }
     const custom = pass.layout(new MathText({ font_size: px(36),
-      children: ['a', new GroupedText({ text: '+' }), 'b'] }))
+      children: ['a', new GroupedText({ children: '+' }), 'b'] }))
     near(custom.math!.advance, width('a{+}b'))
-    const plus = new MathSymbol({ text: '+' })
+    const plus = new MathSymbol({ children: '+' })
     const unary = pass.layout(new MathText({ children: [plus, 'b'] }))
     pass.layout(new MathText({ children: ['a', plus, 'b'] }))
     expect(unary.children[0].fragment.math!.left).toBe('mbin')
@@ -203,13 +203,13 @@ describe('math rows and source sequences', () => {
       near(formula(String.raw`\sin x`, 36, style).math!.advance, width(String.raw`\sin x`) * scale)
       near(formula('{{x}}', 36, style).math!.advance, width('x') * scale)
       const nested = pass.layout(new MathText({ font_size: px(36), style,
-        children: new Tex({ text: 'x', strut: false }) }))
+        children: new Tex({ children: 'x', strut: false }) }))
       near(nested.math!.advance, width('x') * scale)
     }
   })
 
   test('fit=false preserves unscaled glyphs and overflow even in exact small boxes', () => {
-    const source = new Latex({ text: 'a+b=c', font_size: px(36), fit: false })
+    const source = new Latex({ children: 'a+b=c', font_size: px(36), fit: false })
     const natural = pass.layout(source)
     const offered = pass.layout(source, make_request({ width: available(5) }))
     const exactBox = pass.layout(source, make_request({ width: exact(5), height: exact(4) }))
@@ -222,13 +222,13 @@ describe('math rows and source sequences', () => {
     const glue = new MathSpacer({ advance: em(-1) })
     expect(pass.layout(glue, make_request({ width: exact(0) })).math!.advance).toBe(0)
     const allocated = pass.layout(new MathRow({ children:
-      new MathSymbol({ text: 'f', width: px(5) }) }))
+      new MathSymbol({ children: 'f', width: px(5) }) }))
     expect(allocated.math!.advance).toBe(5)
   })
 
   test('axis alignment, box padding, column spacing, struts, and rule color', () => {
     const row = pass.layout(new MathRow({ font_size: px(32), children: [
-      new MathSymbol({ text: 'x' }), new MathSymbol({ text: 'b' })] }))
+      new MathSymbol({ children: 'x' }), new MathSymbol({ children: 'b' })] }))
     for (const child of row.children) near(child.offset.y + child.fragment.guides.math_axis!, row.guides.math_axis!)
     const box = pass.layout(new MathBox({ font_size: px(32), padding: em(0.5), children: 'x' }))
     near(box.size.width, width('x', 32) + 32)
@@ -236,7 +236,7 @@ describe('math rows and source sequences', () => {
     const col = pass.layout(new MathCol({ font_size: px(32), gap: em(0.25), children: ['x', 'a+b'] }))
     near(col.children[1].offset.y, col.children[0].fragment.size.height + 8)
     near(col.guides.math_axis!, col.size.height / 2)
-    expect(pass.layout(new Tex({ text: '', font_size: px(32) })).size.height).toBe(32)
+    expect(pass.layout(new Tex({ children: '', font_size: px(32) })).size.height).toBe(32)
     expect(formula('').size).toEqual({ width: 0, height: 0 })
     const rule = pass.layout(new MathRule({ width: em(2), thickness: em(0.04), font_size: px(32), color: 'white' }))
     expect(rule.draw[0].fill).toBe('white')
@@ -246,21 +246,21 @@ describe('math rows and source sequences', () => {
 
 describe('parser and host boundaries', () => {
   test('unsupported and malformed sources carry distinct diagnostics and do not poison a pass', () => {
-    const malformed = cause(new Latex({ text: '{' }))
+    const malformed = cause(new Latex({ children: '{' }))
     expect(malformed.kind).toBe('parse')
     for (const text of [String.raw`\begin{CD}a\end{CD}`, String.raw`\phase{x}`, String.raw`\htmlClass{x}{a}`]) {
-      expect(cause(new Latex({ text })).kind).toBe('unsupported')
+      expect(cause(new Latex({ children: text })).kind).toBe('unsupported')
     }
-    const unsupported = cause(new Latex({ text: String.raw`a+\phase{x}` }))
+    const unsupported = cause(new Latex({ children: String.raw`a+\phase{x}` }))
     expect(unsupported.source).toBe(String.raw`a+\phase{x}`)
     expect(unsupported.node).toBe('enclose')
     expect(unsupported.range).toBeDefined()
     expect(formula('a+b').ink).not.toBeNull()
-    const visible = pass.layout(new Latex({ text: String.raw`\phase{x}`, on_error: 'render' }))
+    const visible = pass.layout(new Latex({ children: String.raw`\phase{x}`, on_error: 'render' }))
     expect(visible.label).toContain('unsupported')
     expect(visible.ink).not.toBeNull()
     for (const text of ['{', String.raw`\nonesuch`, '🦄']) {
-      const diagnostic = pass.layout(new Latex({ text, on_error: 'render' }))
+      const diagnostic = pass.layout(new Latex({ children: text, on_error: 'render' }))
       expect(diagnostic.label).toContain('parse:')
       expect(diagnostic.ink).not.toBeNull()
     }
@@ -268,7 +268,7 @@ describe('parser and host boundaries', () => {
 
   test('macro expansion is local, and parser data contains no mutable KaTeX instances', () => {
     const macros = { '\\foo': 'a+b' }
-    const source = new Latex({ text: String.raw`\foo`, macros, font_size: px(36), strut: false })
+    const source = new Latex({ children: String.raw`\foo`, macros, font_size: px(36), strut: false })
     macros['\\foo'] = 'c'
     near(pass.layout(source).math!.advance, width('a+b'))
     parse_math(String.raw`\gdef\bar{a}\bar`)

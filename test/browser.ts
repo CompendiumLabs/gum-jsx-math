@@ -23,7 +23,7 @@ const browserSources = [
   String.raw`\left\{x\middle|\frac{1}{x}>0\right\}`,
 ].map(text => `<Svg font-size={px(40)}>
   <Box padding={em(0.5)}>
-    <Latex text={${JSON.stringify(text)}} />
+    <Latex>{${JSON.stringify(text)}}</Latex>
   </Box>
 </Svg>`)
 browserSources.unshift(...['docs/gallery/code/MathExport.jsx', 'docs/gallery/code/MathPlotLabels.jsx', 'docs/gallery/code/MathSlides.jsx',
@@ -52,8 +52,8 @@ const expectedExports = exports.map(text => mathToSvg(text, exportOptions))
 browserSources.push(...exports.map(text => `return mathToElement(${JSON.stringify(text)}, {
   font_size: px(40), padding: em(0.25), strut: false,
 })`))
-const failures = [['<Latex text="{" />', 'parse:'], [String.raw`<Latex text="\phase{x}" />`, 'unsupported:'],
-  [String.raw`<Latex text="\begin{align*}a&=b\tag{A}\end{align*}" />`, 'unsupported:']]
+const failures = [['<Latex>{"{"}</Latex>', 'parse:'], [String.raw`<Latex>\phase{x}</Latex>`, 'unsupported:'],
+  [String.raw`<Latex>\begin{align*}a&=b\tag{A}\end{align*}</Latex>`, 'unsupported:']]
 const html = `<!doctype html><html><meta charset="utf-8"><title>Gum math browser verification</title>
 <style>body{font:16px sans-serif;margin:24px;background:#f6f7f9;color:#182330}figure{margin:12px 0;padding:16px;background:white;border:1px solid #ddd}svg{display:block}pre{white-space:pre-wrap}</style>
 <h1>Gum math · browser verification</h1><pre id="status">Loading…</pre><main></main>

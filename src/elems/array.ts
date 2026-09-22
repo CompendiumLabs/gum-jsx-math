@@ -8,7 +8,6 @@ import type { MathAtomProps, MathDimension, ArrayCol, ArrayAlign } from '../type
 import type { MathStyle } from 'gum-jsx-core'
 
 type MathArrayProps = MathAtomProps & Readonly<{
-  rows?: readonly (readonly Child[])[]
   cols?: string | readonly ArrayCol[]
   ncol?: number
   cell_style?: MathStyle
@@ -43,11 +42,6 @@ function columns(cols: MathArrayProps['cols'] = []): readonly ArrayCol[] {
 function rows(props: MathArrayProps, cols: readonly ArrayCol[]): readonly (readonly Child[])[] {
   if (props.ncol !== undefined && (!Number.isInteger(props.ncol) || props.ncol < 1)) {
     throw new RangeError('MathArray.ncol must be a positive integer')
-  }
-  if (props.rows !== undefined) {
-    if (props.children !== undefined) throw new TypeError('Use MathArray.rows or children, not both')
-    if (!Array.isArray(props.rows) || !props.rows.every(Array.isArray)) throw new TypeError('MathArray.rows expects rows of cells')
-    return props.rows
   }
   const children = Array.isArray(props.children) ? props.children : [props.children]
   const items = children.filter(child => child != null && typeof child !== 'boolean'

@@ -10,7 +10,7 @@ const fonts = createMathFonts(), pass = new LayoutPass({ fonts: { value: fonts, 
 const context = { style: resolve_style({ font_size: px(40) }) }, natural = make_request()
 const near = (a: number, b: number) => expect(a).toBeCloseTo(b, 8)
 const layout = (element: Element) => pass.layout(element, natural, context)
-const formula = (text: string, style: MathStyle = 'display') => layout(new Latex({ text, style, strut: false }))
+const formula = (text: string, style: MathStyle = 'display') => layout(new Latex({ children: text, style, strut: false }))
 function descendants(f: Fragment): Fragment[] { return [f, ...f.children.flatMap(c => descendants(c.fragment))] }
 function drawings(f: Fragment) { return descendants(f).flatMap(item => item.draw) }
 function named(f: Fragment, name: string) { return descendants(f).filter(item => item.name === name) }
@@ -19,7 +19,7 @@ const width = (f: Fragment) => f.math!.advance + f.math!.italic
 const relative_baseline = (f: Fragment, index: number) => f.children[index].offset.y + b(f.children[index].fragment) - b(f)
 
 test('fixed accents use character skew and attach scripts to the bare nucleus', () => {
-  const plain = layout(new MathSymbol({ text: 'f' })), accent = layout(new Accent({ children: 'f' }))
+  const plain = layout(new MathSymbol({ children: 'f' })), accent = layout(new Accent({ children: 'f' }))
   near(width(accent), width(plain))
   const [body, hat] = accent.children
   near(hat.offset.x + hat.fragment.size.width / 2, body.offset.x + plain.math!.advance / 2 + plain.math!.skew)
@@ -109,7 +109,7 @@ test('math arrows share adjustable barb curvature across arrows, harpoons and ac
     }
   }
   for (const element of [
-    (head_curve: number) => new XArrow({ label: 'xRightarrow', above: 'f', below: 'g', head_curve }),
+    (head_curve: number) => new XArrow({ label: 'xRightarrow', children: 'f', below: 'g', head_curve }),
     (head_curve: number) => new Accent({ accent: 'overrightarrow', children: 'ABC', head_curve }),
     (head_curve: number) => new Accent({ accent: 'vec', children: 'v', head_curve }),
   ]) {
@@ -159,7 +159,7 @@ test('math arrows render through core elements with joined tips and correctly or
   }
   expect(named(layout(new MathStretch({ label: 'xrightleftharpoons' })), 'Arrow')).toHaveLength(2)
   expect(named(layout(new MathStretch({ label: 'xtwoheadrightarrow' })), 'ArrowHead')).toHaveLength(1)
-  expect(named(layout(new XArrow({ above: 'f', below: 'g' })), 'Arrow')).toHaveLength(1)
+  expect(named(layout(new XArrow({ children: 'f', below: 'g' })), 'Arrow')).toHaveLength(1)
   expect(named(layout(new Accent({ accent: 'vec', children: 'v' })), 'Arrow')).toHaveLength(1)
 })
 
@@ -193,13 +193,13 @@ test('horizontal braces measure their body before labels and keep opposite scrip
 })
 
 test('extensible arrows fit both labels, center on the axis and compensate deep upper labels', () => {
-  const a = layout(new XArrow({ above: 'f', below: String.raw`\text{a much longer label}` }))
+  const a = layout(new XArrow({ children: 'f', below: String.raw`\text{a much longer label}` }))
   const [shape, above, below] = a.children
   near(a.guides.math_axis!, shape.offset.y + shape.fragment.size.height / 2)
   near(a.size.width, width(below.fragment) + 28)
   for (const label of [above, below]) near(label.offset.x + width(label.fragment) / 2, a.size.width / 2)
   near(below.offset.y - shape.offset.y - shape.fragment.size.height, 4.44)
-  const deep = layout(new XArrow({ above: String.raw`\frac{x}{\frac{x}{y}}` }))
+  const deep = layout(new XArrow({ children: String.raw`\frac{x}{\frac{x}{y}}` }))
   expect(deep.children[1].offset.y + deep.children[1].fragment.size.height)
     .toBeLessThan(deep.children[0].offset.y)
   for (const style of ['text', 'script'] as const) {
@@ -250,7 +250,7 @@ test('smash suppresses top and bottom independently around the baseline, retaini
 })
 
 test('lap retains ink at each edge; zero advance stays distinct from negative kerns and rules', () => {
-  const body = layout(new MathSymbol({ text: 'W' }))
+  const body = layout(new MathSymbol({ children: 'W' }))
   for (const [align, offset] of [['left', 0], ['center', -width(body) / 2], ['right', -width(body)]] as const) {
     const lap = layout(new Lap({ children: 'W', align }))
     near(width(lap), 0); near(b(lap), b(body)); near(lap.ink!.x, body.ink!.x + offset)
@@ -261,12 +261,12 @@ test('lap retains ink at each edge; zero advance stays distinct from negative ke
   near(formula(String.raw`a\rule{-1em}{1pt}b`).math!.advance, plain - 40)
   near(formula(String.raw`a\kern-1em b`).size.width, 0)
   near(named(formula(String.raw`\rule{-1em}{1pt}`), 'MathRule')[0].math!.advance, -40)
-  const in_text = layout(new Text({ children: ['a', new Latex({ text: String.raw`\mathllap{W}`, strut: false }), 'b'] }))
+  const in_text = layout(new Text({ children: ['a', new Latex({ children: String.raw`\mathllap{W}`, strut: false }), 'b'] }))
   expect(in_text.ink).not.toBeNull()
 })
 
 test('enclosures pad borders and backgrounds; cancellation keeps natural extents and overlays ink', () => {
-  const base = layout(new MathSymbol({ text: 'x' }))
+  const base = layout(new MathSymbol({ children: 'x' }))
   const framed = layout(new Enclose({ children: 'x', padding: px(5), thickness: px(2), background: '#ffe080', border_color: '#123456' }))
   near(framed.size.width, width(base) + 14)
   near(framed.size.height, base.size.height + 14)
@@ -303,7 +303,7 @@ test('rule dimensions, raisebox and vcenter use explicit baselines and math axes
 })
 
 test('poor-man bold overprints the same immutable fragment and preserves advance and classes', () => {
-  const source = new MathText({ text: 'x+y' }), plain = layout(source), bold = layout(new Pmb({ children: source }))
+  const source = new MathText({ children: 'x+y' }), plain = layout(source), bold = layout(new Pmb({ children: source }))
   near(bold.size.width, plain.size.width); near(bold.size.height, plain.size.height)
   expect(bold.children[0].fragment).toBe(bold.children[1].fragment)
   expect(render_svg(bold.children[0].fragment)).toBe(render_svg(plain))
@@ -331,7 +331,7 @@ test('text font commands compose family, weight and shape with scoped resets and
   const mixed = formula(String.raw`\textbf{speed $x^2$ now}`)
   const scripts = named(mixed, 'SupSub')[0]
   expect(render_svg(scripts.children[0].fragment)).toBe(render_svg(named(formula('x^2', 'text'), 'SupSub')[0].children[0].fragment))
-  expect(render_svg(scripts.children[1].fragment)).toBe(render_svg(layout(new MathSymbol({ text: '2', font_family: 'KaTeX_Main-Bold', style: 'script' }))))
+  expect(render_svg(scripts.children[1].fragment)).toBe(render_svg(layout(new MathSymbol({ children: '2', font_family: 'KaTeX_Main-Bold', style: 'script' }))))
   near(formula(String.raw`\mathbf{\text{ABC}}`).size.width, face_width('KaTeX_Main', 'ABC'))
   near(formula(String.raw`\textsf{$12$}`).size.width, formula('12').size.width)
 })
@@ -345,11 +345,11 @@ test('all eighteen faces render; math alphabets and bold symbols fall back per g
   const local = new LayoutPass({ fonts: { value: provider, version: 0 } })
   for (const face of MATH_FONTS) {
     const text = face.startsWith('KaTeX_Size') ? '(' : 'A'
-    expect(local.layout(new MathSpan({ text, font_family: face })).ink).not.toBeNull()
+    expect(local.layout(new MathSpan({ children: text, font_family: face })).ink).not.toBeNull()
   }
   expect(new Set(shaped.map(([face]) => face)).size).toBe(18)
   shaped.length = 0
-  local.layout(new Latex({ text: String.raw`\mathcal{Ax}+\boldsymbol{\alpha+\Gamma}+\mathsfit{x}`, strut: false }))
+  local.layout(new Latex({ children: String.raw`\mathcal{Ax}+\boldsymbol{\alpha+\Gamma}+\mathsfit{x}`, strut: false }))
   expect(shaped).toContainEqual(['KaTeX_Caligraphic', 'A'])
   expect(shaped).toContainEqual(['KaTeX_Math', 'x'])
   expect(shaped).toContainEqual(['KaTeX_Math-BoldItalic', 'α'])
@@ -357,14 +357,14 @@ test('all eighteen faces render; math alphabets and bold symbols fall back per g
   expect(shaped).toContainEqual(['KaTeX_Main-Bold', 'Γ'])
   expect(shaped).toContainEqual(['KaTeX_SansSerif-Italic', 'x'])
   shaped.length = 0
-  local.layout(new TextMode({ text: 'Ax', font_family: 'KaTeX_Caligraphic' }))
+  local.layout(new TextMode({ children: 'Ax', font_family: 'KaTeX_Caligraphic' }))
   expect(shaped).toContainEqual(['KaTeX_Caligraphic', 'A']); expect(shaped).toContainEqual(['KaTeX_Main', 'x'])
-  expect(() => local.layout(new TextMode({ text: '🦄' }))).toThrow('glyph')
+  expect(() => local.layout(new TextMode({ children: '🦄' }))).toThrow('glyph')
 })
 
 test('macro arguments, declarations, local definitions and global definitions stay inside a parse', () => {
   const macros = { '\\pair': String.raw`\left\langle #1,#1\right\rangle`, '\\a': 'x' }
-  const source = new Latex({ text: String.raw`\widehat{\pair{\a}}`, macros, strut: false })
+  const source = new Latex({ children: String.raw`\widehat{\pair{\a}}`, macros, strut: false })
   macros['\\a'] = 'z'
   near(layout(source).size.width, formula(String.raw`\widehat{\left\langle x,x\right\rangle}`).size.width)
   near(formula(String.raw`\def\a{x}{\def\a{y}\a}\a`).size.width, formula('{y}x').size.width)
@@ -392,7 +392,7 @@ test('verbatim preserves syntax and visible spaces, including text size in scrip
 
 test('decorated and suppressed sources survive reuse, exact offers and resource invalidation', () => {
   const source = new MathRow({ fit: false, children: [new Accent({ accent: 'widehat', children: 'ABC' }),
-    new Smash({ children: new Lap({ children: 'W', align: 'right' }) }), new XArrow({ above: 'f' })] })
+    new Smash({ children: new Lap({ children: 'W', align: 'right' }) }), new XArrow({ children: 'f' })] })
   const plain = layout(source), saved = render_svg(plain)
   const narrow = pass.layout(source, make_request({ width: exact(10), height: exact(10) }), context)
   near(narrow.size.width, 10); expect(narrow.overflow.right).toBeGreaterThan(0)

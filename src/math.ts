@@ -54,8 +54,7 @@ function mathToElement(source: MathSource, options: MathElementOptions = {}): Sv
     inline, style, size_index, strut, macros, warnings, on_error, fit, fit_align } = options
   return new Svg({ width, height, font_size, font_family, color, opacity,
     children: new MathViewport({ padding, fit, fit_align, children: new Latex({
-      inline, style, size_index, strut, macros, warnings, on_error,
-      ...(typeof source === 'string' ? { text: source } : { children: source }),
+      inline, style, size_index, strut, macros, warnings, on_error, children: source,
     }) }),
   })
 }

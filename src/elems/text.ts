@@ -10,7 +10,7 @@ import { text_font_face } from '../text-fonts'
 import symbols from '../symbols'
 
 type TextModeProps = MathRowProps & Readonly<{
-  text?: string; family?: 'main' | 'sans' | 'mono'; bold?: boolean; italic?: boolean
+  family?: 'main' | 'sans' | 'mono'; bold?: boolean; italic?: boolean
 }>
 type Run = { text?: string; element?: Element; style: Style }
 
@@ -33,7 +33,7 @@ function text_face(props: TextModeProps, style: Style): string {
 // keeps the incoming family, context, and immutable source identity.
 class LiteralRun extends MathElement<MathSpanProps> {
   static layout(props: MathSpanProps, query: LayoutQuery) {
-    return glyph_layout(props, query, literal_text(props), props.font_family!, 'mord', 0, false)
+    return glyph_layout(props, query, literal_text(props.children), props.font_family!, 'mord', 0, false)
   }
 }
 
@@ -41,7 +41,6 @@ class TextMode extends MathElement<TextModeProps> {
   static layout(props: TextModeProps, query: LayoutQuery) {
     const context = math_context(props, query)
     const items = query.prepare('literal-math-text', () => {
-      if (props.text !== undefined && props.children !== undefined) throw new TypeError('Use text or children, not both')
       const runs: Run[] = []
       function collect(child: Child, style: Style) {
         if (child == null || typeof child === 'boolean') return
@@ -56,7 +55,7 @@ class TextMode extends MathElement<TextModeProps> {
           else runs.push({ text, style })
         } else throw new TypeError('Expected literal text or an inline element')
       }
-      collect(props.text ?? props.children, query.style)
+      collect(props.children, query.style)
       return runs.flatMap(run => {
         // Text mode is a single horizontal math atom. Source line endings and
         // tabs are spaces, not glyphs; ordinary spaces remain uncollapsed.
@@ -73,7 +72,7 @@ class TextMode extends MathElement<TextModeProps> {
           else pieces.push({ face: chosen, text: char })
         }
         return pieces.map(piece => ({ style: run.style, math: context, text: piece.text,
-          element: new LiteralRun({ text: piece.text, font_family: piece.face }) }))
+          element: new LiteralRun({ children: piece.text, font_family: piece.face }) }))
       })
     })
     const measured = measure_items(items, query)

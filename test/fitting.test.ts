@@ -17,7 +17,7 @@ const text = String.raw`\underbrace{a_1+a_2+\cdots+a_n}_{n\text{ terms}}=S_n`
 
 describe('automatic formula fitting', () => {
   test('complete formulas shrink at either boundary, never enlarge, and match explicit fit', () => {
-    const pass = setup(), source = new MathText({ text, font_size: px(36) })
+    const pass = setup(), source = new MathText({ children: text, font_size: px(36) })
     const saved = JSON.stringify(source), natural = pass.layout(source)
     for (const request of [offer(80), offer(undefined, 20), offer(80, 20), offer(1000, 1000), offer(0, 20),
       make_request({ width: exact(80), height: exact(60) })]) {
@@ -36,7 +36,7 @@ describe('automatic formula fitting', () => {
   })
 
   test('own maxima are fitting bounds and false explicitly keeps the unscaled drawing', () => {
-    const pass = setup(), source = new Latex({ text, font_size: px(36) })
+    const pass = setup(), source = new Latex({ children: text, font_size: px(36) })
     const natural = pass.layout(source)
     const bounded = pass.layout(new Latex({ ...source.props, max_width: px(80), max_height: px(20) }))
     expect(bounded.size.width).toBeLessThanOrEqual(80)
@@ -47,11 +47,11 @@ describe('automatic formula fitting', () => {
     expect(allocated.overflow.right).toBeGreaterThan(0)
     expect(allocated.size.height).toBe(natural.size.height)
     // Invalid explicit values are not mistaken for an omitted automatic policy.
-    expect(() => pass.layout(new Latex({ text, fit: null as any }), offer(80))).toThrow('fit must be')
+    expect(() => pass.layout(new Latex({ children: text, fit: null as any }), offer(80))).toThrow('fit must be')
   })
 
   test('internal math allocations do not scale atoms or stretch requests', () => {
-    const pass = setup(), source = new MathText({ text: 'a+b=c', font_size: px(36) })
+    const pass = setup(), source = new MathText({ children: 'a+b=c', font_size: px(36) })
     for (const style of ['display', 'display-cramped', 'text', 'text-cramped',
       'script', 'script-cramped', 'scriptscript', 'scriptscript-cramped'] as MathStyle[]) {
       const context = { math: { style, size: 1 } }
@@ -63,13 +63,13 @@ describe('automatic formula fitting', () => {
       const explicit = pass.layout(new MathText({ ...source.props, fit: true }), request, context)
       expect(explicit.size.height).toBeLessThan(implicit.size.height)
     }
-    const grouped = new MathText({ children: ['a', new MathText({ color: 'red', text: '+b' }), '=c'] })
+    const grouped = new MathText({ children: ['a', new MathText({ color: 'red', children: '+b' }), '=c'] })
     expect(render_svg(pass.layout(grouped, offer(25))))
       .toBe(render_svg(pass.layout(new MathText({ ...grouped.props, fit: true }), offer(25))))
   })
 
   test('inline formulas keep their font scale while ordinary paragraphs reflow', () => {
-    const pass = setup(), formula = new Tex({ text, font_size: px(24) })
+    const pass = setup(), formula = new Tex({ children: text, font_size: px(24) })
     const natural = pass.layout(formula)
     const paragraph = new Text({ children: ['Before ', formula, ' after. More ordinary text.'] })
     for (const width of [640, 100]) {
@@ -77,7 +77,7 @@ describe('automatic formula fitting', () => {
       const inline = descendants(result).find(f => f.name === 'Tex')!
       expect(inline.size).toEqual(natural.size)
     }
-    const prose = new Text({ text: 'A paragraph reflows at its normal font size when the host gets narrower.' })
+    const prose = new Text({ children: 'A paragraph reflows at its normal font size when the host gets narrower.' })
     expect(pass.layout(prose, offer(100)).size.height).toBeGreaterThan(pass.layout(prose, offer(640)).size.height)
   })
 
@@ -97,7 +97,7 @@ describe('automatic formula fitting', () => {
 
   test('custom math subclasses, components and protocol adoption retain automatic fitting', () => {
     class Formula extends MathElement { static layout = MathRow.layout }
-    const Alias = define_component<ElementProps>('Alias', props => new Latex({ text, ...props }))
+    const Alias = define_component<ElementProps>('Alias', props => new Latex({ children: text, ...props }))
     const pass = setup()
     for (const source of [new Formula({ children: text }), new Alias()]) {
       expect(source.type.auto_fit).toBe(true)
@@ -118,13 +118,13 @@ describe('automatic formula fitting', () => {
 
   test('authored math dimensions establish percentage operands before fitting', () => {
     const pass = setup(), cell = new Box({ width: 0.5, height: px(10) })
-    const designed = new MathArray({ width: px(200), rows: [[cell]] })
+    const designed = new MathArray({ width: px(200), children: [[cell]] })
     const natural = pass.layout(designed)
     const fitted = pass.layout(designed, offer(100))
     near(fitted.size.width, 100)
     near(fitted.size.height, natural.size.height / 2)
     expect(descendants(fitted).find(f => f.name === 'Box')!.size.width).toBe(100)
-    const allocated = new MathArray({ fit: false, rows: [[cell]] })
+    const allocated = new MathArray({ fit: false, children: [[cell]] })
     expect(descendants(pass.layout(allocated, make_request({ width: exact(200) })))
       .find(f => f.name === 'Box')!.size.width).toBe(100)
   })

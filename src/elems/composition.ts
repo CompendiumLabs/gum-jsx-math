@@ -26,9 +26,11 @@ import type { MathAtomProps, SourceRange } from '../types'
 
 type MathRowProps = MathAtomProps & Readonly<{ strut?: boolean }>
 type MathTextProps = MathRowProps & Readonly<{
-  text?: string; inline?: boolean; macros?: ParseOptions['macros']; warnings?: ParseOptions['warnings']
+  inline?: boolean; macros?: ParseOptions['macros']; warnings?: ParseOptions['warnings']
   on_error?: 'throw' | 'render'
-  choices?: Readonly<Record<MathSizeStyle, Child>>
+}>
+type MathChoiceProps = Omit<MathAtomProps, 'children'> & Readonly<{
+  children: readonly [Child, Child, Child, Child]
 }>
 type MathColProps = MathAtomProps & Readonly<{ gap?: Length; justify?: Alignment; axis?: Length }>
 type MathBoxProps = MathAtomProps & Readonly<{ padding?: InsetSpec; align?: Alignment }>
@@ -39,9 +41,9 @@ function syntax_elements(nodes: readonly MathSyntax[], source: string): Element[
   return nodes.map(node => {
     const attr = { color: node.color, font_family: node.font_family }
     switch (node.kind) {
-      case 'symbol': return new MathSymbol({ ...attr, text: node.text, mode: node.mode,
+      case 'symbol': return new MathSymbol({ ...attr, children: node.text, mode: node.mode,
         klass: node.klass, source, source_range: node.range })
-      case 'literal': return new TextMode({ ...attr, text: node.text })
+      case 'literal': return new TextMode({ ...attr, children: node.text })
       case 'text': {
         const children = (nodes: readonly MathSyntax[]): Child[] => nodes.flatMap(child => child.kind === 'text'
           ? children(child.body) : [child.kind === 'literal'
@@ -51,7 +53,7 @@ function syntax_elements(nodes: readonly MathSyntax[], source: string): Element[
       }
       case 'operator': return new MathOp({ ...attr, symbol: node.symbol, limits: node.limits,
         center: node.center,
-        ...(node.body ? { children: syntax_operand(node.body, source) } : { text: node.text }), source, source_range: node.range })
+        children: node.body ? syntax_operand(node.body, source) : node.text, source, source_range: node.range })
       case 'space': return new MathSpacer({ ...attr, dimension: node.dimension })
       case 'group': return new MathRow({ ...attr, klass: node.klass,
         children: new MathText({ children: syntax_elements(node.body, source) }) })
@@ -67,7 +69,7 @@ function syntax_elements(nodes: readonly MathSyntax[], source: string): Element[
       case 'line': return new (node.over ? Overline : Underline)({ ...attr, children: syntax_operand(node.body, source) })
       case 'brace': return new HorizBrace({ ...attr, children: syntax_operand(node.body, source),
         label: node.label && syntax_operand(node.label, source), over: node.over, bracket: node.bracket })
-      case 'arrow': return new XArrow({ ...attr, label: node.label, above: syntax_operand(node.above, source),
+      case 'arrow': return new XArrow({ ...attr, label: node.label, children: syntax_operand(node.above, source),
         below: node.below && syntax_operand(node.below, source) })
       case 'phantom': return new Phantom({ ...attr, children: syntax_operand(node.body, source), horizontal: node.horizontal, vertical: node.vertical })
       case 'smash': return new Smash({ ...attr, children: syntax_operand(node.body, source), top: node.top, bottom: node.bottom })
@@ -78,8 +80,8 @@ function syntax_elements(nodes: readonly MathSyntax[], source: string): Element[
       case 'vcenter': return new VCenter({ ...attr, children: syntax_operand(node.body, source) })
       case 'pmb': return new Pmb({ ...attr, children: syntax_operand(node.body, source), klass: node.klass })
       case 'rule': return new MathRule({ ...attr, klass: 'mord', width_dimension: node.width, height_dimension: node.height, shift_dimension: node.shift })
-      case 'verb': return new TextMode({ ...attr, text: node.text, family: 'mono', bold: false, italic: false, style: 'text' })
-      case 'array': return new MathArray({ ...attr, rows: node.rows.map(row => row.map(cell => syntax_operand(cell, source))),
+      case 'verb': return new TextMode({ ...attr, children: node.text, family: 'mono', bold: false, italic: false, style: 'text' })
+      case 'array': return new MathArray({ ...attr, children: node.rows.map(row => row.map(cell => syntax_operand(cell, source))),
         cols: node.cols, stretch: node.stretch, jot: node.jot, outer: node.outer, small: node.small,
         row_gap_dimensions: node.rowgaps, hlines: node.hlines })
       case 'bracket': return new Bracket({ ...attr, children: syntax_elements(node.body, source),
@@ -87,10 +89,10 @@ function syntax_elements(nodes: readonly MathSyntax[], source: string): Element[
       case 'delimiter': return new SizedDelimiter({ ...attr, text: node.text, level: node.level, klass: node.klass })
       case 'middle': return new Middle({ ...attr, text: node.text })
       case 'scope': return new MathText({ ...attr, children: syntax_elements(node.body, source), style: node.style, size_index: node.size_index })
-      case 'choice': return new MathText({ ...attr, choices: {
-        display: syntax_elements(node.choices.display, source), text: syntax_elements(node.choices.text, source),
-        script: syntax_elements(node.choices.script, source), scriptscript: syntax_elements(node.choices.scriptscript, source),
-      } })
+      case 'choice': return new MathText({ ...attr, children: new MathChoice({ children: [
+        syntax_elements(node.choices.display, source), syntax_elements(node.choices.text, source),
+        syntax_elements(node.choices.script, source), syntax_elements(node.choices.scriptscript, source),
+      ] }) })
       case 'unsupported': return new UnsupportedMath({ node: node.node, source, range: node.range })
     }
   })
@@ -115,23 +117,28 @@ function syntax_operand(nodes: readonly MathSyntax[], source: string): Element {
       }
       if (inner.body.length === 1 && inner.body[0].kind === 'literal' && [...inner.body[0].text].length === 1) {
         const leaf = inner.body[0]
-        return new MathSymbol({ text: leaf.text, mode: 'text', font_family: leaf.font_family, color: leaf.color, klass: node.klass })
+        return new MathSymbol({ children: leaf.text, mode: 'text', font_family: leaf.font_family, color: leaf.color, klass: node.klass })
       }
     }
-    if (node.kind === 'literal' && [...node.text].length === 1) return new MathSymbol({ text: node.text, mode: 'text',
+    if (node.kind === 'literal' && [...node.text].length === 1) return new MathSymbol({ children: node.text, mode: 'text',
       font_family: node.font_family, color: node.color })
     return syntax_elements(nodes, source)[0]
   }
   return new MathText({ children: syntax_elements(nodes, source) })
 }
 
-function source_children(props: MathTextProps, math: MathContext): Child {
-  if (props.choices !== undefined) {
-    if (props.text !== undefined || props.children !== undefined) throw new TypeError('Use choices or text/children, not both')
-    return props.choices[style_size(math.style)]
+function choice_child(props: MathChoiceProps, math: MathContext): Child {
+  const children = props.children
+  if (!Array.isArray(children) || children.length !== 4) throw new TypeError('MathChoice expects four children')
+  const index: Record<MathSizeStyle, number> = { display: 0, text: 1, script: 2, scriptscript: 3 }
+  return children[index[style_size(math.style)]]
+}
+
+class MathChoice extends MathElement<MathChoiceProps> {
+  static layout(props: MathChoiceProps, query: LayoutQuery) {
+    const math = math_context(props, query)
+    return row_layout({ ...props, children: choice_child(props, math) }, query, true)
   }
-  if (props.text !== undefined && props.children !== undefined) throw new TypeError('Use text or children, not both')
-  return props.text ?? props.children
 }
 
 // MathText is a source sequence. A sized, reclassified, or strutted MathText is
@@ -161,16 +168,19 @@ function prepare_items(props: MathTextProps, query: LayoutQuery, context: MathCo
         return
       }
       if (!(child instanceof Element)) throw new TypeError('Expected a math child')
-      if (sequences && is_sequence(child)) {
+      if (sequences && child instanceof MathChoice) {
+        const nested_math = math_context(child.props, { ...query, math })
+        collect(choice_child(child.props, nested_math), resolve_style(child.props, style, query.measure), nested_math, options)
+      } else if (sequences && is_sequence(child)) {
         const nested = child.props
         const nested_math = math_context(nested, { ...query, math })
-        collect(source_children(nested, nested_math), resolve_style(nested, style, query.measure), nested_math, {
+        collect(nested.children, resolve_style(nested, style, query.measure), nested_math, {
           ...options, display: nested_math.style.startsWith('display'),
           macros: nested.macros ?? options.macros, warnings: nested.warnings ?? options.warnings,
         })
       } else result.push({ element: child, style, math })
     }
-    collect(source_children(props, context), query.style, context, {
+    collect(props.children, query.style, context, {
       display: context.style.startsWith('display'), macros: props.macros, warnings: props.warnings,
     })
     return Object.freeze(result.map(item => Object.freeze(item)))
@@ -222,7 +232,10 @@ function assemble_row(props: MathTextProps, query: LayoutQuery, context: MathCon
   const left = props.left ?? props.klass ?? (spaced ? atoms[0]?.left ?? 'none' : 'mord')
   const right = props.right ?? props.left ?? props.klass ?? (spaced ? atoms.at(-1)?.right ?? 'none' : 'mord')
   const result = place_math(placements, advance, font_size, math_metrics(advance, left, { right }), props.strut)
-  return finish_math({ ...result, ...(props.text === undefined ? {} : { label: props.text }) }, query)
+  const source = props.children
+  const label = typeof source === 'string' ? source
+    : Array.isArray(source) && source.length === 1 && typeof source[0] === 'string' ? source[0] : undefined
+  return finish_math({ ...result, ...(label === undefined ? {} : { label }) }, query)
 }
 
 class MathRow extends MathElement<MathRowProps> {
@@ -252,7 +265,7 @@ class MathText extends MathElement<MathTextProps> {
         query.style.font_weight, query.style.font_style)
       const message = [...cause.message].map(char => char === '\n' || font.has_glyphs(char)
         ? char : `[U+${char.codePointAt(0)!.toString(16).toUpperCase()}]`).join('')
-      const child = query.child(new Text({ text: `[math ${message}]`, color: '#b42318',
+      const child = query.child(new Text({ children: `[math ${message}]`, color: '#b42318',
         font_family: 'IBM Plex Mono' }), make_request(), {}, 0, { math: null })
       return finish_math({ ...child, math: math_metrics(child.size.width), label: cause.message }, query)
     }
@@ -319,5 +332,5 @@ class MathBox extends MathElement<MathBoxProps> {
   }
 }
 
-export { MathRow, MathText, MathCol, MathBox, Latex, Tex, syntax_operand, prepare_items, measure_items, assemble_row }
-export type { MathRowProps, MathTextProps, MathColProps, MathBoxProps }
+export { MathRow, MathText, MathChoice, MathCol, MathBox, Latex, Tex, syntax_operand, prepare_items, measure_items, assemble_row }
+export type { MathRowProps, MathTextProps, MathChoiceProps, MathColProps, MathBoxProps }

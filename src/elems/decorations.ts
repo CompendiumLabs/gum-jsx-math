@@ -15,7 +15,7 @@ type AccentProps = MathAtomProps & Readonly<{
 }>
 type LineProps = MathAtomProps & Readonly<{ thickness?: Length }>
 type HorizBraceProps = LineProps & Readonly<{ label?: Child; over?: boolean; bracket?: boolean }>
-type XArrowProps = MathStretchProps & Readonly<{ above?: Child; below?: Child }>
+type XArrowProps = MathStretchProps & Readonly<{ below?: Child }>
 
 function thickness(props: LineProps, query: LayoutQuery, f: number): number | undefined {
   const measure = make_measure(query.measure, { font_size: f })
@@ -72,7 +72,7 @@ class Accent extends MathElement<AccentProps> {
     if (stretchy || label === 'vec') accent = stretch_fragment(label,
       stretchy ? Math.max(0, advance(body) - 2 * skew) : 0, f, query, undefined, undefined, props.head_curve)
     else {
-      const source = query.prepare('accent-glyph', () => new MathSymbol({ text: `\\${label}`, mode: props.mode,
+      const source = query.prepare('accent-glyph', () => new MathSymbol({ children: `\\${label}`, mode: props.mode,
         // Accent glyphs are textords. A selected math alphabet may not contain
         // them; MathSymbol performs the same per-glyph coverage fallback.
       }))
@@ -152,10 +152,9 @@ class HorizBrace extends MathElement<HorizBraceProps> {
 
 class XArrow extends MathElement<XArrowProps> {
   static layout(props: XArrowProps, query: LayoutQuery) {
-    if (props.above !== undefined && props.children !== undefined) throw new TypeError('Use above or children, not both')
     const math = math_context(props, query), f = math_font_size(query, math), label = props.label ?? 'xrightarrow'
     const upper = { ...math, style: sup_style(math.style) }, lower = { ...math, style: sub_style(math.style) }
-    const sources = query.prepare('arrow-labels', () => ({ above: operand_source(props.above ?? props.children, upper),
+    const sources = query.prepare('arrow-labels', () => ({ above: operand_source(props.children, upper),
       below: props.below == null || typeof props.below === 'boolean' ? undefined : operand_source(props.below, lower) }))
     const above = measure_operand(sources.above, query, upper, 0)
     const below = sources.below && measure_operand(sources.below, query, lower, 1)

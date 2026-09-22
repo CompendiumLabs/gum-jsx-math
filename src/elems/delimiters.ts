@@ -31,7 +31,7 @@ function fit_glyph(query: LayoutQuery, math: MathContext, text: string, target: 
   const sources = query.prepare(`stretch-glyph:${value}:${klass}`, () => {
     const fonts = query.resource<FontProvider>('fonts')
     return FACES.filter(face => fonts.resolve(face, 400, 'normal').has_glyphs(value)).map(face => ({
-      face, source: new MathSpan({ text: value, font_family: face, center: true, klass }),
+      face, source: new MathSpan({ children: value, font_family: face, center: true, klass }),
     }))
   })
   const f = math_font_size(query, math), text_math = { ...math, style: 'text' as const }

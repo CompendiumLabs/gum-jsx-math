@@ -25,7 +25,7 @@ import { Latex, createMathFonts } from 'gum-jsx-math'
 
 const fonts = createMathFonts()
 const source = new Svg({ font_size: px(36), children:
-  new Box({ padding: em(0.5), children: new Latex({ text: 'a+b=c' }) }) })
+  new Box({ padding: em(0.5), children: new Latex({ children: 'a+b=c' }) }) })
 // Browser hosts preload; Bun also supports synchronous local loading on demand.
 await fonts.load()
 const pass = new LayoutPass({ fonts: { value: fonts, version: fonts.version } })
@@ -101,6 +101,7 @@ options, browser loading, PNG library composition, and runnable sizing examples.
 | `MathArray` | Natural columns, row baselines, cell styles, gaps, struts, and solid/dashed rules. |
 | `MathBox` | Single-child padding, allocation, alignment, and reclassification. |
 | `MathText` | Flattenable source sequence with TeX spacing and binary cancellation. |
+| `MathChoice` | Select one of four children according to the active math style. |
 | `Latex` | Display-style formula with an optional one-em strut, enabled by default. |
 | `Tex` | Text-style counterpart to `Latex`. |
 | `MathOp` | Upright names, large glyph operators, and explicit limit policies. |
@@ -129,7 +130,7 @@ zero-sized logical box. Fragments remain immutable and physically nonnegative.
 
 The pass transports all eight math styles, a size multiplier, and an optional
 TeX size index. `size_index` selects the `\tiny`…`\Huge` font-size table, including
-its script sizes; `MathText.choices` is the direct JSX counterpart of `\mathchoice`.
+its script sizes; `MathChoice` is the direct JSX counterpart of `\mathchoice`.
 Automatic rows preserve baselines across size changes; explicit `MathRow`
 composition aligns axes. Math-specific
 lengths use the active math em; ordinary Gum sizing props use the inherited Gum
@@ -218,7 +219,7 @@ absent from the fallback face is an error. Nested `$…$` math is supported.
 ## Arrays and multiline math
 
 `MathArray` measures each cell naturally, then assigns shared column widths and
-row baselines. It accepts nested `rows` data (including `null` empty cells), or
+row baselines. It accepts nested child arrays (including `null` empty cells), or
 flat JSX children with `ncol`. A `cols` string such as `"r|c:l"` combines
 alignment and rules; descriptors can supply explicit pre/post column gaps.
 Use Gum lengths for `colsep`, `rowgaps`, and `thickness`. `stretch` changes row

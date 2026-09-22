@@ -2,14 +2,14 @@ import { describe, expect, test } from 'bun:test'
 import { LayoutPass, px, em, make_request, available, exact, render_svg, evaluate } from 'gum-jsx-core'
 import type { Fragment, MathStyle, Element, FontProvider } from 'gum-jsx-core'
 import * as math from '../src'
-import { MathSymbol, MathText, MathBox, MathOp, SupSub, Frac, Sqrt, Bracket, Latex, createMathFonts, parse_math } from '../src'
+import { MathSymbol, MathText, MathChoice, MathBox, MathOp, SupSub, Frac, Sqrt, Bracket, Latex, createMathFonts, parse_math } from '../src'
 import { sup_style, sub_style, numerator_style, denominator_style } from '../src/styles'
 
 const fonts = createMathFonts()
 const pass = new LayoutPass({ fonts: { value: fonts, version: fonts.version } })
 const natural = make_request()
 function formula(text: string, style: MathStyle = 'display', font_size = 40) {
-  return pass.layout(new Latex({ text, style, font_size: px(font_size), strut: false }))
+  return pass.layout(new Latex({ children: text, style, font_size: px(font_size), strut: false }))
 }
 function near(actual: number, expected: number) { expect(actual).toBeCloseTo(expected, 8) }
 function descendants(fragment: Fragment): Fragment[] {
@@ -19,6 +19,10 @@ function ink(element: Element) { return render_svg(pass.layout(element)).replace
 function symbols(fragment: Fragment) { return descendants(fragment).filter(item => item.name === 'MathSymbol') }
 
 describe('ordinary math styles and scripts', () => {
+  test('content props no longer replace children', () => {
+    expect(() => pass.layout(new MathText({ choices: {} } as any))).toThrow(/children instead of text or choices/)
+    expect(() => pass.layout(new MathSymbol({ text: 'x' } as any))).toThrow(/children instead of text/)
+  })
   test('all eight styles have the TeX transition table and scriptscript floor', () => {
     const styles: MathStyle[] = ['display', 'display-cramped', 'text', 'text-cramped',
       'script', 'script-cramped', 'scriptscript', 'scriptscript-cramped']
@@ -36,7 +40,7 @@ describe('ordinary math styles and scripts', () => {
   })
 
   test('side scripts use the character nucleus, italic correction once, and TeX clearance', () => {
-    const base = new MathSymbol({ text: 'f' }), sup = new MathSymbol({ text: 'j' }), sub = new MathSymbol({ text: 'i' })
+    const base = new MathSymbol({ children: 'f' }), sup = new MathSymbol({ children: 'j' }), sub = new MathSymbol({ children: 'i' })
     const result = pass.layout(new SupSub({ children: base, sup, sub, font_size: px(40), style: 'text' }))
     const [b, s, t] = result.children
     near(s.offset.x, b.fragment.math!.advance + b.fragment.math!.italic)
@@ -62,6 +66,9 @@ describe('ordinary math styles and scripts', () => {
     huge.forEach((width, i) => near(width / normal, [2.488, 2.074, 1.728][i]))
     for (const [style, choice] of [['display', 'D'], ['text-cramped', 'T'], ['script', 'S'], ['scriptscript-cramped', 'Q']] as const) {
       near(formula(String.raw`\mathchoice{D}{T}{S}{Q}`, style).size.width, formula(choice, style).size.width)
+      const direct = new MathText({ style, font_size: px(40),
+        children: new MathChoice({ children: ['D', 'T', 'S', 'Q'] }) })
+      near(pass.layout(direct).size.width, formula(choice, style).size.width)
     }
     near(formula(String.raw`x^{\mathchoice{D}{T}{S}{Q}}`).size.width, formula('x^S').size.width)
     near(formula(String.raw`\mathchoice{x}{\phase{x}}{\phase{y}}{\phase{z}}`).size.width, formula('x').size.width)
@@ -70,7 +77,7 @@ describe('ordinary math styles and scripts', () => {
     const small_baseline = mixed.children[0].offset.y + mixed.children[0].fragment.guides.baseline!
     const huge_baseline = mixed.children[1].offset.y + mixed.children[1].fragment.guides.baseline!
     near(small_baseline, huge_baseline)
-    const shared = new MathSymbol({ text: 'x' })
+    const shared = new MathSymbol({ children: 'x' })
     const small = pass.layout(shared, natural, { math: { style: 'script', size: 1, size_index: 1 } })
     const large = pass.layout(shared, natural, { math: { style: 'script', size: 1, size_index: 11 } })
     near(large.math!.advance / small.math!.advance, 2.074 / 0.5)
@@ -85,7 +92,7 @@ describe('ordinary math styles and scripts', () => {
       expect(limits.size.height).toBeGreaterThan(sides.size.height)
       const integral = formula(String.raw`\int\limits_0^1`, style)
       expect(integral.size.height).toBeGreaterThan(formula(String.raw`\int_0^1`, style).size.height)
-      const direct = new SupSub({ children: new MathOp({ text: '\\int', limits: 'always' }),
+      const direct = new SupSub({ children: new MathOp({ children: '\\int', limits: 'always' }),
         sup: '1', sub: '0', style, font_size: px(40) })
       near(pass.layout(direct).size.width, integral.size.width)
       near(pass.layout(direct).size.height, integral.size.height)
@@ -102,15 +109,15 @@ describe('ordinary math styles and scripts', () => {
       near(formula(String.raw`\operatorname{rank}\limits_x`, style).size.height,
         formula(String.raw`\operatorname*{rank}\limits_x`, style).size.height)
     }
-    const macro = pass.layout(new Latex({ text: '\\op_x', strut: false, font_size: px(40),
+    const macro = pass.layout(new Latex({ children: '\\op_x', strut: false, font_size: px(40),
       macros: { '\\op': String.raw`\operatorname*{rank}\nolimits` } }))
     near(macro.size.height, formula(String.raw`\operatorname{rank}_x`).size.height)
     expect(formula(String.raw`\oiint+\oiiint`).ink).not.toBeNull()
     expect(formula(String.raw`\smallint`).size.height).toBeLessThan(formula(String.raw`\int`).size.height)
-    const sum = pass.layout(new MathOp({ text: 'sum', style: 'display', font_size: px(40) }))
+    const sum = pass.layout(new MathOp({ children: 'sum', style: 'display', font_size: px(40) }))
     near(sum.size.height, 1.60001 * 40)
     expect(sum.math!.nucleus).toBeUndefined()
-    const integral = pass.layout(new SupSub({ children: new MathOp({ text: '∫' }), sup: '1', sub: '0', style: 'display', font_size: px(40) }))
+    const integral = pass.layout(new SupSub({ children: new MathOp({ children: '∫' }), sup: '1', sub: '0', style: 'display', font_size: px(40) }))
     const [base, sup] = integral.children
     expect(sup.offset.y + sup.fragment.guides.baseline!).toBeLessThan(base.offset.y + base.fragment.guides.baseline! - 0.8 * 40)
   })
@@ -147,7 +154,7 @@ describe('fractions, roots, and delimiters', () => {
     const script_root = pass.layout(new Sqrt({ children: 'x', font_size: px(40), style: 'script' }))
     near(script_root.children[0].fragment.size.width / text_root.children[0].fragment.size.width, 0.7)
     const tall = (height: number) => pass.layout(new Sqrt({ font_size: px(40),
-      children: new MathBox({ height: em(height), children: new MathSymbol({ text: 'x' }) }) }))
+      children: new MathBox({ height: em(height), children: new MathSymbol({ children: 'x' }) }) }))
     const a = tall(8), b = tall(12)
     near(a.children[0].fragment.size.width, b.children[0].fragment.size.width)
     expect(b.children[0].fragment.size.height).toBeGreaterThan(a.children[0].fragment.size.height)
@@ -159,7 +166,7 @@ describe('fractions, roots, and delimiters', () => {
 
   test('middle delimiters fit the whole group, preserve color, and skip missing size glyphs', () => {
     const result = pass.layout(new Bracket({ font_size: px(40), middle: '|',
-      children: [new MathText({ text: 'x' }), new Frac({ children: ['a', 'b'], style: 'display' })] }))
+      children: [new MathText({ children: 'x' }), new Frac({ children: ['a', 'b'], style: 'display' })] }))
     const middle = result.children.find(child => child.fragment.math?.left === 'none')!
     const body = result.children.find(child => child.fragment.name === 'Frac')!
     expect(middle.fragment.size.height).toBeGreaterThanOrEqual(body.fragment.size.height * 0.901)

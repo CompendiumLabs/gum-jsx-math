@@ -10,7 +10,7 @@ import { SYMBOL_CLASS } from '../types'
 import type { MathAtomProps, SourceRange, SymbolMode } from '../types'
 
 type MathSpanProps = MathAtomProps & Readonly<{
-  text?: string; center?: boolean; skew?: number
+  center?: boolean; skew?: number
   source?: string; source_range?: SourceRange
 }>
 type MathSymbolProps = MathSpanProps & Readonly<{ mode?: SymbolMode }>
@@ -54,13 +54,13 @@ class MathSpan extends MathElement<MathSpanProps> {
   static layout(props: MathSpanProps, query: LayoutQuery) {
     const requested = props.font_family ?? (query.style.font_family.startsWith('KaTeX_') ? query.style.font_family : 'KaTeX_Main')
     const face = requested === 'auto' ? 'KaTeX_Main' : requested
-    return glyph_layout(props, query, literal_text(props), face, 'mord')
+    return glyph_layout(props, query, literal_text(props.children), face, 'mord')
   }
 }
 
 class MathSymbol extends MathElement<MathSymbolProps> {
   static layout(props: MathSymbolProps, query: LayoutQuery) {
-    const text = literal_text(props), mode = props.mode ?? 'math'
+    const text = literal_text(props.children), mode = props.mode ?? 'math'
     if (mode !== 'math' && mode !== 'text') throw new TypeError('Unknown symbol mode')
     const entry = symbols[mode][text]
     if (!entry && text.startsWith('\\') && text.length > 1) {

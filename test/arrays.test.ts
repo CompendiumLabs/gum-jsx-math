@@ -12,7 +12,7 @@ const context = { style: resolve_style({ font_size: px(40) }) }
 const natural = make_request()
 const near = (a: number, b: number) => expect(a).toBeCloseTo(b, 8)
 const array = (props: MathArrayProps) => pass.layout(new MathArray(props), natural, context)
-const formula = (text: string, style: MathStyle = 'display') => pass.layout(new Latex({ text, style, strut: false }), natural, context)
+const formula = (text: string, style: MathStyle = 'display') => pass.layout(new Latex({ children: text, style, strut: false }), natural, context)
 function descendants(f: Fragment): Fragment[] { return [f, ...f.children.flatMap(c => descendants(c.fragment))] }
 function named(f: Fragment, name: string) { return descendants(f).filter(item => item.name === name) }
 function syntax(nodes: readonly MathSyntax[]): MathSyntax[] {
@@ -24,7 +24,7 @@ const row_baseline = (f: Fragment, i: number) => f.children[i].offset.y + f.chil
 
 test('natural columns align unequal advances without stretching their cells', () => {
   const rows = [[cell(20), cell(10), cell(30)], [cell(40), cell(30), cell(10)]]
-  const f = array({ rows, cols: 'lcr', colsep: px(6) })
+  const f = array({ children: rows, cols: 'lcr', colsep: px(6) })
   near(f.size.width, 40 + 30 + 30 + 24)
   near(f.size.height, 96)
   near(f.guides.math_axis!, 48)
@@ -37,10 +37,10 @@ test('natural columns align unequal advances without stretching their cells', ()
   near(c.offset.x, 94)
   expect(f.children.map(item => item.fragment.size.width)).toEqual([20, 10, 30, 40, 30, 10])
   expect(f.math).toMatchObject({ advance: 124, left: 'mord', right: 'mord', italic: 0 })
-  const padded = array({ rows, cols: 'lcr', colsep: px(6), outer: true })
+  const padded = array({ children: rows, cols: 'lcr', colsep: px(6), outer: true })
   near(padded.size.width, f.size.width + 12)
   near(padded.children[0].offset.x, 6)
-  const custom = array({ rows: [[cell(20), cell(30)]], outer: true, cols: [
+  const custom = array({ children: [[cell(20), cell(30)]], outer: true, cols: [
     { type: 'align', align: 'l', pregap: px(2), postgap: px(3) },
     { type: 'align', align: 'r', pregap: px(7), postgap: px(11) },
   ] })
@@ -50,15 +50,15 @@ test('natural columns align unequal advances without stretching their cells', ()
 })
 
 test('row data keeps empty cells and ragged rows; flat indented JSX chunks by ncol', () => {
-  const f = array({ rows: [[null, 'x'], ['y']] })
+  const f = array({ children: [[null, 'x'], ['y']] })
   expect(f.children).toHaveLength(3)
   expect(f.children[0].fragment.size).toEqual({ width: 0, height: 0 })
   const y = f.children[2].fragment.math!
   near(f.children[0].offset.x, (y.advance + y.italic) / 2)
   near(f.children[1].offset.x, y.advance + y.italic + 40)
   near(f.size.height, 96)
-  expect(array({ rows: [] }).size).toEqual({ width: 0, height: 0 })
-  near(array({ rows: [[]] }).size.height, 48)
+  expect(array({ children: [] }).size).toEqual({ width: 0, height: 0 })
+  near(array({ children: [[]] }).size.height, 48)
   const direct = evaluate(`<MathArray ncol={2} cols="rc">
     <MathText>a</MathText>
     <Frac>
@@ -69,29 +69,29 @@ test('row data keeps empty cells and ragged rows; flat indented JSX chunks by nc
     <MathText>bb</MathText>
   </MathArray>`, { scope: math })
   const actual = pass.layout(direct, natural, context)
-  const expected = array({ cols: 'rc', rows: [['a', String.raw`\frac{1}{x}`], [null, 'bb']] })
+  const expected = array({ cols: 'rc', children: [['a', String.raw`\frac{1}{x}`], [null, 'bb']] })
   expect(actual.size).toEqual(expected.size)
   actual.children.forEach((part, i) => expect(part.offset).toEqual(expected.children[i].offset))
   expect(array({ children: [['a', 'b'], ['c', 'd']] }).size)
-    .toEqual(array({ rows: [['a', 'b'], ['c', 'd']] }).size)
+    .toEqual(array({ children: [['a', 'b'], ['c', 'd']] }).size)
 })
 
 test('tall cells share row baselines and positive gaps deepen a strut before adding space', () => {
   const rows = [[new Frac({ children: ['1', 'x'], style: 'display' }), 'a'], ['b', 'c']]
-  const f = array({ rows })
+  const f = array({ children: rows })
   near(row_baseline(f, 0), row_baseline(f, 1))
   near(row_baseline(f, 2), row_baseline(f, 3))
   expect(row_baseline(f, 2) - row_baseline(f, 0)).toBeGreaterThanOrEqual(48)
   const fraction = f.children[0]
   expect(fraction.offset.y).toBeGreaterThanOrEqual(0)
   expect(fraction.offset.y + fraction.fragment.size.height).toBeLessThanOrEqual(f.children[2].offset.y)
-  const short = { rows: [['x'], ['y']] }
+  const short = { children: [['x'], ['y']] }
   const plain = array(short), positive = array({ ...short, rowgaps: [em(0.2)] }), negative = array({ ...short, rowgaps: [em(-0.2)] })
   near(positive.size.height, plain.size.height + 8)
   near(row_baseline(positive, 1) - row_baseline(plain, 1), 8)
   near(negative.size.height, plain.size.height - 8)
   near(row_baseline(negative, 1) - row_baseline(plain, 1), -8)
-  const tall = { rows: [[cell(20, 120)], ['y']] }
+  const tall = { children: [[cell(20, 120)], ['y']] }
   near(array({ ...tall, rowgaps: [em(0.2)] }).size.height, array(tall).size.height)
   const overlapping = array({ ...short, rowgaps: [em(-4)] })
   expect(overlapping.size.height).toBeGreaterThanOrEqual(0)
@@ -102,7 +102,7 @@ test('tall cells share row baselines and positive gaps deepen a strut before add
 })
 
 test('multiline leading goes between rows, including in parsed aligned and gathered environments', () => {
-  const one = array({ rows: [['x']], jot: true }), two = array({ rows: [['x'], ['y']], jot: true })
+  const one = array({ children: [['x']], jot: true }), two = array({ children: [['x'], ['y']], jot: true })
   near(one.size.height, 48)
   near(two.size.height, 108)
   near(row_baseline(two, 1) - row_baseline(two, 0), 60)
@@ -126,7 +126,7 @@ test('multiline leading goes between rows, including in parsed aligned and gathe
 
 test('smallmatrix and substack use script cells once; TeX row dimensions retain their own units', () => {
   const small = formula(String.raw`\begin{smallmatrix}a&b\\c&d\end{smallmatrix}`)
-  const direct = array({ rows: [['a', 'b'], ['c', 'd']], small: true })
+  const direct = array({ children: [['a', 'b'], ['c', 'd']], small: true })
   near(small.size.width, direct.size.width)
   near(small.size.height, direct.size.height)
   const table = named(small, 'MathArray')[0]
@@ -148,7 +148,7 @@ test('smallmatrix and substack use script cells once; TeX row dimensions retain 
 })
 
 test('solid, dashed, double and intersecting rules retain precise ink and inherited paint', () => {
-  const f = array({ rows: [[cell(20), cell(20)], [cell(20), cell(20)]], cols: '|c||:c|',
+  const f = array({ children: [[cell(20), cell(20)], [cell(20), cell(20)]], cols: '|c||:c|',
     colsep: px(5), outer: true, hlines: [[false, false], [true], [false]], thickness: px(2),
     color: '#ab285e', opacity: 0.6 })
   near(f.size.width, 76)
@@ -180,7 +180,7 @@ test('solid, dashed, double and intersecting rules retain precise ink and inheri
   }
   expect(rules.draw.every(rule => rule.fill === '#ab285e' && rule.opacity === 0.6)).toBe(true)
   near(f.overflow.left, 1); near(f.overflow.right, 1)
-  const invisible = array({ rows: [['x']], cols: '|c|', hlines: [[false], [false]], thickness: px(0) })
+  const invisible = array({ children: [['x']], cols: '|c|', hlines: [[false], [false]], thickness: px(0) })
   expect(named(invisible, 'ArrayRules')).toHaveLength(0)
   const parsed = formula(String.raw`\begin{array}{|c||:c|}\hline\hline a&b\\\hdashline c&d\\\hline\end{array}`)
   expect(named(parsed, 'ArrayRules')[0].draw).toHaveLength(9)
@@ -234,7 +234,7 @@ test('environment styles, delimiters and arraystretch reflect the completed tabl
   const data = syntax(parse_math(String.raw`\begin{array}{|l:r|}\hline a&b\\[-2pt]\hdashline c&d\end{array}`))
     .find(node => node.kind === 'array')!
   expect(data).toMatchObject({ kind: 'array', outer: true, rowgaps: [{ value: -2, unit: 'pt' }], hlines: [[false], [true], []] })
-  const source = new Latex({ text: String.raw`\begin{matrix}x&y\end{matrix}` })
+  const source = new Latex({ children: String.raw`\begin{matrix}x&y\end{matrix}` })
   expect(Object.isFrozen(source.props)).toBe(true)
 })
 
@@ -245,9 +245,9 @@ test('arrays preserve explicit Gum operands, inline baselines, cache reuse and o
     return { ...font, shape(text) { shaped++; return font.shape(text) } }
   } }
   const local = new LayoutPass({ fonts: { value: provider, version: 0 } })
-  const shared = new MathText({ text: 'f+x' })
+  const shared = new MathText({ children: 'f+x' })
   const rows: Child[][] = [[shared, shared], [new Frac({ children: ['1', 'x'] }), 'y']]
-  const source = new MathArray({ rows, fit: false })
+  const source = new MathArray({ children: rows, fit: false })
   rows[0][0] = 'changed'
   const f = local.layout(source, natural, context), svg = render_svg(f), count = shaped
   const offered = local.layout(source, make_request({ width: available(1) }), context)
@@ -269,13 +269,13 @@ test('arrays preserve explicit Gum operands, inline baselines, cache reuse and o
   expect(prose.size.height).toBeGreaterThanOrEqual(f.size.height)
   const plot = new Plot({ width: px(100), height: px(60), axis: false, grid: false, margin: px(0),
     xlim: [0, 1], ylim: [0, 1], children: new Polyline({ points: [[0, 0], [1, 1]] }) })
-  const text = new Text({ width: px(90), font_size: px(18), text: 'One line and another line.' })
-  const mixed = array({ rows: [[plot, text], [shared, cell(24)]], style: 'script' })
+  const text = new Text({ width: px(90), font_size: px(18), children: 'One line and another line.' })
+  const mixed = array({ children: [[plot, text], [shared, cell(24)]], style: 'script' })
   expect(named(mixed, 'Plot')[0].size).toEqual({ width: 100, height: 60 })
   expect(named(mixed, 'Text')[0].size.width).toBe(90)
   expect(named(mixed, 'Text')[0].children.length).toBeGreaterThan(1)
   // Percentage-sized operands opt into allocated layout instead of natural fitting.
-  const relative = new MathArray({ fit: false, rows: [[new Box({ width: 0.5, height: px(10) })]] })
+  const relative = new MathArray({ fit: false, children: [[new Box({ width: 0.5, height: px(10) })]] })
   const inside = pass.layout(relative, make_request({ width: exact(200) }), context)
   expect(inside.children[0].fragment.size.width).toBe(100)
   expect(() => pass.layout(relative, make_request({ width: available(200) }), context)).toThrow('definite')
@@ -283,14 +283,14 @@ test('arrays preserve explicit Gum operands, inline baselines, cache reuse and o
 
 test('invalid tables and deferred tags/CD fail visibly without breaking subsequent renders', () => {
   for (const props of [{ ncol: 0 }, { ncol: 1.5 }, { stretch: 0 }, { stretch: Infinity },
-    { cols: 'cx' }, { thickness: px(-1) }, { rows: [['x']], children: 'y' },
-    { rows: [['x']], rowgaps: [em(1), em(2)] }, { rows: [], hlines: [[], []] }] as MathArrayProps[]) {
+    { cols: 'cx' }, { thickness: px(-1) },
+    { children: [['x']], rowgaps: [em(1), em(2)] }, { children: [], hlines: [[], []] }] as MathArrayProps[]) {
     expect(() => array(props)).toThrow()
   }
   for (const text of [String.raw`\begin{CD}a\end{CD}`, String.raw`\begin{equation}x\tag{1}\end{equation}`,
     String.raw`\begin{align*}a&=b\tag{A}\end{align*}`, String.raw`x\tag{1}`]) {
     expect(() => formula(text)).toThrow('unsupported:')
-    expect(pass.layout(new Latex({ text, on_error: 'render' })).label).toContain('unsupported:')
+    expect(pass.layout(new Latex({ children: text, on_error: 'render' })).label).toContain('unsupported:')
   }
   for (const text of [String.raw`\begin{matrix}x\end{array}`, String.raw`\begin{array}{q}x\end{array}`,
     String.raw`\begin{alignedat}{1}a&b&c\end{alignedat}`]) expect(() => formula(text)).toThrow('parse:')

@@ -9,7 +9,7 @@ import symbols from '../symbols'
 import { OPERATOR_METRICS } from '../operator-metrics'
 
 type MathOpProps = MathAtomProps & Readonly<{
-  text?: string; symbol?: boolean; limits?: LimitPolicy | boolean; center?: boolean
+  symbol?: boolean; limits?: LimitPolicy | boolean; center?: boolean
   source?: string; source_range?: SourceRange
 }>
 const LIMIT_NAMES = new Set(['det', 'gcd', 'inf', 'lim', 'max', 'min', 'Pr', 'sup', 'liminf', 'limsup'])
@@ -25,9 +25,8 @@ class MathOp extends MathElement<MathOpProps> {
   static layout(props: MathOpProps, query: LayoutQuery) {
     const math = math_context(props, query), f = math_font_size(query, math)
     const prepared = query.prepare('operator', () => {
-      if (props.text !== undefined && props.children !== undefined) throw new TypeError('Use text or children, not both')
       const children = math_children(props.children)
-      const literal = props.text ?? (children.length === 1 && typeof children[0] === 'string' ? children[0].trim() : undefined)
+      const literal = children.length === 1 && typeof children[0] === 'string' ? children[0].trim() : undefined
       const text = literal === undefined ? undefined : symbols.math[literal]?.replace ?? symbols.math['\\' + literal]?.replace ?? literal
       const symbol = props.symbol ?? (text !== undefined && [...text].length === 1 &&
         OPERATOR_GLYPHS.has(text))
@@ -40,7 +39,7 @@ class MathOp extends MathElement<MathOpProps> {
       const value = oval ? (text === '∯' ? '∬' : '∭') : text
       const face = large ? 'KaTeX_Size2' : 'KaTeX_Size1'
       const source = text === undefined ? operand_source(props.children, math) : new MathSpan({
-        text: symbol ? value : name, font_family: symbol ? face
+        children: symbol ? value : name, font_family: symbol ? face
           : props.font_family ?? 'KaTeX_Main', center: symbol, klass: 'mop',
         source: props.source, source_range: props.source_range,
       })
