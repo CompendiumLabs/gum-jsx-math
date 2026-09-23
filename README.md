@@ -5,12 +5,11 @@ matrices, aligned equations, and formulas embedded in text or figures. KaTeX
 supplies parsing and fonts; Gum lays out the formulas and emits glyph outlines.
 
 See the [Gum project](https://github.com/CompendiumLabs/gum-jsx#readme) for
-workspace setup and the package overview.
+getting started and the package overview.
 
 ## Use
 
-Run `bun install` from the parent workspace. The CLI and editor already include
-the math bindings:
+The CLI and editor include the math bindings:
 
 ```jsx
 <Svg font-size={px(36)}>
@@ -86,7 +85,7 @@ caller-owned `fonts` or `pass` so you retain the preloaded resource used later
 for layout. Synchronous SVG helpers also accept a custom font provider through
 a pass; its host is responsible for preloading.
 
-From the workspace root:
+Use the `gum-tex` command for standalone formulas:
 
 ```sh
 bun run gum-tex 'e^{i\pi}+1=0' -s 48 -p 0.25 -o /tmp/euler.png --ratio 2
