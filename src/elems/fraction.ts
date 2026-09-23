@@ -76,8 +76,3 @@ class Frac extends MathElement<FracProps> {
 }
 export { Frac }
 export type { FracProps }
-
-// Generated prop registrations; run the workspace props:generate command.
-import { register_props } from '@gum-jsx/core'
-import { prop_schemas } from '../prop-schemas'
-register_props(Frac, prop_schemas.Frac)

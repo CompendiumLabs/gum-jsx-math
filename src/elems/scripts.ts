@@ -91,8 +91,3 @@ class SupSub extends MathElement<SupSubProps> {
 }
 export { SupSub }
 export type { SupSubProps }
-
-// Generated prop registrations; run the workspace props:generate command.
-import { register_props } from '@gum-jsx/core'
-import { prop_schemas } from '../prop-schemas'
-register_props(SupSub, prop_schemas.SupSub)

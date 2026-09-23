@@ -53,9 +53,3 @@ class MathRule extends MathElement<MathRuleProps> {
 
 export { MathSpacer, MathRule }
 export type { MathSpacerProps, MathRuleProps }
-
-// Generated prop registrations; run the workspace props:generate command.
-import { register_props } from '@gum-jsx/core'
-import { prop_schemas } from '../prop-schemas'
-register_props(MathSpacer, prop_schemas.MathSpacer)
-register_props(MathRule, prop_schemas.MathRule)

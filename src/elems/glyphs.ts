@@ -86,9 +86,3 @@ class MathSymbol extends MathElement<MathSymbolProps> {
 
 export { MathSpan, MathSymbol, glyph_layout }
 export type { MathSpanProps, MathSymbolProps }
-
-// Generated prop registrations; run the workspace props:generate command.
-import { register_props } from '@gum-jsx/core'
-import { prop_schemas } from '../prop-schemas'
-register_props(MathSpan, prop_schemas.MathSpan)
-register_props(MathSymbol, prop_schemas.MathSymbol)

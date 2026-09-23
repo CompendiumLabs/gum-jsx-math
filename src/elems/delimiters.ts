@@ -132,10 +132,3 @@ class Bracket extends MathElement<BracketProps> {
 
 export { Bracket, SizedDelimiter, Middle, fit_glyph, delimiter }
 export type { BracketProps }
-
-// Generated prop registrations; run the workspace props:generate command.
-import { register_props } from '@gum-jsx/core'
-import { prop_schemas } from '../prop-schemas'
-register_props(SizedDelimiter, prop_schemas.SizedDelimiter)
-register_props(Middle, prop_schemas.Middle)
-register_props(Bracket, prop_schemas.Bracket)

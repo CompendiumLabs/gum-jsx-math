@@ -49,8 +49,3 @@ class Sqrt extends MathElement<SqrtProps> {
 }
 export { Sqrt }
 export type { SqrtProps }
-
-// Generated prop registrations; run the workspace props:generate command.
-import { register_props } from '@gum-jsx/core'
-import { prop_schemas } from '../prop-schemas'
-register_props(Sqrt, prop_schemas.Sqrt)

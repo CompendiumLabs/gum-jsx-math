@@ -181,8 +181,3 @@ class MathArray extends MathElement<MathArrayProps> {
 
 export { MathArray }
 export type { MathArrayProps }
-
-// Generated prop registrations; run the workspace props:generate command.
-import { register_props } from '@gum-jsx/core'
-import { prop_schemas } from '../prop-schemas'
-register_props(MathArray, prop_schemas.MathArray)

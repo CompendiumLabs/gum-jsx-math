@@ -21,7 +21,7 @@
     "canvas": "^3.2.3",
     "commander": "^14.0.3",
     "@gum-jsx/png": "workspace:*",
-    "typescript": "7.0.2"
+    "typescript": "^7"
   },
   "version": "2.0.0-beta.0",
   "repository": {

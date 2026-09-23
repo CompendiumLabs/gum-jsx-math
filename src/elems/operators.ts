@@ -73,8 +73,3 @@ class MathOp extends MathElement<MathOpProps> {
 }
 export { MathOp, limit_policy }
 export type { MathOpProps }
-
-// Generated prop registrations; run the workspace props:generate command.
-import { register_props } from '@gum-jsx/core'
-import { prop_schemas } from '../prop-schemas'
-register_props(MathOp, prop_schemas.MathOp)

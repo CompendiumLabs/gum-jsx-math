@@ -84,9 +84,3 @@ class TextMode extends MathElement<TextModeProps> {
 
 export { TextMode }
 export type { TextModeProps }
-
-// Generated prop registrations; run the workspace props:generate command.
-import { register_props } from '@gum-jsx/core'
-import { prop_schemas } from '../prop-schemas'
-register_props(LiteralRun, prop_schemas.LiteralRun)
-register_props(TextMode, prop_schemas.TextMode)
