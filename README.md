@@ -88,9 +88,9 @@ a pass; its host is responsible for preloading.
 Use the `gum-tex` command for standalone formulas:
 
 ```sh
-bun run gum-tex 'e^{i\pi}+1=0' -s 48 -p 0.25 -o /tmp/euler.png --ratio 2
-bun run gum-tex -i formula.tex -f svg
-bun run gum-tex 'x^2' --fit -W 320
+gum-tex 'e^{i\pi}+1=0' -s 48 -p 0.25 -o /tmp/euler.png --ratio 2
+gum-tex -i formula.tex -f svg
+gum-tex 'x^2' --fit -W 320
 ```
 
 PNG/kitty output stays in the host packages. See the
