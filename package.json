@@ -13,17 +13,17 @@
     "compare": "bun scripts/compare.ts"
   },
   "dependencies": {
-    "@gum-jsx/core": "workspace:*",
+    "@gum-jsx/core": "2.0.0-beta.1",
     "katex": "0.16.47"
   },
   "devDependencies": {
     "@types/bun": "latest",
     "canvas": "^3.2.3",
     "commander": "^14.0.3",
-    "@gum-jsx/png": "workspace:*",
+    "@gum-jsx/png": "2.0.0-beta.1",
     "typescript": "^7"
   },
-  "version": "2.0.0-beta.0",
+  "version": "2.0.0-beta.1",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/CompendiumLabs/gum-jsx-math.git"
