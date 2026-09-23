@@ -1,5 +1,5 @@
-import { make_measure, make_size, make_fragment, make_point, place_fragment, draw_rect, make_rect, resolve_length } from 'gum-jsx-core'
-import type { LayoutQuery, Length } from 'gum-jsx-core'
+import { make_measure, make_size, make_fragment, make_point, place_fragment, draw_rect, make_rect, resolve_length } from '@gum-jsx/core'
+import type { LayoutQuery, Length } from '@gum-jsx/core'
 import { MathElement } from './base'
 import { math_children, operand_source, measure_operand, extent, baseline, advance } from './operands'
 import { delimiter } from './delimiters'
@@ -76,3 +76,8 @@ class Frac extends MathElement<FracProps> {
 }
 export { Frac }
 export type { FracProps }
+
+// Generated prop registrations; run the workspace props:generate command.
+import { register_props } from '@gum-jsx/core'
+import { prop_schemas } from '../prop-schemas'
+register_props(Frac, prop_schemas.Frac)

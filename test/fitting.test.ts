@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { Box, Text, LayoutPass, available, exact, make_request, px, em, render_svg,
-  define_component, define_element, make_fragment, make_size, finish_size } from 'gum-jsx-core'
-import type { Fragment, ElementProps, MathStyle } from 'gum-jsx-core'
+  define_component, define_element, make_fragment, make_size, finish_size } from '@gum-jsx/core'
+import type { Fragment, ElementProps, MathStyle } from '@gum-jsx/core'
 import { MathText, MathRow, MathArray, MathRule, MathSpacer, MathStretch, Tex, Latex,
   MathElement, createMathFonts, mathToElement } from '../src'
 

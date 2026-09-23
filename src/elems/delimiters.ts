@@ -1,6 +1,6 @@
-import { make_measure, make_fragment, make_size, make_point, place_fragment, make_request } from 'gum-jsx-core'
-import type { Element, FontProvider, LayoutQuery, MathContext, MathClass, Length, Fragment } from 'gum-jsx-core'
-import { resolve_length, resolve_style } from 'gum-jsx-core'
+import { make_measure, make_fragment, make_size, make_point, place_fragment, make_request } from '@gum-jsx/core'
+import type { Element, FontProvider, LayoutQuery, MathContext, MathClass, Length, Fragment } from '@gum-jsx/core'
+import { resolve_length, resolve_style } from '@gum-jsx/core'
 import { MathElement } from './base'
 import { MathSpan } from './glyphs'
 import { prepare_items, measure_items, assemble_row } from './composition'
@@ -132,3 +132,10 @@ class Bracket extends MathElement<BracketProps> {
 
 export { Bracket, SizedDelimiter, Middle, fit_glyph, delimiter }
 export type { BracketProps }
+
+// Generated prop registrations; run the workspace props:generate command.
+import { register_props } from '@gum-jsx/core'
+import { prop_schemas } from '../prop-schemas'
+register_props(SizedDelimiter, prop_schemas.SizedDelimiter)
+register_props(Middle, prop_schemas.Middle)
+register_props(Bracket, prop_schemas.Bracket)

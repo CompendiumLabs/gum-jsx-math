@@ -5,7 +5,7 @@ import { mkdtempSync, readdirSync, readFileSync, mkdirSync, rmSync } from 'node:
 import { dirname, join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
-import { px, em } from 'gum-jsx-core'
+import { px, em } from '@gum-jsx/core'
 import { mathToSvg } from '../src'
 
 const dist = fileURLToPath(new URL('../../gum-jsx-edit/dist/', import.meta.url))
@@ -52,8 +52,9 @@ const expectedExports = exports.map(text => mathToSvg(text, exportOptions))
 browserSources.push(...exports.map(text => `return mathToElement(${JSON.stringify(text)}, {
   font_size: px(40), padding: em(0.25), strut: false,
 })`))
-const failures = [['<Latex>{"{"}</Latex>', 'parse:'], [String.raw`<Latex>\phase{x}</Latex>`, 'unsupported:'],
-  [String.raw`<Latex>\begin{align*}a&=b\tag{A}\end{align*}</Latex>`, 'unsupported:']]
+const failures = [['{', 'parse:'], [String.raw`\phase{x}`, 'unsupported:'],
+  [String.raw`\begin{align*}a&=b\tag{A}\end{align*}`, 'unsupported:']]
+  .map(([tex, diagnostic]) => [`<Latex>{${JSON.stringify(tex)}}</Latex>`, diagnostic])
 const html = `<!doctype html><html><meta charset="utf-8"><title>Gum math browser verification</title>
 <style>body{font:16px sans-serif;margin:24px;background:#f6f7f9;color:#182330}figure{margin:12px 0;padding:16px;background:white;border:1px solid #ddd}svg{display:block}pre{white-space:pre-wrap}</style>
 <h1>Gum math · browser verification</h1><pre id="status">Loading…</pre><main></main>

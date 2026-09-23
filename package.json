@@ -5,7 +5,6 @@
   "module": "src/index.ts",
   "types": "src/index.ts",
   "exports": "./src/index.ts",
-  "private": true,
   "license": "MIT",
   "scripts": {
     "test": "bun test ./test",
@@ -22,6 +21,28 @@
     "canvas": "^3.2.3",
     "commander": "^14.0.3",
     "@gum-jsx/png": "workspace:*",
-    "typescript": "^7"
-  }
+    "typescript": "7.0.2"
+  },
+  "version": "2.0.0-beta.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CompendiumLabs/gum-jsx-math.git"
+  },
+  "homepage": "https://github.com/CompendiumLabs/gum-jsx-math#readme",
+  "bugs": {
+    "url": "https://github.com/CompendiumLabs/gum-jsx-math/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "tag": "beta"
+  },
+  "engines": {
+    "bun": ">=1.4.2"
+  },
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md"
+  ]
 }

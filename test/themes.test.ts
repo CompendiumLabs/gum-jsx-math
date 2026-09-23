@@ -1,6 +1,6 @@
 import { test, expect } from 'bun:test'
-import { Svg, LayoutPass, evaluate, render_svg, THEMES } from 'gum-jsx-core'
-import type { Fragment } from 'gum-jsx-core'
+import { Svg, LayoutPass, evaluate, render_svg, THEMES } from '@gum-jsx/core'
+import type { Fragment } from '@gum-jsx/core'
 import * as math from '../src/index'
 
 function drawings(fragment: Fragment): Fragment['draw'][number][] {

@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'bun:test'
 import { Fonts, LayoutPass, LayoutError, FontNotLoadedError,
-  make_request, available, exact, px, em, render_svg, evaluate, define_component } from 'gum-jsx-core'
-import type { Element, Fragment, MathStyle, FontProvider, LayoutQuery } from 'gum-jsx-core'
+  make_request, available, exact, px, em, render_svg, evaluate, define_component } from '@gum-jsx/core'
+import type { Element, Fragment, MathStyle, FontProvider, LayoutQuery } from '@gum-jsx/core'
 import type { MathTextProps } from '../src'
 import * as math from '../src'
 import { MathSpan, MathSymbol, MathSpacer, MathRule, MathRow, MathText, MathCol, MathBox,

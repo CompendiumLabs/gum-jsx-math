@@ -1,5 +1,5 @@
-import { make_measure, draw_path, draw_rect, make_rect, make_fragment, make_size, make_point, place_fragment, resolve_length, theme_color } from 'gum-jsx-core'
-import type { LayoutQuery, Length, PathCommand } from 'gum-jsx-core'
+import { make_measure, draw_path, draw_rect, make_rect, make_fragment, make_size, make_point, place_fragment, resolve_length, theme_color } from '@gum-jsx/core'
+import type { LayoutQuery, Length, PathCommand } from '@gum-jsx/core'
 import { MathElement } from './base'
 import { operand_source, measure_operand, advance, baseline, extent } from './operands'
 import { math_context, math_font_size, math_metrics, atom_metrics, finish_math, dimension_length, MATH_AXIS } from '../metrics'
@@ -132,3 +132,14 @@ class Enclose extends MathElement<EncloseProps> {
 
 export { Phantom, Smash, Lap, RaiseBox, VCenter, Pmb, Enclose }
 export type { PhantomProps, SmashProps, LapProps, RaiseBoxProps, EncloseProps }
+
+// Generated prop registrations; run the workspace props:generate command.
+import { register_props } from '@gum-jsx/core'
+import { prop_schemas } from '../prop-schemas'
+register_props(Phantom, prop_schemas.Phantom)
+register_props(Smash, prop_schemas.Smash)
+register_props(Lap, prop_schemas.Lap)
+register_props(RaiseBox, prop_schemas.RaiseBox)
+register_props(VCenter, prop_schemas.VCenter)
+register_props(Pmb, prop_schemas.Pmb)
+register_props(Enclose, prop_schemas.Enclose)

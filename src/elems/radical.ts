@@ -1,5 +1,5 @@
-import { make_measure, make_size, make_fragment, draw_rect, make_rect, resolve_length } from 'gum-jsx-core'
-import type { Child, LayoutQuery, Length } from 'gum-jsx-core'
+import { make_measure, make_size, make_fragment, draw_rect, make_rect, resolve_length } from '@gum-jsx/core'
+import type { Child, LayoutQuery, Length } from '@gum-jsx/core'
 import { MathElement } from './base'
 import { operand_source, measure_operand, advance, baseline, extent } from './operands'
 import { fit_glyph } from './delimiters'
@@ -49,3 +49,8 @@ class Sqrt extends MathElement<SqrtProps> {
 }
 export { Sqrt }
 export type { SqrtProps }
+
+// Generated prop registrations; run the workspace props:generate command.
+import { register_props } from '@gum-jsx/core'
+import { prop_schemas } from '../prop-schemas'
+register_props(Sqrt, prop_schemas.Sqrt)

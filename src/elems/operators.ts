@@ -1,5 +1,5 @@
-import { make_fragment, make_point, make_size, place_fragment, draw_ellipse } from 'gum-jsx-core'
-import type { LayoutQuery } from 'gum-jsx-core'
+import { make_fragment, make_point, make_size, place_fragment, draw_ellipse } from '@gum-jsx/core'
+import type { LayoutQuery } from '@gum-jsx/core'
 import { MathElement } from './base'
 import { MathSpan } from './glyphs'
 import { math_children, operand_source, measure_operand } from './operands'
@@ -73,3 +73,8 @@ class MathOp extends MathElement<MathOpProps> {
 }
 export { MathOp, limit_policy }
 export type { MathOpProps }
+
+// Generated prop registrations; run the workspace props:generate command.
+import { register_props } from '@gum-jsx/core'
+import { prop_schemas } from '../prop-schemas'
+register_props(MathOp, prop_schemas.MathOp)

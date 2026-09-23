@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test'
-import { Element, LayoutPass, px, render_svg, make_request, exact } from 'gum-jsx-core'
+import { Element, LayoutPass, px, render_svg, make_request, exact } from '@gum-jsx/core'
 import { MathSymbol, MathText, MathRow, MathCol, MathBox, Latex, Tex,
   Frac, Sqrt, SupSub, createMathFonts } from '../src'
 

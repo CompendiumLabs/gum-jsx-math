@@ -1,5 +1,5 @@
-import { make_measure, draw_rect, make_rect, make_size, make_fragment, make_point, place_fragment, resolve_length, theme_color } from 'gum-jsx-core'
-import type { Child, Element, ElementType, Fragment, LayoutQuery, Length, MathContext } from 'gum-jsx-core'
+import { make_measure, draw_rect, make_rect, make_size, make_fragment, make_point, place_fragment, resolve_length, theme_color } from '@gum-jsx/core'
+import type { Child, Element, ElementType, Fragment, LayoutQuery, Length, MathContext } from '@gum-jsx/core'
 import { MathElement } from './base'
 import { MathSymbol } from './glyphs'
 import { operand_source, measure_operand, advance, baseline, extent } from './operands'
@@ -173,3 +173,14 @@ class XArrow extends MathElement<XArrowProps> {
 
 export { Accent, AccentNucleus, accent_nucleus, MathStretch, Overline, Underline, HorizBrace, XArrow }
 export type { AccentProps, MathStretchProps, LineProps, HorizBraceProps, XArrowProps }
+
+// Generated prop registrations; run the workspace props:generate command.
+import { register_props } from '@gum-jsx/core'
+import { prop_schemas } from '../prop-schemas'
+register_props(MathStretch, prop_schemas.MathStretch)
+register_props(AccentNucleus, prop_schemas.AccentNucleus)
+register_props(Accent, prop_schemas.Accent)
+register_props(Overline, prop_schemas.Overline)
+register_props(Underline, prop_schemas.Underline)
+register_props(HorizBrace, prop_schemas.HorizBrace)
+register_props(XArrow, prop_schemas.XArrow)

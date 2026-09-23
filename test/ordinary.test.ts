@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
-import { LayoutPass, px, em, make_request, available, exact, render_svg, evaluate } from 'gum-jsx-core'
-import type { Fragment, MathStyle, Element, FontProvider } from 'gum-jsx-core'
+import { LayoutPass, px, em, make_request, available, exact, render_svg, evaluate } from '@gum-jsx/core'
+import type { Fragment, MathStyle, Element, FontProvider } from '@gum-jsx/core'
 import * as math from '../src'
 import { MathSymbol, MathText, MathChoice, MathBox, MathOp, SupSub, Frac, Sqrt, Bracket, Latex, createMathFonts, parse_math } from '../src'
 import { sup_style, sub_style, numerator_style, denominator_style } from '../src/styles'

@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test'
-import { Arrow, LayoutPass, Rect, Text, px, make_request, exact, available, resolve_style, render_svg } from 'gum-jsx-core'
-import type { Element, Fragment, FontProvider, MathStyle, PathDraw } from 'gum-jsx-core'
+import { Arrow, LayoutPass, Rect, Text, px, make_request, exact, available, resolve_style, render_svg } from '@gum-jsx/core'
+import type { Element, Fragment, FontProvider, MathStyle, PathDraw } from '@gum-jsx/core'
 import { Accent, Underline, Overline, MathStretch, HorizBrace, XArrow, MathSymbol, MathSpan, MathText, MathRow,
   SupSub, Frac, TextMode, Latex, Phantom, Smash, Lap, Enclose, RaiseBox, VCenter, Pmb,
   createMathFonts, MATH_FONTS, parse_math } from '../src'

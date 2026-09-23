@@ -1,4 +1,4 @@
-import type { MathContext, MathSizeStyle, MathStyle } from 'gum-jsx-core'
+import type { MathContext, MathSizeStyle, MathStyle } from '@gum-jsx/core'
 
 const STYLE_SCALE = { display: 1, text: 1, script: 0.7, scriptscript: 0.5 } as const
 const SIZE_MULTIPLIERS = [0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.2, 1.44, 1.728, 2.074, 2.488] as const

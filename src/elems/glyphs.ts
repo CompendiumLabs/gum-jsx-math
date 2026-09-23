@@ -1,5 +1,5 @@
-import { draw_path, make_size, make_point, transform_path, transform_rect, MissingGlyphError } from 'gum-jsx-core'
-import type { LayoutQuery, FontProvider, MathClass } from 'gum-jsx-core'
+import { draw_path, make_size, make_point, transform_path, transform_rect, MissingGlyphError } from '@gum-jsx/core'
+import type { LayoutQuery, FontProvider, MathClass } from '@gum-jsx/core'
 import { MathElement, literal_text } from './base'
 import { math_context, math_font_size, MATH_AXIS, math_metrics, finish_math } from '../metrics'
 import { MathError } from '../errors'
@@ -86,3 +86,9 @@ class MathSymbol extends MathElement<MathSymbolProps> {
 
 export { MathSpan, MathSymbol, glyph_layout }
 export type { MathSpanProps, MathSymbolProps }
+
+// Generated prop registrations; run the workspace props:generate command.
+import { register_props } from '@gum-jsx/core'
+import { prop_schemas } from '../prop-schemas'
+register_props(MathSpan, prop_schemas.MathSpan)
+register_props(MathSymbol, prop_schemas.MathSymbol)

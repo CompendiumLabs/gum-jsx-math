@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test'
-import { LayoutPass, em, evaluate, make_request, px, render_svg } from 'gum-jsx-core'
+import { LayoutPass, em, evaluate, make_request, px, render_svg } from '@gum-jsx/core'
 import * as math from '../src'
 
 const fonts = math.createMathFonts()

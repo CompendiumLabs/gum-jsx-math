@@ -1,8 +1,11 @@
-# gum-jsx-math
+# @gum-jsx/math
 
-Math elements and TeX parsing for the Gum rewrite. This package implements
-phases 1–7 of the [math roadmap](../docs/MATH.md), using KaTeX **0.16.47**
-for parsing and fonts, Gum for layout, and Fontkit for outline geometry.
+TeX parsing and mathematical layout for Gum, including fractions, scripts,
+matrices, aligned equations, and formulas embedded in text or figures. KaTeX
+supplies parsing and fonts; Gum lays out the formulas and emits glyph outlines.
+
+See the [Gum project](https://github.com/CompendiumLabs/gum-jsx#readme) for
+workspace setup and the package overview.
 
 ## Use
 
@@ -20,12 +23,17 @@ the math bindings:
 For library use:
 
 ```ts
-import { Box, Svg, LayoutPass, render_svg, px, em } from 'gum-jsx-core'
-import { Latex, createMathFonts } from 'gum-jsx-math'
+import { Box, Svg, LayoutPass, render_svg, px, em } from '@gum-jsx/core'
+import { Latex, createMathFonts } from '@gum-jsx/math'
 
 const fonts = createMathFonts()
-const source = new Svg({ font_size: px(36), children:
-  new Box({ padding: em(0.5), children: new Latex({ children: 'a+b=c' }) }) })
+const source = new Svg({
+  font_size: px(36),
+  children: new Box({
+    padding: em(0.5),
+    children: new Latex({ children: 'a+b=c' }),
+  }),
+})
 // Browser hosts preload; Bun also supports synchronous local loading on demand.
 await fonts.load()
 const pass = new LayoutPass({ fonts: { value: fonts, version: fonts.version } })
@@ -44,8 +52,8 @@ not require page fonts. Notify a reused pass of font replacements with
 ## Standalone exports
 
 ```ts
-import { px, em } from 'gum-jsx-core'
-import { mathToElement, mathToSvg, mathToSvgAsync } from 'gum-jsx-math'
+import { px, em } from '@gum-jsx/core'
+import { mathToElement, mathToSvg, mathToSvgAsync } from '@gum-jsx/math'
 
 const tex = String.raw`\int_0^\infty e^{-x^2}\,dx=\frac{\sqrt\pi}{2}`
 const source = mathToElement(tex, { font_size: px(36), padding: em(0.25) })
@@ -78,14 +86,16 @@ caller-owned `fonts` or `pass` so you retain the preloaded resource used later
 for layout. Synchronous SVG helpers also accept a custom font provider through
 a pass; its host is responsible for preloading.
 
+From the workspace root:
+
 ```sh
-bun run gum-tex 'e^{i\pi}+1=0' -S 48 -p 0.25 -o /tmp/euler.png --ratio 2
+bun run gum-tex 'e^{i\pi}+1=0' -s 48 -p 0.25 -o /tmp/euler.png --ratio 2
 bun run gum-tex -i formula.tex -f svg
 bun run gum-tex 'x^2' --fit -W 320
 ```
 
 PNG/kitty output stays in the host packages. See the
-[standalone export guide](../gum-jsx-docs/docs/gallery/text/MathExport.md) for all
+[standalone export guide](https://github.com/CompendiumLabs/gum-jsx-docs/blob/master/docs/gallery/text/MathExport.md) for all
 options, browser loading, PNG library composition, and runnable sizing examples.
 
 ## Elements and layout
@@ -119,7 +129,7 @@ options, browser loading, PNG library composition, and runnable sizing examples.
 Nested `MathText` descriptions flatten before layout unless they specify sizing,
 atom classes, a strut, or visible error handling. `MathRow`, `MathBox`, and TeX
 brace groups remain atoms. Color changes in a sequence preserve operator
-classification. See the [runnable reference pages](../gum-jsx-docs/docs/gallery/text/Math.md).
+classification. See the [runnable reference pages](https://github.com/CompendiumLabs/gum-jsx-docs/blob/master/docs/gallery/text/Math.md).
 
 `Fragment.math` keeps signed advance, edge classes, italic correction, skew,
 and character-nucleus information. Font advances, TeX italic corrections, and
@@ -159,8 +169,8 @@ wide hats/checks/tildes, over/under rules and decorations, labeled braces and
 arrows, overset/underset/stackrel, phantom/smash/lap, enclosures/cancellation,
 rules, raisebox, vcenter, hbox, verbatim, and poor-man's bold are implemented.
 Standalone exports and the `gum-tex` CLI use the same layout. Unknown
-syntax cannot silently vanish. See [decorations](../gum-jsx-docs/docs/gallery/text/MathDecorations.md),
-[boxes](../gum-jsx-docs/docs/gallery/text/MathBoxes.md), and [fonts/macros](../gum-jsx-docs/docs/gallery/text/MathFonts.md).
+syntax cannot silently vanish. See [decorations](https://github.com/CompendiumLabs/gum-jsx-docs/blob/master/docs/gallery/text/MathDecorations.md),
+[boxes](https://github.com/CompendiumLabs/gum-jsx-docs/blob/master/docs/gallery/text/MathBoxes.md), and [fonts/macros](https://github.com/CompendiumLabs/gum-jsx-docs/blob/master/docs/gallery/text/MathFonts.md).
 
 Macros support arguments, declarations, and local scope within the pinned
 parser. A supplied macro dictionary is snapshotted, and even `\gdef` cannot
@@ -199,14 +209,14 @@ size and color through, while math retains its own default faces.
 
 Mixed arrays work in text boxes, bullet items, captions, and titles. A sole
 element remains a block; wrap several elements without prose in `Text` for
-inline layout. See the [paragraph examples](../gum-jsx-docs/docs/gallery/code/InlineMath.jsx).
+inline layout. See the [paragraph examples](https://github.com/CompendiumLabs/gum-jsx-docs/blob/master/docs/gallery/code/InlineMath.jsx).
 
 In the other direction, math rows and compound operands measure ordinary Gum
 elements through the same pass. An existing math axis wins, a text baseline
 implies an axis using that element's own font size, and an unguided figure is
 centered. Wrapping text needs an explicit width. Give plots concrete dimensions
 and use `fit` to scale intentionally; embedding does not shrink them into a
-script. See the [mixed formula examples](../gum-jsx-docs/docs/gallery/code/MathComposition.jsx).
+script. See the [mixed formula examples](https://github.com/CompendiumLabs/gum-jsx-docs/blob/master/docs/gallery/code/MathComposition.jsx).
 
 `TextMode` strings are literal, including spaces and kerning. Source newlines
 and tabs become spaces. Its `family`, `bold`, and `italic` controls select among
@@ -224,7 +234,7 @@ flat JSX children with `ncol`. A `cols` string such as `"r|c:l"` combines
 alignment and rules; descriptors can supply explicit pre/post column gaps.
 Use Gum lengths for `colsep`, `rowgaps`, and `thickness`. `stretch` changes row
 struts, and `jot` adds leading only between rows. `small` selects the defaults
-for a small matrix. See the [MathArray reference](../gum-jsx-docs/docs/elements/text/MathArray.md).
+for a small matrix. See the [MathArray reference](https://github.com/CompendiumLabs/gum-jsx-docs/blob/master/docs/elements/text/MathArray.md).
 
 Cells can contain ordinary Gum elements with explicit dimensions. Offers do
 not shrink a table; exact allocations preserve its geometry and report overflow.
@@ -251,32 +261,27 @@ Starred and unstarred display environments currently render without numbers.
 Explicit `\tag` and the entire `CD` environment fail visibly; numbering and
 commutative diagrams remain deferred. Optional positioning arguments on aligned
 environments and general LaTeX column preambles are outside the pinned parser's
-supported syntax. See [matrices](../gum-jsx-docs/docs/gallery/text/MathArrays.md) and
-[aligned equations](../gum-jsx-docs/docs/gallery/text/AlignedMath.md).
+supported syntax. See [matrices](https://github.com/CompendiumLabs/gum-jsx-docs/blob/master/docs/gallery/text/MathArrays.md) and
+[aligned equations](https://github.com/CompendiumLabs/gum-jsx-docs/blob/master/docs/gallery/text/AlignedMath.md).
 
 ## Verification
 
 From the workspace root:
 
 ```sh
-bun run test
-bun run typecheck
+bun --filter @gum-jsx/math test
+bun --filter @gum-jsx/math typecheck
 bun run build
 bun --filter @gum-jsx/math test:browser
 bun run compare --suite -S 48 -o gum-jsx-math/out/comparison.png \
   --artifacts gum-jsx-math/out/comparison
-bun run compare --suite 3 -S 48 -o gum-jsx-math/out/phase3.png
-bun run compare --suite 3 --inline -S 48 -o gum-jsx-math/out/phase3-inline.png
-bun run compare --suite 4 -S 48 -o gum-jsx-math/out/phase4.png
-bun run compare --suite 4 --inline -S 48 -o gum-jsx-math/out/phase4-inline.png
-bun run compare --suite 5 -S 48 -o gum-jsx-math/out/phase5.png
-bun run compare --suite 5 --inline -S 48 -o gum-jsx-math/out/phase5-inline.png
-bun run compare --suite 6 -S 48 -o gum-jsx-math/out/phase6.png
-bun run compare --suite 6 --inline -S 48 -o gum-jsx-math/out/phase6-inline.png
-bun run compare --suite 6-extra --no-latex -S 48 -o gum-jsx-math/out/phase6-extra.png
-bun run compare --suite 7 -S 48 -o gum-jsx-math/out/phase7.png
 bun run compare 'a\!b' --inline -S 96 -o /tmp/negative-glue.png
 ```
+
+The first two commands run the package checks. The browser check additionally
+requires the editor build and Chromium. Use `bun run compare --help` for focused
+comparison suites and output options. KaTeX is pinned to **0.16.47**; see the
+[math roadmap](https://github.com/CompendiumLabs/gum-jsx/blob/master/docs/MATH.md) for implementation history.
 
 The comparison script adapts gum-1's tool. It rasterizes Gum outlines, captures
 KaTeX HTML in Chromium, and runs `pdflatex` plus `pdftoppm`, at the same pixels

@@ -1,5 +1,5 @@
-import { make_fragment, make_size, make_point, place_fragment } from 'gum-jsx-core'
-import type { Child, LayoutQuery } from 'gum-jsx-core'
+import { make_fragment, make_size, make_point, place_fragment } from '@gum-jsx/core'
+import type { Child, LayoutQuery } from '@gum-jsx/core'
 import { MathElement } from './base'
 import { operand_source, measure_operand, extent, baseline, advance } from './operands'
 import { limit_policy } from './operators'
@@ -91,3 +91,8 @@ class SupSub extends MathElement<SupSubProps> {
 }
 export { SupSub }
 export type { SupSubProps }
+
+// Generated prop registrations; run the workspace props:generate command.
+import { register_props } from '@gum-jsx/core'
+import { prop_schemas } from '../prop-schemas'
+register_props(SupSub, prop_schemas.SupSub)

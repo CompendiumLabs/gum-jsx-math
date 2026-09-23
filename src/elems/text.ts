@@ -1,5 +1,5 @@
-import { Element, Span, make_fragment, resolve_style } from 'gum-jsx-core'
-import type { Child, LayoutQuery, Style, FontProvider } from 'gum-jsx-core'
+import { Element, Span, make_fragment, resolve_style } from '@gum-jsx/core'
+import type { Child, LayoutQuery, Style, FontProvider } from '@gum-jsx/core'
 import { MathElement, literal_text } from './base'
 import { glyph_layout } from './glyphs'
 import type { MathSpanProps } from './glyphs'
@@ -84,3 +84,9 @@ class TextMode extends MathElement<TextModeProps> {
 
 export { TextMode }
 export type { TextModeProps }
+
+// Generated prop registrations; run the workspace props:generate command.
+import { register_props } from '@gum-jsx/core'
+import { prop_schemas } from '../prop-schemas'
+register_props(LiteralRun, prop_schemas.LiteralRun)
+register_props(TextMode, prop_schemas.TextMode)

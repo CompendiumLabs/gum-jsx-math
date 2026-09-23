@@ -1,5 +1,5 @@
-import { Element, make_request, definite_reference } from 'gum-jsx-core'
-import type { Child, Fragment, LayoutQuery, MathContext } from 'gum-jsx-core'
+import { Element, make_request, definite_reference } from '@gum-jsx/core'
+import type { Child, Fragment, LayoutQuery, MathContext } from '@gum-jsx/core'
 import { MathText, syntax_operand } from './composition'
 import { parse_math } from '../parse'
 import { atom_metrics, math_axis, MATH_AXIS } from '../metrics'

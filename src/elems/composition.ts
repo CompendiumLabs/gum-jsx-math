@@ -1,8 +1,8 @@
 import { make_measure, Element, Text, Span, LayoutError, make_request, make_size, make_point, make_fragment,
   place_fragment, resolve_style, definite_reference, layout_content, resolve_insets,
-  resolve_alignment, resolve_length, em } from 'gum-jsx-core'
+  resolve_alignment, resolve_length, em } from '@gum-jsx/core'
 import type { Child, LayoutQuery, MathContext, MathMetrics, MathSizeStyle, Fragment, Style, Length, InsetSpec,
-  Alignment, ElementType, FontProvider } from 'gum-jsx-core'
+  Alignment, ElementType, FontProvider } from '@gum-jsx/core'
 import { MathElement } from './base'
 import { MathSymbol } from './glyphs'
 import { MathSpacer, MathRule } from './space'
@@ -334,3 +334,15 @@ class MathBox extends MathElement<MathBoxProps> {
 
 export { MathRow, MathText, MathChoice, MathCol, MathBox, Latex, Tex, syntax_operand, prepare_items, measure_items, assemble_row }
 export type { MathRowProps, MathTextProps, MathChoiceProps, MathColProps, MathBoxProps }
+
+// Generated prop registrations; run the workspace props:generate command.
+import { register_props } from '@gum-jsx/core'
+import { prop_schemas } from '../prop-schemas'
+register_props(UnsupportedMath, prop_schemas.UnsupportedMath)
+register_props(MathChoice, prop_schemas.MathChoice)
+register_props(MathRow, prop_schemas.MathRow)
+register_props(MathText, prop_schemas.MathText)
+register_props(Latex, prop_schemas.Latex)
+register_props(Tex, prop_schemas.Tex)
+register_props(MathCol, prop_schemas.MathCol)
+register_props(MathBox, prop_schemas.MathBox)

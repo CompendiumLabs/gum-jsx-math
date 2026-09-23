@@ -1,6 +1,6 @@
 import { Arrow, ArrowHead, Arc, Line, Polyline, arrow_barb, draw_path, exact, make_fragment,
-  make_request, make_size, place_fragment, px, resolve_style } from 'gum-jsx-core'
-import type { ArrowBarbSide, Element, LayoutQuery, PathCommand, Placement, PositionValue } from 'gum-jsx-core'
+  make_request, make_size, place_fragment, px, resolve_style } from '@gum-jsx/core'
+import type { ArrowBarbSide, Element, LayoutQuery, PathCommand, Placement, PositionValue } from '@gum-jsx/core'
 import { math_metrics, MATH_AXIS } from './metrics'
 import { MathError } from './errors'
 

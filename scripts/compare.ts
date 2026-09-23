@@ -11,8 +11,8 @@ import { pathToFileURL } from 'node:url'
 import { createCanvas, Image } from 'canvas'
 import type { Canvas } from 'canvas'
 import katex from 'katex'
-import { LayoutPass, px, render_svg } from 'gum-jsx-core'
-import { rasterize_svg } from 'gum-jsx-png'
+import { LayoutPass, px, render_svg } from '@gum-jsx/core'
+import { rasterize_svg } from '@gum-jsx/png'
 import { createMathFonts, mathToElement } from '../src'
 
 const BASIC = [
