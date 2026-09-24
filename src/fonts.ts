@@ -19,6 +19,17 @@ import SansSerifBold from 'katex/dist/fonts/KaTeX_SansSerif-Bold.ttf'
 import SansSerifItalic from 'katex/dist/fonts/KaTeX_SansSerif-Italic.ttf'
 import Typewriter from 'katex/dist/fonts/KaTeX_Typewriter-Regular.ttf'
 
+// Bun exposes imported assets as filesystem paths, while browser builds use URLs.
+// A Windows drive path needs an explicit file: scheme: new URL('C:\\...', base)
+// interprets C: as the scheme. Encode each path segment so #, ?, and % in
+// directory names remain part of the filename.
+export function font_url(path: string, base: string): URL {
+  const drive = /^([A-Za-z]):[\\/]/.exec(path)
+  if (!drive) return new URL(path, base)
+  const segments = path.slice(3).split(/[\\/]/).map(encodeURIComponent).join('/')
+  return new URL(`file:///${drive[1]}:/${segments}`)
+}
+
 // Each name denotes one exact face. Outlines need no CSS family/weight mapping.
 // Imports resolve to paths in Bun and asset URLs in a browser build; no I/O here.
 const MATH_FONT_PATHS = Object.freeze({
@@ -38,7 +49,7 @@ const MATH_BASE_FONTS: readonly MathFont[] = Object.freeze([
 const MATH_EXTRA_FONTS = Object.freeze(MATH_FONTS.filter(name => !MATH_BASE_FONTS.includes(name)))
 
 function registerMathFonts(fonts: Fonts): Fonts {
-  for (const name of MATH_FONTS) fonts.register_url(name, new URL(MATH_FONT_PATHS[name], import.meta.url))
+  for (const name of MATH_FONTS) fonts.register_url(name, font_url(MATH_FONT_PATHS[name], import.meta.url))
   return fonts
 }
 
