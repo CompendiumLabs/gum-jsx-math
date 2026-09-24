@@ -26,8 +26,8 @@ const browserSources = [
     <Latex>{${JSON.stringify(text)}}</Latex>
   </Box>
 </Svg>`)
-browserSources.unshift(...['docs/gallery/code/MathExport.jsx', 'docs/gallery/code/MathPlotLabels.jsx', 'docs/gallery/code/MathSlides.jsx',
-  'docs/gallery/code/MathDecorations.jsx', 'docs/gallery/code/MathBoxes.jsx', 'docs/gallery/code/MathFonts.jsx',
+browserSources.unshift(...['docs/guides/code/math_export.jsx', 'docs/gallery/code/MathPlotLabels.jsx', 'docs/gallery/code/MathSlides.jsx',
+  'docs/gallery/code/MathDecorations.jsx', 'docs/gallery/code/MathBoxes.jsx', 'docs/guides/code/math_fonts.jsx',
   'docs/elements/code/MathStretch.jsx', 'docs/elements/code/Phantom.jsx',
   'docs/gallery/code/MathArrays.jsx', 'docs/gallery/code/AlignedMath.jsx', 'docs/elements/code/MathArray.jsx',
   'docs/gallery/code/InlineMath.jsx', 'docs/gallery/code/MathComposition.jsx',

@@ -94,7 +94,7 @@ gum-tex 'x^2' --fit -W 320
 ```
 
 PNG/kitty output stays in the host packages. See the
-[standalone export guide](https://github.com/CompendiumLabs/gum-jsx-docs/blob/master/docs/gallery/text/MathExport.md) for all
+[standalone export guide](https://github.com/CompendiumLabs/gum-jsx-docs/blob/master/docs/guides/text/math_export.md) for all
 options, browser loading, PNG library composition, and runnable sizing examples.
 
 ## Elements and layout
@@ -128,7 +128,7 @@ options, browser loading, PNG library composition, and runnable sizing examples.
 Nested `MathText` descriptions flatten before layout unless they specify sizing,
 atom classes, a strut, or visible error handling. `MathRow`, `MathBox`, and TeX
 brace groups remain atoms. Color changes in a sequence preserve operator
-classification. See the [runnable reference pages](https://github.com/CompendiumLabs/gum-jsx-docs/blob/master/docs/gallery/text/Math.md).
+classification. See the [runnable reference pages](https://github.com/CompendiumLabs/gum-jsx-docs/blob/master/docs/guides/text/math.md).
 
 `Fragment.math` keeps signed advance, edge classes, italic correction, skew,
 and character-nucleus information. Font advances, TeX italic corrections, and
@@ -169,7 +169,7 @@ arrows, overset/underset/stackrel, phantom/smash/lap, enclosures/cancellation,
 rules, raisebox, vcenter, hbox, verbatim, and poor-man's bold are implemented.
 Standalone exports and the `gum-tex` CLI use the same layout. Unknown
 syntax cannot silently vanish. See [decorations](https://github.com/CompendiumLabs/gum-jsx-docs/blob/master/docs/gallery/text/MathDecorations.md),
-[boxes](https://github.com/CompendiumLabs/gum-jsx-docs/blob/master/docs/gallery/text/MathBoxes.md), and [fonts/macros](https://github.com/CompendiumLabs/gum-jsx-docs/blob/master/docs/gallery/text/MathFonts.md).
+[boxes](https://github.com/CompendiumLabs/gum-jsx-docs/blob/master/docs/gallery/text/MathBoxes.md), and [fonts/macros](https://github.com/CompendiumLabs/gum-jsx-docs/blob/master/docs/guides/text/math_fonts.md).
 
 Macros support arguments, declarations, and local scope within the pinned
 parser. A supplied macro dictionary is snapshotted, and even `\gdef` cannot
