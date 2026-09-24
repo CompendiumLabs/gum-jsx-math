@@ -168,8 +168,8 @@ wide hats/checks/tildes, over/under rules and decorations, labeled braces and
 arrows, overset/underset/stackrel, phantom/smash/lap, enclosures/cancellation,
 rules, raisebox, vcenter, hbox, verbatim, and poor-man's bold are implemented.
 Standalone exports and the `gum-tex` CLI use the same layout. Unknown
-syntax cannot silently vanish. See [decorations](https://github.com/CompendiumLabs/gum-jsx-docs/blob/master/docs/gallery/text/MathDecorations.md),
-[boxes](https://github.com/CompendiumLabs/gum-jsx-docs/blob/master/docs/gallery/text/MathBoxes.md), and [fonts/macros](https://github.com/CompendiumLabs/gum-jsx-docs/blob/master/docs/guides/text/math_fonts.md).
+syntax cannot silently vanish. See [decorations](https://github.com/CompendiumLabs/gum-jsx-docs/blob/master/docs/gallery/text/math_decorations.md),
+[boxes](https://github.com/CompendiumLabs/gum-jsx-docs/blob/master/docs/gallery/text/math_boxes.md), and [fonts/macros](https://github.com/CompendiumLabs/gum-jsx-docs/blob/master/docs/guides/text/math_fonts.md).
 
 Macros support arguments, declarations, and local scope within the pinned
 parser. A supplied macro dictionary is snapshotted, and even `\gdef` cannot
@@ -208,14 +208,14 @@ size and color through, while math retains its own default faces.
 
 Mixed arrays work in text boxes, bullet items, captions, and titles. A sole
 element remains a block; wrap several elements without prose in `Text` for
-inline layout. See the [paragraph examples](https://github.com/CompendiumLabs/gum-jsx-docs/blob/master/docs/gallery/code/InlineMath.jsx).
+inline layout. See the [paragraph examples](https://github.com/CompendiumLabs/gum-jsx-docs/blob/master/docs/gallery/code/inline_math.jsx).
 
 In the other direction, math rows and compound operands measure ordinary Gum
 elements through the same pass. An existing math axis wins, a text baseline
 implies an axis using that element's own font size, and an unguided figure is
 centered. Wrapping text needs an explicit width. Give plots concrete dimensions
 and use `fit` to scale intentionally; embedding does not shrink them into a
-script. See the [mixed formula examples](https://github.com/CompendiumLabs/gum-jsx-docs/blob/master/docs/gallery/code/MathComposition.jsx).
+script. See the [mixed formula examples](https://github.com/CompendiumLabs/gum-jsx-docs/blob/master/docs/gallery/code/math_composition.jsx).
 
 `TextMode` strings are literal, including spaces and kerning. Source newlines
 and tabs become spaces. Its `family`, `bold`, and `italic` controls select among
@@ -260,8 +260,8 @@ Starred and unstarred display environments currently render without numbers.
 Explicit `\tag` and the entire `CD` environment fail visibly; numbering and
 commutative diagrams remain deferred. Optional positioning arguments on aligned
 environments and general LaTeX column preambles are outside the pinned parser's
-supported syntax. See [matrices](https://github.com/CompendiumLabs/gum-jsx-docs/blob/master/docs/gallery/text/MathArrays.md) and
-[aligned equations](https://github.com/CompendiumLabs/gum-jsx-docs/blob/master/docs/gallery/text/AlignedMath.md).
+supported syntax. See [matrices](https://github.com/CompendiumLabs/gum-jsx-docs/blob/master/docs/gallery/text/math_arrays.md) and
+[aligned equations](https://github.com/CompendiumLabs/gum-jsx-docs/blob/master/docs/gallery/text/aligned_math.md).
 
 ## Verification
 

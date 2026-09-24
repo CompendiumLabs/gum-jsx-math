@@ -26,11 +26,11 @@ const browserSources = [
     <Latex>{${JSON.stringify(text)}}</Latex>
   </Box>
 </Svg>`)
-browserSources.unshift(...['docs/guides/code/math_export.jsx', 'docs/gallery/code/MathPlotLabels.jsx', 'docs/gallery/code/MathSlides.jsx',
-  'docs/gallery/code/MathDecorations.jsx', 'docs/gallery/code/MathBoxes.jsx', 'docs/guides/code/math_fonts.jsx',
+browserSources.unshift(...['docs/guides/code/math_export.jsx', 'docs/gallery/code/math_plot_labels.jsx', 'docs/gallery/code/math_slides.jsx',
+  'docs/gallery/code/math_decorations.jsx', 'docs/gallery/code/math_boxes.jsx', 'docs/guides/code/math_fonts.jsx',
   'docs/elements/code/MathStretch.jsx', 'docs/elements/code/Phantom.jsx',
-  'docs/gallery/code/MathArrays.jsx', 'docs/gallery/code/AlignedMath.jsx', 'docs/elements/code/MathArray.jsx',
-  'docs/gallery/code/InlineMath.jsx', 'docs/gallery/code/MathComposition.jsx',
+  'docs/gallery/code/math_arrays.jsx', 'docs/gallery/code/aligned_math.jsx', 'docs/elements/code/MathArray.jsx',
+  'docs/gallery/code/inline_math.jsx', 'docs/gallery/code/math_composition.jsx',
   'docs/elements/code/TextMode.jsx'].map(file => readFileSync(new URL('../../gum-jsx-docs/' + file, import.meta.url), 'utf8')))
 browserSources.push(`<Svg font-size={px(40)} color={blue}>
   <Box padding={em(0.5)}>
