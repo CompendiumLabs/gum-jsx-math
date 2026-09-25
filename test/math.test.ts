@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'bun:test'
 import { Fonts, LayoutPass, LayoutError, FontNotLoadedError,
-  make_request, available, exact, px, em, render_svg, evaluate, define_component } from '@gum-jsx/core'
+  make_request, available, exact, px, em, render_svg, Evaluator, evaluate, define_component } from '@gum-jsx/core'
 import type { Element, Fragment, MathStyle, FontProvider, LayoutQuery } from '@gum-jsx/core'
 import type { MathTextProps } from '../src'
 import * as math from '../src'
@@ -277,8 +277,13 @@ describe('parser and host boundaries', () => {
   })
 
   test('math JSX uses the evaluator scope without adding a core math dependency', () => {
+    const evaluator = new Evaluator({ scope: math })
+    const bindings = evaluator.evaluate_prelude('const Formula = () => <Latex font-size={px(36)}>a+b=c</Latex>')
+    const configured = evaluator.evaluate('<Formula />', { scope: bindings })
     const source = evaluate('<Latex font-size={px(36)}>a+b=c</Latex>', { scope: math })
+    near(pass.layout(configured).math!.advance, width('a+b=c'))
     near(pass.layout(source).math!.advance, width('a+b=c'))
+    expect(() => new Evaluator().evaluate('<Latex>x</Latex>')).toThrow()
     expect(() => evaluate('<Latex>x</Latex>')).toThrow()
   })
 })

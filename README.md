@@ -39,9 +39,20 @@ const pass = new LayoutPass({ fonts: { value: fonts, version: fonts.version } })
 const svg = render_svg(pass.layout(source))
 ```
 
-Core has no dependency on this package. Custom JSX hosts pass the package's
-exports through `evaluate(code, { scope: math })`. Source construction performs
-no parsing, font loading, or measurement. Font registration records asset URLs;
+Core has no dependency on this package. Custom JSX hosts can configure its
+exports once on an evaluator:
+
+```ts
+import { Evaluator } from '@gum-jsx/core'
+import * as math from '@gum-jsx/math'
+
+const evaluator = new Evaluator({ scope: math })
+const source = evaluator.evaluate('<Latex>a+b=c</Latex>')
+```
+
+For a single call, `evaluate(code, { scope: math })` also works. Constructing an
+evaluator or a source element performs no parsing, font loading, or measurement.
+Font registration records asset URLs;
 browser bundlers must support TTF imports. `loadBaseMathFonts(fonts)` loads the
 seven base faces; `loadMathFonts(fonts)` loads all eighteen. Concurrent loads
 share work and failed loads can be retried. Exported SVGs contain paths and do
