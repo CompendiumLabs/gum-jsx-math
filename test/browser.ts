@@ -59,11 +59,11 @@ const html = `<!doctype html><html><meta charset="utf-8"><title>Gum math browser
 <style>body{font:16px sans-serif;margin:24px;background:#f6f7f9;color:#182330}figure{margin:12px 0;padding:16px;background:white;border:1px solid #ddd}svg{display:block}pre{white-space:pre-wrap}</style>
 <h1>Gum math · browser verification</h1><pre id="status">Loading…</pre><main></main>
 <script type="module">
-import {renderGum} from '/assets/${bundle}';
 const status = document.querySelector('#status');
 const fontRequests = () => performance.getEntriesByType('resource').filter(item => item.name.endsWith('.ttf'));
 const expectedFontCount = 25; // Six Plex faces, eighteen KaTeX faces, and emoji metrics.
 try {
+  const {renderGum} = await import('/assets/${bundle}');
   if (fontRequests().length) throw Error('Importing the math renderer loaded fonts');
   const sources = ${JSON.stringify(browserSources)};
   const results = await Promise.all(sources.map(source => renderGum(source)));
