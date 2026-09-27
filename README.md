@@ -276,6 +276,10 @@ supported syntax. See [matrices](https://github.com/CompendiumLabs/gum-jsx-docs/
 
 ## Verification
 
+Run `bun run perf` in this package for TeX parsing, layout, SVG, and inline-math
+benchmarks. It supports `--list`, `--filter <regex>`, `--smoke`, and `--json`.
+See [performance workloads and methodology](test/perf/README.md).
+
 From the workspace root:
 
 ```sh
