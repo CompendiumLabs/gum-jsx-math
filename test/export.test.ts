@@ -101,20 +101,23 @@ describe('standalone math exports', () => {
     expect(pass.layout(mathToElement('x', { width: px(0), height: px(0) })).ink).toBeNull()
   })
 
-  test('direct Gum operands use the same export, and labels and SVG options survive', () => {
+  test('direct Gum operands use the same export, preserving fragment labels and SVG options', () => {
     const { pass } = setup()
     const source = mathToElement(new Rect({ width: px(80), height: px(50), fill: 'blue', stroke: 'none' }), { strut: false })
     expect(pass.layout(source).size).toEqual({ width: 80, height: 50 })
     const svg = mathToSvg('x<y', { title: 'A < B & C', background: 'white', id_prefix: 'export-test' })
     expect(svg).toContain('<title>A &lt; B &amp; C</title>')
-    expect(svg).toContain('aria-label="x&lt;y"')
+    expect(svg).not.toMatch(/role=|aria-label=/)
+    expect(formula(pass.layout(mathToElement('x<y'))).fragment.label).toBe('x<y')
     expect(svg).toContain('id="export-test-clip-')
     expect(svg).toContain('fill="white"')
     expect(svg).not.toMatch(/<text|@font-face|\.ttf/)
     expect(inspect_fragment(pass.layout(mathToElement('x^2')))).toContain('MathViewport')
     expect(() => mathToSvg('x', { id_prefix: '1invalid' })).toThrow('identifier')
     expect(() => mathToSvg(String.raw`\phase{x}`)).toThrow('unsupported:')
-    expect(mathToSvg('{', { on_error: 'render' }).includes('parse:')).toBe(true)
+    const diagnostic = pass.layout(mathToElement('{', { on_error: 'render' }))
+    expect(formula(diagnostic).fragment.label).toContain('parse:')
+    expect(mathToSvg('{', { on_error: 'render' })).toBe(render_svg(diagnostic))
   })
 
   test('export fitting props scale the complete ink-safe viewport without a wrapper', () => {
