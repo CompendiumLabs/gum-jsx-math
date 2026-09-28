@@ -9,7 +9,7 @@ bun run perf --json > /tmp/math-perf.json
 ```
 
 Run these from this repository after installing development dependencies. The
-workspace root also provides `bun run perf:math`; `bun run perf` includes all three
+workspace root also provides `bun run perf:math`; `bun run perf` includes all four
 suites in sequence. Every command accepts the same flags. Filters are regular
 expressions over full case names; unknown flags and filters with no matches fail.
 
