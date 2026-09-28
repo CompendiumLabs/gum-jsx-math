@@ -1,3 +1,4 @@
+import { FREEZE_ENABLED } from '@gum-jsx/core'
 import { describe, test, expect } from 'bun:test'
 import { Svg, Rect, LayoutPass, FontNotLoadedError, px, em, make_request,
   available, exact, render_svg, inspect_fragment } from '@gum-jsx/core'
@@ -17,8 +18,8 @@ describe('standalone math exports', () => {
     const options = { macros: { '\\f': 'x' }, padding: { left: px(3) } }
     const source = mathToElement(String.raw`\f`, options)
     options.macros['\\f'] = 'y'; options.padding.left = px(100)
-    expect(Object.isFrozen(source)).toBe(true)
-    expect(Object.isFrozen(source.props.children)).toBe(true)
+    expect(Object.isFrozen(source)).toBe(FREEZE_ENABLED)
+    expect(Object.isFrozen(source.props.children)).toBe(FREEZE_ENABLED)
     expect(source).toBeInstanceOf(Svg)
     const { pass } = setup()
     expect(render_svg(pass.layout(source))).toBe(mathToSvg(String.raw`\f`, { macros: { '\\f': 'x' }, padding: { left: px(3) } }))

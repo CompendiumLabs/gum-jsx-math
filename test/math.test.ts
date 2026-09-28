@@ -1,3 +1,4 @@
+import { FREEZE_ENABLED } from '@gum-jsx/core'
 import { describe, test, expect } from 'bun:test'
 import { Fonts, LayoutPass, LayoutError, FontNotLoadedError,
   make_request, available, exact, px, em, render_svg, Evaluator, evaluate, define_component } from '@gum-jsx/core'
@@ -35,7 +36,7 @@ describe('glyph and font contracts', () => {
     const source = new Latex(args)
     args.children = 'changed'
     expect(source.props.children).toBe(String.raw`\frac{`)
-    expect(Object.isFrozen(source)).toBe(true)
+    expect(Object.isFrozen(source)).toBe(FREEZE_ENABLED)
     expect(new MathSpan({ children: 'x', font_family: 'unregistered' }).props.children).toBe('x')
     expect(cause(source).kind).toBe('parse')
   })

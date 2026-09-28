@@ -71,6 +71,11 @@ try {
     if (result.kind !== 'svg') throw Error('Expected an SVG render result');
     return result.svg;
   });
+  const policy = await renderGum('return { point: Object.isFrozen(px(1)), props: Object.isFrozen(new Rect().props), native: Object.isFrozen(Object.freeze({})) }');
+  const expectedFreeze = ${JSON.stringify(process.env.GUM_FREEZE === '1')};
+  if (policy.kind !== 'value') throw Error('Expected freeze policy diagnostic');
+  const checks = JSON.parse(policy.text);
+  if (checks.point !== expectedFreeze || checks.props !== expectedFreeze || !checks.native) throw Error('Browser freeze policy differs from the build setting');
   const expected = ${JSON.stringify(expectedExports)};
   if (svgs.slice(-expected.length).some((svg, index) => svg !== expected[index])) throw Error('Browser exports differ from library SVG');
   for (const svg of svgs) {

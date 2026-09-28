@@ -1,3 +1,4 @@
+import { FREEZE_ENABLED } from '@gum-jsx/core'
 import { expect, test } from 'bun:test'
 import { LayoutPass, Rect, Text, Plot, Polyline, Span, Box, px, em, make_request,
   available, exact, resolve_style, render_svg, evaluate } from '@gum-jsx/core'
@@ -235,7 +236,7 @@ test('environment styles, delimiters and arraystretch reflect the completed tabl
     .find(node => node.kind === 'array')!
   expect(data).toMatchObject({ kind: 'array', outer: true, rowgaps: [{ value: -2, unit: 'pt' }], hlines: [[false], [true], []] })
   const source = new Latex({ children: String.raw`\begin{matrix}x&y\end{matrix}` })
-  expect(Object.isFrozen(source.props)).toBe(true)
+  expect(Object.isFrozen(source.props)).toBe(FREEZE_ENABLED)
 })
 
 test('arrays preserve explicit Gum operands, inline baselines, cache reuse and overflow under narrow offers', () => {

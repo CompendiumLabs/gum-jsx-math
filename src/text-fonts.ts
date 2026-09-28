@@ -1,5 +1,6 @@
+import { freeze_owned } from '@gum-jsx/core'
 type TextFont = Readonly<{ family: 'main' | 'sans' | 'mono'; bold: boolean; italic: boolean }>
-const DEFAULT_TEXT_FONT: TextFont = Object.freeze({ family: 'main', bold: false, italic: false })
+const DEFAULT_TEXT_FONT: TextFont = freeze_owned({ family: 'main', bold: false, italic: false })
 
 function text_command(font: TextFont, command: string): TextFont | undefined {
   switch (command) {

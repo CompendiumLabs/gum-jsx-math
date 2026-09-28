@@ -1,3 +1,4 @@
+import { FREEZE_ENABLED } from '@gum-jsx/core'
 import { describe, expect, test } from 'bun:test'
 import { LayoutPass, px, em, make_request, available, exact, render_svg, evaluate } from '@gum-jsx/core'
 import type { Fragment, MathStyle, Element, FontProvider } from '@gum-jsx/core'
@@ -203,7 +204,7 @@ describe('fractions, roots, and delimiters', () => {
     expect(tiny.size.height).toBeLessThan(a.size.height)
     expect(calls).toBe(count)
     expect(local.stats.hits).toBeGreaterThan(0)
-    expect(Object.isFrozen(a.children[1].fragment)).toBe(true)
+    expect(Object.isFrozen(a.children[1].fragment)).toBe(FREEZE_ENABLED)
   })
 
   test('common formulas render through both parsed TeX and multiline JSX', () => {

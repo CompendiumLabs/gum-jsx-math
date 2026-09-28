@@ -1,4 +1,4 @@
-import { make_measure, Element, Text, Span, LayoutError, make_request, make_size, make_point, make_fragment,
+import { freeze_owned, make_measure, Element, Text, Span, LayoutError, make_request, make_size, make_point, make_fragment,
   place_fragment, resolve_style, definite_reference, layout_content, resolve_insets,
   resolve_alignment, resolve_length, em } from '@gum-jsx/core'
 import type { Child, LayoutQuery, MathContext, MathMetrics, MathSizeStyle, Fragment, Style, Length, InsetSpec,
@@ -183,7 +183,7 @@ function prepare_items(props: MathTextProps, query: LayoutQuery, context: MathCo
     collect(props.children, query.style, context, {
       display: context.style.startsWith('display'), macros: props.macros, warnings: props.warnings,
     })
-    return Object.freeze(result.map(item => Object.freeze(item)))
+    return freeze_owned(result.map(item => freeze_owned(item)))
   })
 }
 

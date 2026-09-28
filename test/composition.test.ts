@@ -1,3 +1,4 @@
+import { FREEZE_ENABLED } from '@gum-jsx/core'
 import { expect, test } from 'bun:test'
 import { LayoutPass, Text, Span, Rect, Circle, Plot, Polyline, Box, TextRow,
   Rotate, TransformBox, TextBox, TitleBox, TextFigure, Bullets, Slide, px, em,
@@ -175,7 +176,7 @@ test('shared formula sources keep style and placement local while reusing prepar
   const row = local.layout(new MathRow({ children: formula }), make_request(), context)
   near(row.children[0].fragment.size.width, parts[0].size.width)
   expect(render_svg(natural)).toBe(saved)
-  expect(Object.isFrozen(natural.children[0].fragment.children[0])).toBe(true)
+  expect(Object.isFrozen(natural.children[0].fragment.children[0])).toBe(FREEZE_ENABLED)
   expect(named(narrow, 'MathText')[0].size).toEqual(parts[0].size)
   expect(formula.props.style).toBeUndefined()
 })

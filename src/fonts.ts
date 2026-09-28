@@ -1,5 +1,5 @@
 /// <reference path="./assets.d.ts" />
-import { Fonts } from '@gum-jsx/core'
+import { Fonts, freeze_owned } from '@gum-jsx/core'
 import MathItalic from 'katex/dist/fonts/KaTeX_Math-Italic.ttf'
 import Main from 'katex/dist/fonts/KaTeX_Main-Regular.ttf'
 import AMS from 'katex/dist/fonts/KaTeX_AMS-Regular.ttf'
@@ -32,7 +32,7 @@ export function font_url(path: string, base: string): URL {
 
 // Each name denotes one exact face. Outlines need no CSS family/weight mapping.
 // Imports resolve to paths in Bun and asset URLs in a browser build; no I/O here.
-const MATH_FONT_PATHS = Object.freeze({
+const MATH_FONT_PATHS = freeze_owned({
   KaTeX_Math: MathItalic, KaTeX_Main: Main, KaTeX_AMS: AMS,
   KaTeX_Size1: Size1, KaTeX_Size2: Size2, KaTeX_Size3: Size3, KaTeX_Size4: Size4,
   'KaTeX_Main-Bold': MainBold, 'KaTeX_Main-Italic': MainItalic,
@@ -42,11 +42,11 @@ const MATH_FONT_PATHS = Object.freeze({
   'KaTeX_SansSerif-Italic': SansSerifItalic, KaTeX_Typewriter: Typewriter,
 })
 type MathFont = keyof typeof MATH_FONT_PATHS
-const MATH_FONTS = Object.freeze(Object.keys(MATH_FONT_PATHS) as MathFont[])
-const MATH_BASE_FONTS: readonly MathFont[] = Object.freeze([
+const MATH_FONTS = freeze_owned(Object.keys(MATH_FONT_PATHS) as MathFont[])
+const MATH_BASE_FONTS: readonly MathFont[] = freeze_owned([
   'KaTeX_Math', 'KaTeX_Main', 'KaTeX_AMS', 'KaTeX_Size1', 'KaTeX_Size2', 'KaTeX_Size3', 'KaTeX_Size4',
 ])
-const MATH_EXTRA_FONTS = Object.freeze(MATH_FONTS.filter(name => !MATH_BASE_FONTS.includes(name)))
+const MATH_EXTRA_FONTS = freeze_owned(MATH_FONTS.filter(name => !MATH_BASE_FONTS.includes(name)))
 
 function registerMathFonts(fonts: Fonts): Fonts {
   for (const name of MATH_FONTS) fonts.register_url(name, font_url(MATH_FONT_PATHS[name], import.meta.url))

@@ -1,4 +1,4 @@
-import { Arrow, ArrowHead, Arc, Line, Polyline, arrow_barb, draw_path, exact, make_fragment,
+import { freeze_owned, Arrow, ArrowHead, Arc, Line, Polyline, arrow_barb, draw_path, exact, make_fragment,
   make_request, make_size, place_fragment, px, resolve_style } from '@gum-jsx/core'
 import type { ArrowBarbSide, Element, LayoutQuery, PathCommand, Placement, PositionValue } from '@gum-jsx/core'
 import { math_metrics, MATH_AXIS } from './metrics'
@@ -6,7 +6,7 @@ import { MathError } from './errors'
 
 type Point = readonly [number, number]
 type StretchEntry = Readonly<{ height: number; min_width: number; thickness?: number }>
-const STRETCH: Readonly<Record<string, StretchEntry>> = Object.freeze(Object.fromEntries([
+const STRETCH: Readonly<Record<string, StretchEntry>> = freeze_owned(Object.fromEntries([
   ...['overrightarrow', 'overleftarrow', 'underrightarrow', 'underleftarrow',
     'overleftrightarrow', 'underleftrightarrow', 'overleftharpoon', 'overrightharpoon',
     'overlinesegment', 'underlinesegment'].map(name => [name, { height: 0.522, min_width: 0.888 }]),
