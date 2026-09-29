@@ -1,7 +1,7 @@
 import { FREEZE_ENABLED } from '@gum-jsx/core'
 import { describe, test, expect } from 'bun:test'
-import { Svg, Rect, LayoutPass, FontNotLoadedError, px, em, make_request,
-  available, exact, render_svg, inspect_fragment } from '@gum-jsx/core'
+import { Svg, Rect, Text, LayoutPass, FontNotLoadedError, px, em, make_request,
+  available, exact, layout_element, render_element, render_svg, inspect_fragment } from '@gum-jsx/core'
 import type { Fragment, FontProvider } from '@gum-jsx/core'
 import { Latex, mathToElement, mathToElementAsync, mathToSvg, mathToSvgAsync,
   createMathFonts, MATH_FONT_PATHS } from '../src'
@@ -14,6 +14,75 @@ function near(a: number, b: number) { expect(a).toBeCloseTo(b, 8) }
 function formula(fragment: Fragment) { return fragment.children[0].fragment.children[0] }
 
 describe('standalone math exports', () => {
+  test('live text mode emits text through nested math without changing layout', () => {
+    const sources = [
+      'x^2+y_1',
+      String.raw`\int_0^\infty e^{-x^2}\,dx=\frac{\sqrt{\pi}}{2}`,
+      String.raw`\sum_{n=0}^\infty\frac{x^n}{n!}`,
+      String.raw`\left(\begin{matrix}a & b \\ c & d\end{matrix}\right)`,
+      String.raw`\mathscr{A}+\mathbf{B}+\mathfrak{g}+\mathbb{R}`,
+      String.raw`\text{ a  b }+\textbf{bold $x^2$}+\operatorname{rank}(A)`,
+      String.raw`\newcommand{\f}[1]{\frac{#1}{2}}\f{x}+{\scriptstyle y}`,
+    ]
+    const geometry = (fragment: Fragment): unknown => ({
+      size: fragment.size, guides: fragment.guides, math: fragment.math,
+      ink: fragment.ink, overflow: fragment.overflow,
+      children: fragment.children.map(child => ({ offset: child.offset, transform: child.transform,
+        fragment: geometry(child.fragment) })),
+    })
+    const { pass } = setup()
+    for (const text of sources) {
+      const source = mathToElement(text, { font_size: px(48) })
+      const embedded = layout_element(source, { pass }).fragment
+      const live = layout_element(source, { pass, text_mode: 'live' }).fragment
+      expect(geometry(live)).toEqual(geometry(embedded))
+      expect(render_svg(live)).toContain('<text')
+      expect(render_svg(live)).not.toContain('<path')
+      expect(render_svg(embedded)).toContain('<path')
+      expect(render_svg(embedded)).not.toContain('<text')
+      expect(mathToSvg(text, { pass, text_mode: 'live' })).not.toContain('<path')
+      expect(mathToSvg(text, { pass })).not.toContain('<text')
+    }
+    expect(mathToSvg(String.raw`\text{ a  b }`, { text_mode: 'live' })).toContain('xml:space="preserve"')
+    expect(mathToSvg(new Text({ children: 'Gum operand' }), { pass, text_mode: 'live' })).not.toContain('<path')
+    expect(() => mathToSvg('x', { text_mode: 'no' as never })).toThrow('text_mode')
+  })
+
+  test('one rendering mode controls prose and math while retaining drawn decorations', () => {
+    const { pass } = setup()
+    const decorated = mathToSvg(String.raw`\widehat{ABC}`, { pass, text_mode: 'live' })
+    expect(decorated).toContain('<text')
+    expect(decorated).toContain('<path') // The wide hat is drawn geometry.
+    pass.set_resource('text_mode', 'live', 'live')
+    const math = new Latex({ children: 'x^2' })
+    expect(render_svg(pass.layout(math))).toContain('<text')
+    expect(render_svg(pass.layout(math))).not.toContain('<path')
+    const source = new Text({ children: ['Prose ', math] })
+    const live = render_element(source, { pass, text_mode: 'live' }).svg
+    expect(live).toContain('IBM Plex Sans')
+    expect(live).toContain('KaTeX_Math')
+    expect(live).not.toContain('<path')
+    const embedded = render_element(source, { pass }).svg
+    expect(embedded).toContain('<path')
+    expect(embedded).not.toContain('<text')
+    expect(render_element(source, { pass, text_mode: 'live' }).svg).toBe(live)
+  })
+
+  test('async helpers apply each render mode after loading shared resources', async () => {
+    const { fonts, pass } = setup()
+    const [live, embedded, source] = await Promise.all([
+      mathToSvgAsync('x^2', { pass, text_mode: 'live' }),
+      mathToSvgAsync('x^2', { pass }),
+      mathToElementAsync('x^2', { fonts }),
+    ])
+    expect(live).not.toContain('<path')
+    expect(live).toContain('<text')
+    expect(embedded).not.toContain('<text')
+    expect(embedded).toBe(mathToSvg('x^2', { pass }))
+    expect(render_element(source, { pass, text_mode: 'live' }).svg).toBe(live)
+    expect(render_element(source, { pass }).svg).toBe(embedded)
+  })
+
   test('construction is immutable and leaves parsing and resource access to layout', () => {
     const options = { macros: { '\\f': 'x' }, padding: { left: px(3) } }
     const source = mathToElement(String.raw`\f`, options)

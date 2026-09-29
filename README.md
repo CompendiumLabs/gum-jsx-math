@@ -55,7 +55,7 @@ evaluator or a source element performs no parsing, font loading, or measurement.
 Font registration records asset URLs;
 browser bundlers must support TTF imports. `loadBaseMathFonts(fonts)` loads the
 seven base faces; `loadMathFonts(fonts)` loads all eighteen. Concurrent loads
-share work and failed loads can be retried. Exported SVGs contain paths and do
+share work and failed loads can be retried. By default, exported SVGs contain paths and do
 not require page fonts. Notify a reused pass of font replacements with
 `pass.set_resource('fonts', fonts, fonts.version)`.
 
@@ -69,6 +69,7 @@ const tex = String.raw`\int_0^\infty e^{-x^2}\,dx=\frac{\sqrt\pi}{2}`
 const source = mathToElement(tex, { font_size: px(36), padding: em(0.25) })
 const svg = mathToSvg(tex, { font_size: px(36), title: 'Gaussian integral' })
 const browserSvg = await mathToSvgAsync(tex, { font_size: px(36) })
+const textSvg = mathToSvg(tex, { font_size: px(36), text_mode: 'live' })
 ```
 
 `mathToElement` returns an immutable `Svg`. Construction performs no parsing or
@@ -78,6 +79,17 @@ Each natural axis has a one-pixel floor, so empty and all-space formulas have a
 valid export. Default typography is display style at `px(24)` with a strut;
 `inline`, `style`, `strut`, `macros`, and error controls follow `Latex`.
 An existing Gum element is also accepted as the source.
+
+`text_mode` uses core's `TextRenderMode`: `'path'` (the default) or `'live'`.
+Set it to `'live'` on `mathToSvg` or `mathToSvgAsync`
+to emit SVG text for glyphs while preserving font metrics, layout, and ink
+bounds. The SVG then requires its named fonts in the viewing document;
+browser previews must load those faces before displaying it. Rules, wide
+accents, arrows, and other drawn decorations retain their vector geometry.
+This is the same rendering option used by core's `render_element` and
+`layout_element`, and it applies to both prose and math throughout a layout pass.
+Elements returned by `mathToElement` and `mathToElementAsync` use the mode chosen
+when rendering; the setting is not an element prop or part of the math context.
 
 Use Gum lengths for `font_size` and `padding`, including unit strings such as
 `"24px"` and `"0.25em"`; `width` and `height` are explicit SVG pixel

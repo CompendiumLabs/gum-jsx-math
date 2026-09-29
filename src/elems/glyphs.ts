@@ -1,4 +1,4 @@
-import { draw_path, make_size, make_point, transform_path, transform_rect, MissingGlyphError } from '@gum-jsx/core'
+import { draw_path, draw_text, make_size, make_point, transform_path, transform_rect, MissingGlyphError } from '@gum-jsx/core'
 import type { LayoutQuery, FontProvider, MathClass } from '@gum-jsx/core'
 import { MathElement, literal_text } from './base'
 import { math_context, math_font_size, MATH_AXIS, math_metrics, finish_math } from '../metrics'
@@ -32,9 +32,14 @@ function glyph_layout(props: MathSpanProps, query: LayoutQuery, text: string, fa
   const advance = shape.advance * font_size
   const matrix = [font_size, 0, 0, font_size, 0, baseline] as const
   const ink = transform_rect(shape.ink, make_point(), matrix)
-  const draw = draw_path(transform_path(shape.commands, matrix), {
+  const paint = {
     fill: query.style.color, stroke: 'none', stroke_width: 0, opacity: query.style.opacity,
-  }, ink)
+  }
+  // Keep the same metrics, baseline, ink, and italic correction in either mode.
+  const draw = query.resource<string>('text_mode') === 'live' && text
+    ? draw_text(text, make_point(0, baseline), advance,
+      { family: face, size: font_size, weight: 400, style: 'normal', color: false }, paint, ink, 'start')
+    : draw_path(transform_path(shape.commands, matrix), paint, ink)
   const character = [...text].length === 1 && shape.ink !== null
   const correction = MATH_ITALIC[face] ? MATH_ITALIC[face][text] ?? 0
     : Math.max(0, (shape.ink?.x ?? 0) + (shape.ink?.width ?? 0) - shape.advance)

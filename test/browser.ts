@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 // Exercise the actual editor production bundle: cold font loading, concurrent
-// formulas, reuse, typed errors, and self-contained outline SVG. Run after build.
-import { mkdtempSync, readdirSync, readFileSync, mkdirSync, rmSync } from 'node:fs'
+// formulas, reuse, typed errors, outline exports, and live previews. Run after build.
+import { mkdtempSync, readFileSync, mkdirSync, rmSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
@@ -9,7 +9,8 @@ import { px, em } from '@gum-jsx/core'
 import { mathToSvg } from '../src'
 
 const dist = fileURLToPath(new URL('../../gum-jsx-edit/dist/', import.meta.url))
-const bundle = readdirSync(join(dist, 'assets')).find(file => /^gum-.+\.js$/.test(file))
+const manifest = JSON.parse(readFileSync(join(dist, '.vite/manifest.json'), 'utf8'))
+const bundle = manifest['src/gum.ts']?.file
 if (!bundle) throw new Error('Run bun run build from the workspace first')
 const chrome = process.env.GUM_CHROME ?? Bun.which('chromium') ?? Bun.which('google-chrome-stable')
 if (!chrome) throw new Error('Chromium is required; set GUM_CHROME to its path')
@@ -63,10 +64,10 @@ const status = document.querySelector('#status');
 const fontRequests = () => performance.getEntriesByType('resource').filter(item => item.name.endsWith('.ttf'));
 const expectedFontCount = 25; // Six Plex faces, eighteen KaTeX faces, and emoji metrics.
 try {
-  const {renderGum} = await import('/assets/${bundle}');
+  const {renderGum} = await import('/${bundle}');
   if (fontRequests().length) throw Error('Importing the math renderer loaded fonts');
   const sources = ${JSON.stringify(browserSources)};
-  const results = await Promise.all(sources.map(source => renderGum(source)));
+  const results = await Promise.all(sources.map(source => renderGum(source, {textMode: 'path'})));
   const svgs = results.map(result => {
     if (result.kind !== 'svg') throw Error('Expected an SVG render result');
     return result.svg;
@@ -90,16 +91,24 @@ try {
   }
   const fonts = fontRequests();
   if (fonts.length !== expectedFontCount || new Set(fonts.map(item => item.name)).size !== expectedFontCount) throw Error('Font loads were missing or duplicated: '+fonts.length);
-  await renderGum(sources[0]);
+  await renderGum(sources[0], {textMode: 'path'});
   if (fontRequests().length !== expectedFontCount) throw Error('Rendering again reloaded fonts');
   for (const [source, expected] of ${JSON.stringify(failures)}) {
     let failure;
     try { await renderGum(source) } catch (error) { failure = String(error) }
     if (!failure?.includes(expected)) throw Error('Expected '+expected+' diagnostic, got '+failure);
   }
-  await renderGum(sources[0]);
+  const live = await renderGum('<Text>Live prose <Latex>x^2</Latex></Text>', {idPrefix: 'live-preview'});
+  if (live.kind !== 'svg' || !live.svg.includes('<text') || live.svg.includes('<path')) throw Error('Expected live prose and math');
+  for (const family of ['IBM Plex Sans', 'KaTeX_Math', 'KaTeX_Main']) {
+    if (![...document.fonts].some(face => face.family.replaceAll('"', '') === family && face.status === 'loaded')) throw Error('Missing browser font: '+family);
+  }
+  const preview = document.createElement('figure');
+  preview.innerHTML = live.svg; document.querySelector('main').prepend(preview);
+  const repeated = await renderGum(sources[0], {textMode: 'path'});
+  if (repeated.kind !== 'svg' || repeated.svg !== svgs[0]) throw Error('Outline export changed after a live preview');
   document.body.dataset.result = 'passed';
-  status.textContent = 'Passed: no import-time font requests; '+expectedFontCount+' faces loaded once; concurrent exports, plot labels, slides and math docs; exact browser/library SVG agreement; dark decorations; repeat rendering; parse/unsupported failures and recovery; outline SVG.';
+  status.textContent = 'Passed: no import-time font requests; '+expectedFontCount+' faces loaded once; concurrent exports, plot labels, slides and math docs; exact browser/library SVG agreement; dark decorations; repeat rendering; parse/unsupported failures and recovery; outline SVG; live prose and math with loaded browser fonts.';
 } catch (error) {
   document.body.dataset.result = 'failed'; status.textContent = String(error.stack ?? error);
 }

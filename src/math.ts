@@ -1,7 +1,7 @@
 import { Element, Svg, Fonts, LayoutPass, make_request, make_rect, make_size, make_point,
   make_fragment, place_fragment, union_rects, transform_guides, resolve_insets, finish_size, px,
-  render_svg } from '@gum-jsx/core'
-import type { ElementProps, FitSpec, LayoutQuery, LayoutRequest, InsetSpec, SvgProps, SvgOptions,
+  render_element } from '@gum-jsx/core'
+import type { ElementProps, FitSpec, LayoutQuery, RenderElementOptions, InsetSpec, SvgProps, SvgOptions,
   FontProvider } from '@gum-jsx/core'
 import { Latex } from './elems/composition'
 import type { MathTextProps } from './elems/composition'
@@ -16,7 +16,7 @@ type MathElementOptions = Pick<MathTextProps,
   height?: SvgProps['height']
 }>
 type MathResources = Readonly<{ fonts?: Fonts; pass?: LayoutPass }>
-type MathSvgOptions = MathElementOptions & SvgOptions & MathResources & Readonly<{ request?: LayoutRequest }>
+type MathSvgOptions = MathElementOptions & SvgOptions & MathResources & Pick<RenderElementOptions, 'request' | 'text_mode'>
 // Loading an element's fonts requires a caller-owned resource: resources never
 // live in the immutable source, and there is no hidden global font registry.
 type MathLoadOptions = MathElementOptions & (
@@ -75,7 +75,7 @@ function resources(options: MathResources): { pass: LayoutPass; fonts: FontProvi
 function mathToSvg(source: MathSource, options: MathSvgOptions = {}): string {
   const element = mathToElement(source, options)
   const { pass } = resources(options)
-  return render_svg(pass.layout(element, options.request), options)
+  return render_element(element, { ...options, pass }).svg
 }
 
 async function preload(options: MathResources) {
@@ -100,7 +100,7 @@ async function mathToElementAsync(source: MathSource, options: MathLoadOptions):
 async function mathToSvgAsync(source: MathSource, options: MathSvgOptions = {}): Promise<string> {
   const element = mathToElement(source, options)
   const { pass } = await preload(options)
-  return render_svg(pass.layout(element, options.request), options)
+  return render_element(element, { ...options, pass }).svg
 }
 
 export { mathToElement, mathToSvg, mathToElementAsync, mathToSvgAsync }
