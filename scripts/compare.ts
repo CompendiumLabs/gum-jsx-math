@@ -8,11 +8,11 @@ import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync, existsSync
 import { tmpdir } from 'node:os'
 import { join, resolve, dirname } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { createCanvas, Image } from 'canvas'
-import type { Canvas } from 'canvas'
 import katex from 'katex'
-import { LayoutPass, px, render_svg } from '@gum-jsx/core'
-import { rasterize_svg } from '@gum-jsx/png'
+import { encode } from 'fast-png'
+import { LayoutPass, px, render_svg, make_fragment, place_fragment, draw_rect, Text, PngImage } from '@gum-jsx/core'
+import type { Fragment } from '@gum-jsx/core'
+import { render_png, render_pixels } from '@gum-jsx/png'
 import { createMathFonts, mathToElement } from '../src'
 
 const BASIC = [
@@ -194,7 +194,7 @@ function gum(tex: string, directory: string): Buffer {
   const svg = render_svg(viewport, { background: 'white', title: tex })
   writeFileSync(join(directory, 'gum.svg'), svg)
   writeFileSync(join(directory, 'gum.json'), JSON.stringify(viewport, null, 2))
-  return rasterize_svg(svg, { size: viewport.size })
+  return Buffer.from(render_png(viewport, { background: 'white' }))
 }
 
 function katexPng(tex: string, directory: string): Buffer {
@@ -248,36 +248,34 @@ ${display ? `\\begin{preview}${tex}\\end{preview}` : options.inline ? `$${tex}$`
   return readFileSync(join(directory, 'latex.png'))
 }
 
-function trim(png: Buffer): Canvas {
-  const image = new Image(); image.src = png
-  const canvas = createCanvas(image.width, image.height), ctx = canvas.getContext('2d')
-  ctx.fillStyle = 'white'; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.drawImage(image, 0, 0)
-  const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height)
-  let x0 = canvas.width, y0 = canvas.height, x1 = -1, y1 = -1
-  for (let y = 0; y < canvas.height; y++) for (let x = 0; x < canvas.width; x++) {
-    const i = (y * canvas.width + x) * 4
+function trim(png: Buffer): Fragment {
+  const image = pass.layout(new PngImage({ data: `data:image/png;base64,${png.toString('base64')}` }))
+  const { data, width, height } = render_pixels(image, { background: 'white' })
+  let x0 = width, y0 = height, x1 = -1, y1 = -1
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    const i = (y * width + x) * 4
     if (765 - data[i]! - data[i + 1]! - data[i + 2]! > 24) {
       x0 = Math.min(x, x0); x1 = Math.max(x, x1); y0 = Math.min(y, y0); y1 = Math.max(y, y1)
     }
   }
-  if (x1 < 0) return createCanvas(24, 24)
-  if (x0 === 0 || y0 === 0 || x1 === canvas.width - 1 || y1 === canvas.height - 1) {
+  if (x1 < 0) return make_fragment({ size: { width: 24, height: 24 } })
+  if (x0 === 0 || y0 === 0 || x1 === width - 1 || y1 === height - 1) {
     throw new Error('Ink reaches the image edge; enlarge --window or check the viewport')
   }
-  const width = x1 - x0 + 1, height = y1 - y0 + 1
-  const out = createCanvas(width + 24, height + 24), context = out.getContext('2d')
-  context.fillStyle = 'white'; context.fillRect(0, 0, out.width, out.height)
-  context.drawImage(canvas, x0, y0, width, height, 12, 12, width, height)
-  return out
+  const size = { width: x1 - x0 + 25, height: y1 - y0 + 25 }
+  return make_fragment({ size, clip: { x: 0, y: 0, ...size },
+    children: [place_fragment(image, [12 - x0, 12 - y0])] })
 }
 
-function diagnostic(message: string): Canvas {
-  const out = createCanvas(440, 100), ctx = out.getContext('2d')
-  ctx.fillStyle = 'white'; ctx.fillRect(0, 0, out.width, out.height)
-  ctx.fillStyle = '#b42318'; ctx.font = '14px monospace'
+function label(text: string, x: number, y: number, size: number, color: string, mono = false) {
+  return place_fragment(pass.layout(new Text({ children: text, font_size: px(size), color,
+    font_family: mono ? 'IBM Plex Mono' : 'IBM Plex Sans' })), [x, y])
+}
+
+function diagnostic(message: string): Fragment {
   const lines = message.match(/.{1,48}/g) ?? []
-  lines.slice(0, 5).forEach((line, index) => ctx.fillText(line, 12, 20 + index * 17))
-  return out
+  return make_fragment({ size: { width: 440, height: 100 },
+    children: lines.slice(0, 5).map((line, index) => label(line, 12, 4 + index * 17, 14, '#b42318', true)) })
 }
 
 try {
@@ -289,12 +287,12 @@ try {
       try {
         const png = (name === 'Gum' ? gum : name === 'KaTeX' ? katexPng : latex)(tex, directory)
         writeFileSync(join(directory, `${name.toLowerCase()}.png`), png)
-        const canvas = trim(png)
-        if (expected_ink.get(tex) && canvas.width === 24 && canvas.height === 24) {
+        const panel = trim(png)
+        if (expected_ink.get(tex) && panel.size.width === 24 && panel.size.height === 24) {
           throw new Error('Renderer produced no visible ink for a nonempty formula; check the viewport')
         }
-        console.error(`${index + 1}/${formulas.length} ${name}: ${canvas.width - 24}×${canvas.height - 24} ink px`)
-        return canvas
+        console.error(`${index + 1}/${formulas.length} ${name}: ${panel.size.width - 24}×${panel.size.height - 24} ink px`)
+        return panel
       } catch (error) {
         failed = true
         const message = error instanceof Error ? error.message : String(error)
@@ -303,21 +301,25 @@ try {
       }
     })
   })
-  const column = Math.max(260, ...rows.flatMap(row => row.map(panel => panel.width))) + 32
-  const heights = rows.map(row => Math.max(...row.map(panel => panel.height)) + 68)
-  const out = createCanvas(column * names.length, 44 + heights.reduce((a, b) => a + b, 0))
-  const ctx = out.getContext('2d')
-  ctx.fillStyle = 'white'; ctx.fillRect(0, 0, out.width, out.height)
-  ctx.fillStyle = '#333'; ctx.font = '20px sans-serif'
-  names.forEach((name, index) => ctx.fillText(`${name} · ${font_size} px/em`, index * column + 16, 28))
+  const column = Math.max(260, ...rows.flatMap(row => row.map(panel => panel.size.width))) + 32
+  const heights = rows.map(row => Math.max(...row.map(panel => panel.size.height)) + 68)
+  const size = { width: column * names.length, height: 44 + heights.reduce((a, b) => a + b, 0) }
+  // Rasterize one row at a time so long galleries do not need one enormous
+  // WASM surface. Assemble their exact pixels before the final PNG encoding.
+  const pixels = new Uint8Array(size.width * size.height * 4)
+  const headers = names.map((name, index) => label(`${name} · ${font_size} px/em`, index * column + 16, 8, 20, '#333'))
+  pixels.set(render_pixels(make_fragment({ size: { width: size.width, height: 44 }, children: headers }),
+    { background: 'white' }).data)
   let y = 44
   rows.forEach((row, index) => {
-    ctx.fillStyle = '#eef0f3'; ctx.fillRect(0, y, out.width, 30)
-    ctx.fillStyle = '#445'; ctx.font = '14px monospace'; ctx.fillText(formulas[index]!, 16, y + 20)
-    row.forEach((panel, columnIndex) => ctx.drawImage(panel, columnIndex * column + 16, y + 38))
+    const strip = draw_rect({ x: 0, y: 0, width: size.width, height: 30 }, { fill: '#eef0f3', stroke: 'none', stroke_width: 0 })
+    const children = [label(formulas[index]!, 16, 4, 14, '#445', true),
+      ...row.map((panel, columnIndex) => place_fragment(panel, [columnIndex * column + 16, 38]))]
+    const fragment = make_fragment({ size: { width: size.width, height: heights[index]! }, draw: [strip], children })
+    pixels.set(render_pixels(fragment, { background: 'white' }).data, y * size.width * 4)
     y += heights[index]!
   })
-  const output = out.toBuffer('image/png')
+  const output = encode({ ...size, data: pixels })
   if (options.output) {
     mkdirSync(dirname(resolve(options.output)), { recursive: true })
     writeFileSync(options.output, output)

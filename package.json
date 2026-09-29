@@ -18,9 +18,9 @@
     "katex": "0.16.47"
   },
   "devDependencies": {
+    "fast-png": "^8.0.0",
     "mitata": "1.0.34",
     "@types/bun": "latest",
-    "canvas": "^3.2.3",
     "commander": "^14.0.3",
     "@gum-jsx/png": "2.0.0-beta.2",
     "typescript": "^7"
