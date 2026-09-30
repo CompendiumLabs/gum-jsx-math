@@ -1,6 +1,6 @@
 {
   "name": "@gum-jsx/math",
-  "description": "Math elements and TeX parsing for gum-jsx.",
+  "description": "Math elements and TeX parsing for Gum.",
   "type": "module",
   "module": "src/index.ts",
   "types": "src/index.ts",
