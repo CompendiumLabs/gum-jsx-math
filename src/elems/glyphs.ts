@@ -35,10 +35,11 @@ function glyph_layout(props: MathSpanProps, query: LayoutQuery, text: string, fa
   const paint = {
     fill: query.style.color, stroke: 'none', stroke_width: 0, opacity: query.style.opacity,
   }
-  // Keep the same metrics, baseline, ink, and italic correction in either mode.
+  // Mixed mode keeps math outlined. Metrics, baseline, ink, and italic correction
+  // stay the same in every mode.
   const draw = query.resource<string>('text_mode') === 'live' && text
     ? draw_text(text, make_point(0, baseline), advance,
-      { family: face, size: font_size, weight: 400, style: 'normal', color: false }, paint, ink, 'start')
+      { family: face, size: font_size, weight: 400, style: 'normal', color: false }, paint, ink, 'start', shape.glyphs)
     : draw_path(transform_path(shape.commands, matrix), paint, ink)
   const character = [...text].length === 1 && shape.ink !== null
   const correction = MATH_ITALIC[face] ? MATH_ITALIC[face][text] ?? 0

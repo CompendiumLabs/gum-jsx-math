@@ -80,7 +80,8 @@ valid export. Default typography is display style at `px(24)` with a strut;
 `inline`, `style`, `strut`, `macros`, and error controls follow `Latex`.
 An existing Gum element is also accepted as the source.
 
-`text_mode` uses core's `TextRenderMode`: `'path'` (the default) or `'live'`.
+`text_mode` uses core's `TextRenderMode`: `'path'` (the default), `'live'`, or `'mixed'`.
+Mixed mode keeps math glyphs outlined while allowing prose to remain live text.
 Set it to `'live'` on `mathToSvg` or `mathToSvgAsync`
 to emit SVG text for glyphs while preserving font metrics, layout, and ink
 bounds. The SVG then requires its named fonts in the viewing document;
