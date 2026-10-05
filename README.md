@@ -1,11 +1,10 @@
 # @gum-jsx/math
 
+[Gum](https://github.com/CompendiumLabs/gum-jsx) — installation, quickstart, and user documentation.
+
 TeX parsing and mathematical layout for Gum, including fractions, scripts,
 matrices, aligned equations, and formulas embedded in text or figures. KaTeX
 supplies parsing and fonts; Gum lays out the formulas and emits glyph outlines.
-
-See the [Gum project](https://github.com/CompendiumLabs/gum-jsx#readme) for
-getting started and the package overview.
 
 ## Use
 
@@ -307,8 +306,7 @@ bun run compare 'a\!b' --inline -S 96 -o /tmp/negative-glue.png
 
 The first two commands run the package checks. The browser check additionally
 requires the editor build and Chromium. Use `bun run compare --help` for focused
-comparison suites and output options. KaTeX is pinned to **0.16.47**; see the
-[math roadmap](https://github.com/CompendiumLabs/gum-jsx/blob/master/docs/MATH.md) for implementation history.
+comparison suites and output options. KaTeX is pinned to **0.16.47**.
 
 The comparison script adapts gum-1's tool. It rasterizes Gum outlines, captures
 KaTeX HTML in Chromium, and runs `pdflatex` plus `pdftoppm`, at the same pixels
