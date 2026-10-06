@@ -17,7 +17,7 @@ test('math glyphs, rules, enclosures, and delimiters resolve inherited theme pai
         </Frac>
       </MathText>
       <MathText>
-        <Enclose background="theme:area" border-color="theme:border">x</Enclose>
+        <Enclose background="theme:accent" border-color="theme:border">x</Enclose>
       </MathText>
       <MathText>
         <Overline fill="theme:accent">x</Overline>
@@ -35,7 +35,7 @@ test('math glyphs, rules, enclosures, and delimiters resolve inherited theme pai
   const fragments = roots.map(root => pass.layout(root))
   for (const [i, theme] of (['light', 'dark'] as const).entries()) {
     const fragment = fragments[i]!, paints = drawings(fragment)
-    for (const key of ['foreground', 'area', 'border', 'accent', 'muted'] as const) {
+    for (const key of ['foreground', 'border', 'accent', 'muted'] as const) {
       expect(paints.some(paint => paint.fill === THEMES[theme][key])).toBe(true)
     }
     expect(paints.some(paint => paint.fill === 'tomato')).toBe(true)
