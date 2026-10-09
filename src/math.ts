@@ -6,6 +6,7 @@ import type { ElementProps, FitSpec, LayoutQuery, RenderElementOptions, InsetSpe
 import { Latex } from './elems/composition'
 import type { MathTextProps } from './elems/composition'
 import { createMathFonts } from './fonts'
+import type { MathFontProvider } from './font-provider'
 
 type MathSource = string | Element
 type MathElementOptions = Pick<MathTextProps,
@@ -15,11 +16,11 @@ type MathElementOptions = Pick<MathTextProps,
   width?: SvgProps['width']
   height?: SvgProps['height']
 }>
-type MathResources = Readonly<{ fonts?: Fonts; pass?: LayoutPass }>
+type MathResources = Readonly<{ fonts?: Fonts; math_fonts?: MathFontProvider; pass?: LayoutPass }>
 type MathSvgOptions = MathElementOptions & SvgOptions & MathResources & Pick<RenderElementOptions, 'request' | 'text_mode'>
 // Loading an element's fonts requires a caller-owned resource: resources never
 // live in the immutable source, and there is no hidden global font registry.
-type MathLoadOptions = MathElementOptions & (
+type MathLoadOptions = MathElementOptions & Pick<MathResources, 'math_fonts'> & (
   Readonly<{ fonts: Fonts; pass?: LayoutPass }> | Readonly<{ pass: LayoutPass; fonts?: Fonts }>
 )
 
@@ -60,7 +61,7 @@ function mathToElement(source: MathSource, options: MathElementOptions = {}): Sv
 }
 
 function resources(options: MathResources): { pass: LayoutPass; fonts: FontProvider } {
-  const { pass: supplied, fonts: supplied_fonts } = options
+  const { pass: supplied, fonts: supplied_fonts, math_fonts } = options
   const existing = supplied?.resource<FontProvider>('fonts')
   if (existing && supplied_fonts && existing !== supplied_fonts) {
     throw new TypeError('fonts must be the same resource used by pass')
@@ -69,6 +70,7 @@ function resources(options: MathResources): { pass: LayoutPass; fonts: FontProvi
   const pass = supplied ?? new LayoutPass({ fonts: { value: fonts, version: fonts instanceof Fonts ? fonts.version : 0 } })
   // A caller can register/replace faces between calls with the same pass.
   if (fonts instanceof Fonts) pass.set_resource('fonts', fonts, fonts.version)
+  if (math_fonts) pass.set_resource('math_fonts', math_fonts, 0)
   return { pass, fonts }
 }
 

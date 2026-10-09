@@ -282,14 +282,13 @@ test('arrays preserve explicit Gum operands, inline baselines, cache reuse and o
   expect(() => pass.layout(relative, make_request({ width: available(200) }), context)).toThrow('definite')
 })
 
-test('invalid tables and deferred tags/CD fail visibly without breaking subsequent renders', () => {
+test('invalid tables and deferred CD fail visibly without breaking subsequent renders', () => {
   for (const props of [{ ncol: 0 }, { ncol: 1.5 }, { stretch: 0 }, { stretch: Infinity },
     { cols: 'cx' }, { thickness: px(-1) },
     { children: [['x']], rowgaps: [em(1), em(2)] }, { children: [], hlines: [[], []] }] as MathArrayProps[]) {
     expect(() => array(props)).toThrow()
   }
-  for (const text of [String.raw`\begin{CD}a\end{CD}`, String.raw`\begin{equation}x\tag{1}\end{equation}`,
-    String.raw`\begin{align*}a&=b\tag{A}\end{align*}`, String.raw`x\tag{1}`]) {
+  for (const text of [String.raw`\begin{CD}a\end{CD}`]) {
     expect(() => formula(text)).toThrow('unsupported:')
     expect(pass.layout(new Latex({ children: text, on_error: 'render' })).label).toContain('unsupported:')
   }

@@ -1,12 +1,13 @@
+import { math_fonts } from '../font-provider'
 import { make_measure, draw_rect, make_rect, make_size, make_fragment, make_point, place_fragment, resolve_length, theme_color } from '@gum-jsx/core'
 import type { Child, Element, ElementType, Fragment, LayoutQuery, Length, MathContext } from '@gum-jsx/core'
 import { MathElement } from './base'
 import { MathSymbol } from './glyphs'
 import { operand_source, measure_operand, advance, baseline, extent } from './operands'
-import { math_context, math_font_size, atom_metrics, math_metrics, finish_math, place_math, MATH_AXIS } from '../metrics'
+import { math_context, math_font_size, atom_metrics, math_metrics, finish_math, place_math } from '../metrics'
 import type { MathPlacement } from '../metrics'
-import { cramped_style, sup_style, sub_style, tex_metrics, font_scale } from '../styles'
-import { stretch_fragment, stretch_entry } from '../stretch'
+import { cramped_style, sup_style, sub_style } from '../styles'
+import { stretch_fragment } from '../stretch'
 import type { MathAtomProps, SymbolMode } from '../types'
 
 type MathStretchProps = MathAtomProps & Readonly<{ label?: string; thickness?: Length; head_curve?: number }>
@@ -32,7 +33,7 @@ class MathStretch extends MathElement<MathStretchProps> {
   static auto_fit = false
   static layout(props: MathStretchProps, query: LayoutQuery) {
     const f = math_font_size(query, math_context(props, query)), label = props.label ?? 'overbrace'
-    const width = query.request.width.kind === 'exact' ? query.request.width.value : stretch_entry(label).min_width * f
+    const width = query.request.width.kind === 'exact' ? query.request.width.value : math_fonts(query).stretch_metrics(label).min_width * f
     const height = query.request.height.kind === 'exact' ? query.request.height.value : undefined
     const result = stretch_fragment(label, width, f, query, thickness(props, query, f), height, props.head_curve)
     return finish_math({ ...result, math: atom(props, result.size.width, 'mrel') }, query)
@@ -42,7 +43,7 @@ class MathStretch extends MathElement<MathStretchProps> {
 function accent_body(props: AccentProps, query: LayoutQuery, cramped: boolean) {
   const math = math_context(props, query)
   const context = cramped ? { ...math, style: cramped_style(math.style) } : math
-  const source = query.prepare('accent-body', () => operand_source(props.children, context))
+  const source = query.prepare('accent-body', () => operand_source(query, props.children, context))
   return measure_operand(source, query, context, 0)
 }
 // SupSub can measure a character nucleus separately from its decoration. The
@@ -63,7 +64,7 @@ class Accent extends MathElement<AccentProps> {
   }
   static layout(props: AccentProps, query: LayoutQuery) {
     const math = math_context(props, query), f = math_font_size(query, math)
-    const body = accent_body(props, query, !props.under), bm = atom_metrics(body), be = extent(body, f)
+    const body = accent_body(props, query, !props.under), bm = atom_metrics(body), be = extent(query, body, f)
     const label = (props.accent ?? 'hat').replace(/^\\/, '')
     const stretchy = props.stretchy ?? /^(wide|over|under|Over|utilde)/.test(label)
     const skew = props.shifty !== false && bm.nucleus === 'character' ? bm.skew : 0
@@ -81,21 +82,21 @@ class Accent extends MathElement<AccentProps> {
     const width = full || stretchy ? Math.max(advance(body), accent.size.width) : advance(body)
     const bx = (width - advance(body)) / 2
     let ax = full ? (width - accent.size.width) / 2 : bx + bm.advance / 2 + skew - accent.size.width / 2
-    let axis = baseline(accent, f), y: number
+    let axis = baseline(query, accent, f), y: number
     if (stretchy) {
       ax = (width - accent.size.width) / 2 + skew
       axis = below ? 0 : accent.size.height
-      y = MATH_AXIS * f + (below ? be.depth + (label === 'utilde' ? 0.12 * f : 0) : -be.height)
+      y = math_fonts(query).axis_height * f + (below ? be.depth + (label === 'utilde' ? 0.12 * f : 0) : -be.height)
     } else if (full) {
       axis = accent.size.height
-      y = MATH_AXIS * f + 0.2 * f
+      y = math_fonts(query).axis_height * f + 0.2 * f
     }
-    else if (below) y = MATH_AXIS * f + be.depth
+    else if (below) y = math_fonts(query).axis_height * f + be.depth
     else {
       if (label === 'vec') axis = 0.714 * f
-      y = MATH_AXIS * f - Math.max(0, be.height - tex_metrics(math).x_height * f)
+      y = math_fonts(query).axis_height * f - Math.max(0, be.height - math_fonts(query).metrics(math).x_height * f)
     }
-    const result = place_math([{ fragment: body, x: bx, axis: baseline(body, f), y: MATH_AXIS * f },
+    const result = place_math(query, [{ fragment: body, x: bx, axis: baseline(query, body, f), y: math_fonts(query).axis_height * f },
       { fragment: accent, x: ax, axis, y }], width, f, atom(props, width))
     return finish_math(result, query)
   }
@@ -104,9 +105,9 @@ class Accent extends MathElement<AccentProps> {
 function line_layout(props: LineProps, query: LayoutQuery, over: boolean) {
   const math = math_context(props, query), f = math_font_size(query, math)
   const context = over ? { ...math, style: cramped_style(math.style) } : math
-  const source = query.prepare('line-body', () => operand_source(props.children, context))
+  const source = query.prepare('line-body', () => operand_source(query, props.children, context))
   const body = measure_operand(source, query, context, 0), width = advance(body)
-  const t = thickness(props, query, f) ?? tex_metrics(math).rule * f
+  const t = thickness(props, query, f) ?? math_fonts(query).metrics(math).rule * f
   if (!Number.isFinite(t) || t < 0) throw new RangeError('Decoration thickness must be nonnegative')
   const top = over ? 5 * t : 0, height = body.size.height + 5 * t
   const line = make_fragment({ name: 'DecorationRule', size: make_size(Math.max(0, width), t),
@@ -114,7 +115,7 @@ function line_layout(props: LineProps, query: LayoutQuery, over: boolean) {
       fill: theme_color(props.fill ?? query.style.color, query.style.theme), stroke: 'none', stroke_width: 0, opacity: query.style.opacity,
     })] : [] })
   return finish_math({ size: make_size(Math.max(0, width), height), math: atom(props, width),
-    guides: { baseline: baseline(body, f) + top, math_axis: baseline(body, f) + top - MATH_AXIS * f },
+    guides: { baseline: baseline(query, body, f) + top, math_axis: baseline(query, body, f) + top - math_fonts(query).axis_height * f },
     children: [place_fragment(body, make_point(0, top)), place_fragment(line, make_point(0, over ? t : height - 2 * t))] }, query)
 }
 class Overline extends MathElement<LineProps> {
@@ -130,23 +131,23 @@ class HorizBrace extends MathElement<HorizBraceProps> {
     const display_context: MathContext = { ...math, style: 'display' }
     // Braced bodies use display typography even inside scripts. Preserve the
     // surrounding em while restoring display spacing, fractions, and limits.
-    const base_context: MathContext = { ...display_context, size: math.size * font_scale(math) / font_scale(display_context) }
+    const base_context: MathContext = { ...display_context, size: math.size * math_fonts(query).font_scale(math) / math_fonts(query).font_scale(display_context) }
     const note_context = { ...math, style: over ? sup_style(math.style) : sub_style(math.style) }
-    const sources = query.prepare('brace-operands', () => ({ body: operand_source(props.children, base_context),
-      label: props.label == null || typeof props.label === 'boolean' ? undefined : operand_source(props.label, note_context) }))
+    const sources = query.prepare('brace-operands', () => ({ body: operand_source(query, props.children, base_context),
+      label: props.label == null || typeof props.label === 'boolean' ? undefined : operand_source(query, props.label, note_context) }))
     const body = measure_operand(sources.body, query, base_context, 0)
     const note = sources.label && measure_operand(sources.label, query, note_context, 1)
     const label = `${over ? 'over' : 'under'}${props.bracket ? 'bracket' : 'brace'}`
     const shape = stretch_fragment(label, advance(body), f, query, thickness(props, query, f))
-    const width = Math.max(advance(body), shape.size.width, note ? advance(note) : 0), be = extent(body, f)
-    const edge = MATH_AXIS * f + (over ? -be.height - 0.1 * f : be.depth + 0.1 * f)
+    const width = Math.max(advance(body), shape.size.width, note ? advance(note) : 0), be = extent(query, body, f)
+    const edge = math_fonts(query).axis_height * f + (over ? -be.height - 0.1 * f : be.depth + 0.1 * f)
     const items: MathPlacement[] = [
-      { fragment: body, x: (width - advance(body)) / 2, axis: baseline(body, f), y: MATH_AXIS * f },
+      { fragment: body, x: (width - advance(body)) / 2, axis: baseline(query, body, f), y: math_fonts(query).axis_height * f },
       { fragment: shape, x: (width - shape.size.width) / 2, axis: over ? shape.size.height : 0, y: edge },
     ]
     if (note) items.push({ fragment: note, x: (width - advance(note)) / 2,
       axis: over ? note.size.height : 0, y: edge + (over ? -1 : 1) * (shape.size.height + 0.2 * f) })
-    return finish_math(place_math(items, width, f, atom(props, width, 'minner')), query)
+    return finish_math(place_math(query, items, width, f, atom(props, width, 'minner')), query)
   }
 }
 
@@ -154,20 +155,20 @@ class XArrow extends MathElement<XArrowProps> {
   static layout(props: XArrowProps, query: LayoutQuery) {
     const math = math_context(props, query), f = math_font_size(query, math), label = props.label ?? 'xrightarrow'
     const upper = { ...math, style: sup_style(math.style) }, lower = { ...math, style: sub_style(math.style) }
-    const sources = query.prepare('arrow-labels', () => ({ above: operand_source(props.children, upper),
-      below: props.below == null || typeof props.below === 'boolean' ? undefined : operand_source(props.below, lower) }))
+    const sources = query.prepare('arrow-labels', () => ({ above: operand_source(query, props.children, upper),
+      below: props.below == null || typeof props.below === 'boolean' ? undefined : operand_source(query, props.below, lower) }))
     const above = measure_operand(sources.above, query, upper, 0)
     const below = sources.below && measure_operand(sources.below, query, lower, 1)
     const shape = stretch_fragment(label, Math.max(advance(above) + math_font_size(query, upper),
       below ? advance(below) + math_font_size(query, lower) : 0), f, query, thickness(props, query, f), undefined, props.head_curve)
-    const width = shape.size.width, half = shape.size.height / 2, se = extent(above, math_font_size(query, upper))
+    const width = shape.size.width, half = shape.size.height / 2, se = extent(query, above, math_font_size(query, upper))
     const items: MathPlacement[] = [
       { fragment: shape, x: 0, axis: half },
-      { fragment: above, x: (width - advance(above)) / 2, axis: baseline(above, math_font_size(query, upper)),
+      { fragment: above, x: (width - advance(above)) / 2, axis: baseline(query, above, math_font_size(query, upper)),
         y: -half - 0.111 * f - (se.depth > 0.25 * f || label.replace(/^\\/, '') === 'xleftequilibrium' ? se.depth : 0) },
     ]
     if (below) items.push({ fragment: below, x: (width - advance(below)) / 2, axis: 0, y: half + 0.111 * f })
-    return finish_math(place_math(items, width, f, atom(props, width, 'mrel')), query)
+    return finish_math(place_math(query, items, width, f, atom(props, width, 'mrel')), query)
   }
 }
 

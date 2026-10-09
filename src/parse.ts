@@ -1,3 +1,5 @@
+import { DEFAULT_MATH_FONTS } from './font-provider'
+import type { MathFontProvider } from './font-provider'
 import katex from 'katex'
 import type { KatexOptions } from 'katex'
 import { em } from '@gum-jsx/core'
@@ -6,7 +8,7 @@ import { MathError } from './errors'
 import { SYMBOL_CLASS } from './types'
 import type { SourceRange, SymbolFamily, SymbolMode, LimitPolicy, MathDimension, ArrayCol } from './types'
 import symbols from './symbols'
-import { DEFAULT_TEXT_FONT, text_command, text_font_face } from './text-fonts'
+import { DEFAULT_TEXT_FONT, text_command } from './text-fonts'
 import type { TextFont } from './text-fonts'
 
 // KaTeX's internal AST is confined to this adapter. No lexer/location instances
@@ -27,7 +29,7 @@ type Raw = {
     | { type: 'separator'; separator: string })[]
   arraystretch?: number; addJot?: boolean; hskipBeforeAndAfter?: boolean
   rowGaps?: (Raw['dimension'] | null)[]; hLinesBeforeRow?: boolean[][]
-  colSeparationType?: string; tags?: (boolean | Raw[])[]
+  colSeparationType?: string; tag?: Raw[]; tags?: (boolean | Raw[])[]
   label?: string; isStretchy?: boolean; isShifty?: boolean; isOver?: boolean; below?: Raw
   smashHeight?: boolean; smashDepth?: boolean; alignment?: string
   backgroundColor?: string; borderColor?: string
@@ -37,6 +39,7 @@ type Raw = {
 const parser = katex as typeof katex & { __parse: (source: string, options: KatexOptions) => Raw[] }
 type ParseOptions = Readonly<{
   display?: boolean
+  math_fonts?: MathFontProvider
   macros?: Readonly<Record<string, string>>
   warnings?: 'error' | 'warn' | 'ignore'
 }>
@@ -71,20 +74,16 @@ type MathSyntax = Located & (
   | Readonly<{ kind: 'middle'; text: string }>
   | Readonly<{ kind: 'scope'; body: readonly MathSyntax[]; style?: MathStyle; size_index?: number }>
   | Readonly<{ kind: 'choice'; choices: Readonly<Record<MathSizeStyle, readonly MathSyntax[]>> }>
+  | Readonly<{ kind: 'tag'; body: readonly MathSyntax[]; tag: readonly MathSyntax[] }>
   | Readonly<{ kind: 'array'; rows: readonly (readonly (readonly MathSyntax[])[])[];
       cols: readonly ArrayCol[]; stretch: number; jot: boolean; outer: boolean; small: boolean;
-      rowgaps: readonly (MathDimension | null)[]; hlines: readonly (readonly boolean[])[] }>
+      rowgaps: readonly (MathDimension | null)[]; hlines: readonly (readonly boolean[])[];
+      tags?: readonly (readonly MathSyntax[] | null)[] }>
   | Readonly<{ kind: 'unsupported'; node: string }>
 )
 
-const FONT_COMMANDS: Record<string, string> = {
-  mathrm: 'KaTeX_Main', mathit: 'KaTeX_Main-Italic', mathbf: 'KaTeX_Main-Bold',
-  mathnormal: 'KaTeX_Math', mathbb: 'KaTeX_AMS', mathcal: 'KaTeX_Caligraphic',
-  mathfrak: 'KaTeX_Fraktur', mathscr: 'KaTeX_Script', mathsf: 'KaTeX_SansSerif',
-  mathtt: 'KaTeX_Typewriter', mathsfit: 'KaTeX_SansSerif-Italic', boldsymbol: 'KaTeX_Math-BoldItalic',
-}
 const UNIT_EM: Record<string, number> = {
-  mu: 1 / 18, em: 1, ex: 0.431,
+  mu: 1 / 18, em: 1, ex: 1,
   pt: 0.1, mm: 7227 / 25400, cm: 7227 / 2540, in: 7.227, bp: 803 / 8000,
   pc: 1.2, dd: 1238 / 11570, cc: 14856 / 11570, nd: 685 / 6420, nc: 1370 / 1070, sp: 1 / 655360,
 }
@@ -108,11 +107,14 @@ function operator_nodes(nodes: RawNodes | undefined): Raw[] {
   return [
     ...(['op', 'operatorname'].includes(nodes.type) ? [nodes] : []),
     ...[nodes.body, nodes.base, nodes.sup, nodes.sub, nodes.numer, nodes.denom, nodes.index,
-      nodes.display, Array.isArray(nodes.text) ? nodes.text : undefined, nodes.script, nodes.scriptscript, nodes.below, nodes.html].flatMap(operator_nodes),
+      nodes.display, Array.isArray(nodes.text) ? nodes.text : undefined, nodes.script, nodes.scriptscript,
+      nodes.below, nodes.html, nodes.tag, ...(nodes.tags ?? []).filter(Array.isArray)].flatMap(operator_nodes),
   ]
 }
 
 function parse_math(source: string, options: ParseOptions = {}): readonly MathSyntax[] {
+  const fonts = options.math_fonts ?? DEFAULT_MATH_FONTS
+  const units: Record<string, number> = { ...UNIT_EM, ex: fonts.x_height }
   let tree: Raw[]
   try {
     const settings: KatexOptions = {
@@ -168,9 +170,9 @@ function parse_math(source: string, options: ParseOptions = {}): readonly MathSy
       throw new MathError('unsupported', `Unsupported TeX ${detail}`, source, range, node.type)
     }
     const dimension = (dim: Raw['dimension']): MathDimension => {
-      if (!dim || !(dim.unit in UNIT_EM)) return unsupported('measurement')
+      if (!dim || !(dim.unit in units)) return unsupported('measurement')
       if (dim.unit === 'em' || dim.unit === 'ex' || dim.unit === 'mu') return { value: dim.number, unit: dim.unit }
-      return { value: dim.number * UNIT_EM[dim.unit] * 10, unit: 'pt' }
+      return { value: dim.number * units[dim.unit] * 10, unit: 'pt' }
     }
     switch (node.type) {
       case 'mathord': case 'textord': case 'atom': case 'spacing': {
@@ -180,14 +182,14 @@ function parse_math(source: string, options: ParseOptions = {}): readonly MathSy
         const text = context.upright ? node.text.replace(/\u2212/g, '-').replace(/\u2217/g, '*') : node.text
         let face = font_family
         if (mode === 'text') face = context.text_face ?? (font_family && font_family !== 'auto' ? font_family
-          : text_font_face(context.text_font ?? DEFAULT_TEXT_FONT))
+          : fonts.text_font(context.text_font ?? DEFAULT_TEXT_FONT))
         else if ((!face || face === 'auto') && node.type === 'textord' && context.text_font) {
           // Nested math resets the text family, but textords retain the text
           // weight/shape. Math letters and binary/relation symbols do not.
-          face = text_font_face({ ...context.text_font, family: 'main' })
+          face = fonts.text_font({ ...context.text_font, family: 'main' })
         }
         if (mode === 'text' && context.literal) {
-          return [{ ...attr, kind: 'literal', text: face === 'KaTeX_Typewriter' && ['--', '---', '``', "''"].includes(text)
+          return [{ ...attr, kind: 'literal', text: face !== undefined && fonts.is_monospace(face) && ['--', '---', '``', "''"].includes(text)
             ? text : symbols.text[text]?.replace ?? text,
             ...(face === undefined ? {} : { font_family: face }) }]
         }
@@ -199,13 +201,13 @@ function parse_math(source: string, options: ParseOptions = {}): readonly MathSy
         return [{ ...attr, kind: 'group', body: convert(node.body, context), klass: node.mclass ?? 'mord' }]
       case 'kern': {
         const dim = node.dimension
-        if (!dim || !(dim.unit in UNIT_EM)) return unsupported('measurement')
-        return [{ ...attr, kind: 'space', advance: dim.number * UNIT_EM[dim.unit], dimension: dimension(dim) }]
+        if (!dim || !(dim.unit in units)) return unsupported('measurement')
+        return [{ ...attr, kind: 'space', advance: dim.number * units[dim.unit], dimension: dimension(dim) }]
       }
       case 'color':
         return convert(node.body, { ...context, color: node.color })
       case 'font': {
-        const face = node.font && FONT_COMMANDS[node.font]
+        const face = node.font && fonts.font_command(node.font)
         if (!face) return unsupported(`font '${node.font}'`)
         return convert(node.body, { ...context, font_family: face })
       }
@@ -225,7 +227,7 @@ function parse_math(source: string, options: ParseOptions = {}): readonly MathSy
       case 'operatorname':
         return [{ ...attr, kind: 'operator', symbol: false, center: false,
           limits: node.explicitLimits ?? (node.alwaysHandleSupSub ? (node.limits ? 'always' : 'auto') : 'never'),
-          body: convert(node.body, { ...context, font_family: 'KaTeX_Main', text_face: 'KaTeX_Main', upright: true }) }]
+          body: convert(node.body, { ...context, font_family: fonts.default_font, text_face: fonts.default_font, upright: true }) }]
       case 'supsub': {
         const base = convert(node.base, context)
         let sup = node.sup && convert(node.sup, context), sub = node.sub && convert(node.sub, context)
@@ -239,7 +241,7 @@ function parse_math(source: string, options: ParseOptions = {}): readonly MathSy
       }
       case 'accent': case 'accentUnder':
         return [{ ...attr, ...(node.mode === 'text' ? { font_family: context.text_face
-          ?? (font_family && font_family !== 'auto' ? font_family : text_font_face(context.text_font ?? DEFAULT_TEXT_FONT)) } : {}),
+          ?? (font_family && font_family !== 'auto' ? font_family : fonts.text_font(context.text_font ?? DEFAULT_TEXT_FONT)) } : {}),
           kind: 'accent', body: convert(node.base, context), label: node.label!,
           under: node.type === 'accentUnder', stretchy: node.type === 'accentUnder' || !!node.isStretchy,
           shifty: !!node.isShifty, mode: node.mode ?? 'math' }]
@@ -297,12 +299,14 @@ function parse_math(source: string, options: ParseOptions = {}): readonly MathSy
       case 'sqrt':
         return [{ ...attr, kind: 'root', body: convert(node.body, context),
           ...(node.index ? { index: convert(node.index, context) } : {}) }]
+      case 'tag':
+        return [{ ...attr, kind: 'tag', body: convert(node.body, context), tag: convert(node.tag, context) }]
       case 'array': {
         if (node.colSeparationType === 'CD') return unsupported('CD environment')
-        // Automatic numbering belongs to a future display container. Named
-        // display environments render their body without numbers; explicit
-        // tags must still fail visibly instead of disappearing from a table.
-        if (node.tags?.some(Array.isArray)) return unsupported('equation tags')
+        // Retain explicit labels by row; booleans request automatic numbering,
+        // which remains outside the standalone renderer's scope.
+        const tags = node.tags?.some(Array.isArray)
+          ? node.tags.map(tag => Array.isArray(tag) ? convert(tag, context) : null) : undefined
         if (!Array.isArray(node.body) || !node.body.every(Array.isArray)) throw new Error('Invalid KaTeX array body')
         const cols: ArrayCol[] = (node.cols ?? []).map(col => {
           if (col.type === 'separator') {
@@ -317,7 +321,8 @@ function parse_math(source: string, options: ParseOptions = {}): readonly MathSy
         return [{ ...attr, kind: 'array', rows: node.body.map(row => row.map(cell => convert(cell, context))), cols,
           stretch: node.arraystretch ?? 1, jot: node.addJot ?? false, outer: node.hskipBeforeAndAfter ?? false,
           small: node.colSeparationType === 'small', rowgaps: (node.rowGaps ?? []).map(gap => gap ? dimension(gap) : null),
-          hlines: (node.hLinesBeforeRow ?? []).map(flags => [...flags]) }]
+          hlines: (node.hLinesBeforeRow ?? []).map(flags => [...flags]),
+          ...(tags ? { tags } : {}) }]
       }
       case 'leftright':
         return [{ ...attr, kind: 'bracket', body: convert(node.body, context),

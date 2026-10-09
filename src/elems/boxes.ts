@@ -1,9 +1,9 @@
+import { math_fonts } from '../font-provider'
 import { make_measure, draw_path, draw_rect, make_rect, make_fragment, make_size, make_point, place_fragment, resolve_length, theme_color } from '@gum-jsx/core'
 import type { LayoutQuery, Length, PathCommand } from '@gum-jsx/core'
 import { MathElement } from './base'
 import { operand_source, measure_operand, advance, baseline, extent } from './operands'
-import { math_context, math_font_size, math_metrics, atom_metrics, finish_math, dimension_length, MATH_AXIS } from '../metrics'
-import { tex_metrics } from '../styles'
+import { math_context, math_font_size, math_metrics, atom_metrics, finish_math, dimension_length } from '../metrics'
 import type { MathAtomProps, MathDimension } from '../types'
 
 type PhantomProps = MathAtomProps & Readonly<{ horizontal?: boolean; vertical?: boolean }>
@@ -17,7 +17,7 @@ type EncloseProps = MathAtomProps & Readonly<{
 
 function operand(props: MathAtomProps, query: LayoutQuery) {
   const math = math_context(props, query), f = math_font_size(query, math)
-  const source = query.prepare('box-operand', () => operand_source(props.children, math))
+  const source = query.prepare('box-operand', () => operand_source(query, props.children, math))
   const body = measure_operand(source, query, math, 0)
   return { math, f, body, bm: atom_metrics(body) }
 }
@@ -28,11 +28,11 @@ function atom(props: MathAtomProps, width: number) {
 class Phantom extends MathElement<PhantomProps> {
   static layout(props: PhantomProps, query: LayoutQuery) {
     const { body, bm, f } = operand(props, query), horizontal = props.horizontal ?? true, vertical = props.vertical ?? true
-    const b = vertical ? baseline(body, f) : 0
+    const b = vertical ? baseline(query, body, f) : 0
     // No child, path, label, or overflow escapes this wrapper, even when a
     // descendant sets its own color or carries cancellation/background ink.
     return finish_math({ size: make_size(horizontal ? body.size.width : 0, vertical ? body.size.height : 0),
-      guides: { baseline: b, math_axis: b - MATH_AXIS * f }, math: { ...bm,
+      guides: { baseline: b, math_axis: b - math_fonts(query).axis_height * f }, math: { ...bm,
         advance: horizontal ? bm.advance : 0, italic: horizontal ? bm.italic : 0, skew: 0, nucleus: undefined, limits: undefined,
         left: props.left ?? props.klass ?? bm.left, right: props.right ?? props.left ?? props.klass ?? bm.right } }, query)
   }
@@ -40,10 +40,10 @@ class Phantom extends MathElement<PhantomProps> {
 
 class Smash extends MathElement<SmashProps> {
   static layout(props: SmashProps, query: LayoutQuery) {
-    const { body, f } = operand(props, query), be = extent(body, f)
+    const { body, f } = operand(props, query), be = extent(query, body, f)
     const h = (props.top ?? true) ? 0 : be.height, d = (props.bottom ?? true) ? 0 : be.depth
     return finish_math({ size: make_size(Math.max(0, advance(body)), Math.max(0, h + d)), math: atom(props, advance(body)),
-      guides: { baseline: h, math_axis: h - MATH_AXIS * f },
+      guides: { baseline: h, math_axis: h - math_fonts(query).axis_height * f },
       children: [place_fragment(body, make_point(0, h - be.height))] }, query)
   }
 }
@@ -54,7 +54,7 @@ class Lap extends MathElement<LapProps> {
     if (!['left', 'center', 'right'].includes(align)) throw new TypeError('Lap.align must be left, center, or right')
     const x = align === 'left' ? 0 : -advance(body) * (align === 'center' ? 0.5 : 1)
     return finish_math({ size: make_size(0, body.size.height), math: atom(props, 0),
-      guides: { baseline: baseline(body, f), math_axis: baseline(body, f) - MATH_AXIS * f },
+      guides: { baseline: baseline(query, body, f), math_axis: baseline(query, body, f) - math_fonts(query).axis_height * f },
       children: [place_fragment(body, make_point(x, 0))] }, query)
   }
 }
@@ -65,9 +65,9 @@ class RaiseBox extends MathElement<RaiseBoxProps> {
     const measure = make_measure(query.measure, { font_size: f })
     const shift = props.shift_dimension ? dimension_length(props.shift_dimension, query, math)
       : resolve_length(props.shift ?? 0, measure, query.measure.reference.height, 'shift')
-    const b = baseline(body, f) + shift
+    const b = baseline(query, body, f) + shift
     return finish_math({ size: body.size, math: atom(props, advance(body)),
-      guides: { baseline: b, math_axis: b - MATH_AXIS * f }, children: [place_fragment(body)] }, query)
+      guides: { baseline: b, math_axis: b - math_fonts(query).axis_height * f }, children: [place_fragment(body)] }, query)
   }
 }
 
@@ -75,7 +75,7 @@ class VCenter extends MathElement<MathAtomProps> {
   static layout(props: MathAtomProps, query: LayoutQuery) {
     const { body, f } = operand(props, query), axis = body.size.height / 2
     return finish_math({ size: body.size, math: atom(props, advance(body)),
-      guides: { math_axis: axis, baseline: axis + MATH_AXIS * f }, children: [place_fragment(body)] }, query)
+      guides: { math_axis: axis, baseline: axis + math_fonts(query).axis_height * f }, children: [place_fragment(body)] }, query)
   }
 }
 
@@ -93,7 +93,7 @@ class Enclose extends MathElement<EncloseProps> {
     const measure = make_measure(query.measure, { font_size: f })
     if (!['box', 'colorbox', 'cancel', 'bcancel', 'xcancel', 'sout'].includes(notation)) throw new TypeError('Unknown enclosure notation')
     const box = notation === 'box' || notation === 'colorbox', border = notation === 'box'
-    const t = props.thickness === undefined ? (notation.includes('cancel') ? 0.046 : tex_metrics(math).rule) * f
+    const t = props.thickness === undefined ? (notation.includes('cancel') ? 0.046 : math_fonts(query).metrics(math).rule) * f
       : resolve_length(props.thickness, measure, query.measure.reference.height, 'thickness')
     const sep = props.padding === undefined ? 0.3 * f
       : resolve_length(props.padding, measure, query.measure.reference.width, 'padding')
@@ -109,7 +109,7 @@ class Enclose extends MathElement<EncloseProps> {
         draw.push(draw_rect(rect, paint))
       }
     } else if (notation === 'sout' && t > 0) {
-      draw.push(draw_rect(make_rect(0, baseline(body, f) - 0.5 * tex_metrics(math).x_height * f - t / 2, width, t), paint))
+      draw.push(draw_rect(make_rect(0, baseline(query, body, f) - 0.5 * math_fonts(query).metrics(math).x_height * f - t / 2, width, t), paint))
     } else if (notation.includes('cancel') && t > 0) {
       const single = bm.nucleus === 'character', dx = single ? 0 : 0.2 * f, dy = single ? 0.2 * f : 0
       const a = -dx, b = width + dx, top = -dy, bottom = height + dy
@@ -123,7 +123,7 @@ class Enclose extends MathElement<EncloseProps> {
     }
     const decoration = make_fragment({ name: 'EnclosureInk', size: make_size(width, height), draw })
     return finish_math({ size: make_size(width, height), math: atom(props, width),
-      guides: { baseline: baseline(body, f) + pad, math_axis: baseline(body, f) + pad - MATH_AXIS * f },
+      guides: { baseline: baseline(query, body, f) + pad, math_axis: baseline(query, body, f) + pad - math_fonts(query).axis_height * f },
       draw: box && props.background ? [draw_rect(make_rect(0, 0, width, height),
         { ...paint, fill: theme_color(props.background, query.style.theme) })] : [],
       children: [place_fragment(body, make_point(pad, pad)), place_fragment(decoration)] }, query)

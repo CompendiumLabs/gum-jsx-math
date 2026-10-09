@@ -47,14 +47,16 @@ browserSources.push(`<Svg font-size={px(40)} color={blue}>
   </Box>
 </Svg>`)
 const exports = [String.raw`\mathllap{f}\int_0^\infty e^{-x^2}\,dx`,
-  String.raw`\smash{\widehat{ABC}}`, String.raw`\mathscr{A}+\mathbf{B}`]
+  String.raw`\smash{\widehat{ABC}}`, String.raw`\mathscr{A}+\mathbf{B}`,
+  String.raw`x=\frac{1}{2}\tag{1.16}`,
+  String.raw`\begin{align*}a&=b\tag{A}\\c&=d\tag*{B}\end{align*}`]
 const exportOptions = { font_size: px(40), padding: em(0.25), strut: false, id_prefix: 'gum-edit' }
 const expectedExports = exports.map(text => mathToSvg(text, exportOptions))
 browserSources.push(...exports.map(text => `return mathToElement(${JSON.stringify(text)}, {
   font_size: px(40), padding: em(0.25), strut: false,
 })`))
 const failures = [['{', 'parse:'], [String.raw`\phase{x}`, 'unsupported:'],
-  [String.raw`\begin{align*}a&=b\tag{A}\end{align*}`, 'unsupported:']]
+  [String.raw`\begin{CD}a\end{CD}`, 'unsupported:']]
   .map(([tex, diagnostic]) => [`<Latex>{${JSON.stringify(tex)}}</Latex>`, diagnostic])
 const html = `<!doctype html><html><meta charset="utf-8"><title>Gum math browser verification</title>
 <style>body{font:16px sans-serif;margin:24px;background:#f6f7f9;color:#182330}figure{margin:12px 0;padding:16px;background:white;border:1px solid #ddd}svg{display:block}pre{white-space:pre-wrap}</style>

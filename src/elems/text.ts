@@ -6,27 +6,19 @@ import type { MathSpanProps } from './glyphs'
 import { assemble_row, measure_items } from './composition'
 import type { MathRowProps } from './composition'
 import { math_context } from '../metrics'
-import { text_font_face } from '../text-fonts'
-import symbols from '../symbols'
+import { math_fonts } from '../font-provider'
 
 type TextModeProps = MathRowProps & Readonly<{
   family?: 'main' | 'sans' | 'mono'; bold?: boolean; italic?: boolean
 }>
 type Run = { text?: string; element?: Element; style: Style }
 
-function text_face(props: TextModeProps, style: Style): string {
-  const match = /^KaTeX_(Main|SansSerif|Typewriter)(?:-(Bold|Italic|BoldItalic))?$/.exec(style.font_family)
+function text_face(props: TextModeProps, style: Style, query: LayoutQuery): string {
   if (props.family !== undefined && !['main', 'sans', 'mono'].includes(props.family)) throw new TypeError('Unknown text family')
   for (const key of ['bold', 'italic'] as const) {
     if (props[key] !== undefined && typeof props[key] !== 'boolean') throw new TypeError(`${key} must be boolean`)
   }
-  if (props.family === undefined && props.bold === undefined && props.italic === undefined) {
-    return style.font_family.startsWith('KaTeX_') ? style.font_family : 'KaTeX_Main'
-  }
-  const family = props.family ?? (match?.[1] === 'SansSerif' ? 'sans' : match?.[1] === 'Typewriter' ? 'mono' : 'main')
-  const bold = props.bold ?? (match?.[2]?.includes('Bold') ?? false)
-  const italic = props.italic ?? (match?.[2]?.includes('Italic') ?? false)
-  return text_font_face({ family, bold, italic })
+  return math_fonts(query).text_font(props, style.font_family)
 }
 
 // A literal run uses the math text face only for its own glyphs. Nested math
@@ -61,17 +53,18 @@ class TextMode extends MathElement<TextModeProps> {
         // tabs are spaces, not glyphs; ordinary spaces remain uncollapsed.
         const text = run.text?.replace(/\r\n|[\r\n\t\v\f\u0085\u2028\u2029]/g, ' ')
         if (run.element) return [{ style: run.style, math: context, text, element: run.element }]
-        const face = text_face(props, run.style), fonts = query.resource<FontProvider>('fonts')
-        const selected = fonts.resolve(face, 400, 'normal'), pieces: { face: string; text: string }[] = []
+        const face = text_face(props, run.style, query), fonts = query.resource<FontProvider>('fonts')
+        const pieces: { face: string; text: string; source: string }[] = []
         for (const char of text ?? '') {
-          const fallback = symbols.text[char]?.font === 'ams' ? 'KaTeX_AMS' : 'KaTeX_Main'
-          const chosen = selected.has_glyphs(char) ? face
-            : fonts.resolve(fallback, 400, 'normal').has_glyphs(char) ? fallback : face
+          const fallback = math_fonts(query).text_fallback(char)
+          const glyph = math_fonts(query).glyph_font(face, char, fonts)
+          const chosen = fonts.resolve(glyph.face, 400, 'normal').has_glyphs(glyph.text) ? glyph
+            : fonts.resolve(fallback, 400, 'normal').has_glyphs(char) ? { face: fallback, text: char } : glyph
           const last = pieces.at(-1)
-          if (last?.face === chosen) last.text += char
-          else pieces.push({ face: chosen, text: char })
+          if (last?.face === chosen.face) { last.text += chosen.text; last.source += char }
+          else pieces.push({ ...chosen, source: char })
         }
-        return pieces.map(piece => ({ style: run.style, math: context, text: piece.text,
+        return pieces.map(piece => ({ style: run.style, math: context, text: piece.source,
           element: new LiteralRun({ children: piece.text, font_family: piece.face }) }))
       })
     })

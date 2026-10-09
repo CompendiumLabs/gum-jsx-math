@@ -1,12 +1,12 @@
+import { math_fonts } from '../font-provider'
 import { make_fragment, make_point, make_size, place_fragment, draw_ellipse } from '@gum-jsx/core'
 import type { LayoutQuery } from '@gum-jsx/core'
 import { MathElement } from './base'
 import { MathSpan } from './glyphs'
 import { math_children, operand_source, measure_operand } from './operands'
-import { math_context, math_font_size, atom_metrics, finish_math, MATH_AXIS } from '../metrics'
+import { math_context, math_font_size, atom_metrics, finish_math } from '../metrics'
 import type { MathAtomProps, LimitPolicy, SourceRange } from '../types'
 import symbols from '../symbols'
-import { OPERATOR_METRICS } from '../operator-metrics'
 
 type MathOpProps = MathAtomProps & Readonly<{
   symbol?: boolean; limits?: LimitPolicy | boolean; center?: boolean
@@ -35,24 +35,19 @@ class MathOp extends MathElement<MathOpProps> {
         ? (INTEGRALS.has(text!) && name !== 'intop' && name !== 'smallint' ? 'never' : 'auto')
         : (name && LIMIT_NAMES.has(name) ? 'auto' : 'never'))
       const large = math.style.startsWith('display') && name !== 'smallint'
-      const oval = text === '∯' || text === '∰'
-      const value = oval ? (text === '∯' ? '∬' : '∭') : text
-      const face = large ? 'KaTeX_Size2' : 'KaTeX_Size1'
-      const source = text === undefined ? operand_source(props.children, math) : new MathSpan({
-        children: symbol ? value : name, font_family: symbol ? face
-          : props.font_family ?? 'KaTeX_Main', center: symbol, klass: 'mop',
+      const glyph = text === undefined ? undefined : math_fonts(query).operator_font(text, large)
+      const source = text === undefined ? operand_source(query, props.children, math) : new MathSpan({
+        children: symbol ? glyph?.text : name, font_family: symbol ? glyph?.face
+          : props.font_family ?? math_fonts(query).default_font, center: symbol, klass: 'mop',
         source: props.source, source_range: props.source_range,
       })
-      return { source, limits, symbol, oval, body: literal === undefined, double: text === '∯', large,
-        metrics: symbol && value ? OPERATOR_METRICS[face]?.[value] : undefined }
+      return { source, limits, symbol, body: literal === undefined,
+        metrics: symbol ? glyph?.metrics : undefined, contour: glyph?.contour }
     })
     let child = measure_operand(prepared.source, query, math, 0)
-    if (prepared.oval) {
-      // KaTeX's contour double/triple integrals have no complete font glyph.
-      // Preserve the integral's advance/slant and overlay its contour ring.
-      const [cx, rx, ry, thickness] = prepared.double
-        ? (prepared.large ? [0.758, 0.477, 0.254, 0.05] : [0.513, 0.344, 0.197, 0.04])
-        : (prepared.large ? [1.021, 0.739, 0.302, 0.05] : [0.681, 0.503, 0.197, 0.04])
+    if (prepared.contour) {
+      // The provider describes any contour needed over the operator glyph.
+      const [cx, rx, ry, thickness] = prepared.contour
       child = make_fragment({ ...child, children: [place_fragment(child, make_point())],
         draw: [draw_ellipse(make_point(cx * f, child.guides.math_axis!), make_point(rx * f, ry * f),
           { fill: 'none', stroke: query.style.color, stroke_width: thickness * f, opacity: query.style.opacity })] })
@@ -60,9 +55,9 @@ class MathOp extends MathElement<MathOpProps> {
     const metrics = atom_metrics(child)
     const center = props.center ?? (prepared.symbol || prepared.body && metrics.nucleus === 'character')
     const height = prepared.metrics ? (prepared.metrics[0] + prepared.metrics[1]) * f : child.size.height
-    const child_baseline = child.guides.baseline ?? (child.guides.math_axis ?? child.size.height / 2) + MATH_AXIS * f
-    const base = center ? height / 2 + MATH_AXIS * f : prepared.metrics ? prepared.metrics[0] * f : child_baseline
-    const axis = base - MATH_AXIS * f, offset = base - child_baseline
+    const child_baseline = child.guides.baseline ?? (child.guides.math_axis ?? child.size.height / 2) + math_fonts(query).axis_height * f
+    const base = center ? height / 2 + math_fonts(query).axis_height * f : prepared.metrics ? prepared.metrics[0] * f : child_baseline
+    const axis = base - math_fonts(query).axis_height * f, offset = base - child_baseline
     return finish_math({ size: make_size(child.size.width, height),
       children: [place_fragment(child, make_point(0, offset))],
       guides: { ...child.guides, baseline: base, math_axis: axis },

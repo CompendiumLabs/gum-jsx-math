@@ -1,42 +1,11 @@
-import { freeze_owned, Arrow, ArrowHead, Arc, Line, Polyline, arrow_barb, draw_path, exact, make_fragment,
+import { Arrow, ArrowHead, Arc, Line, Polyline, arrow_barb, draw_path, exact, make_fragment,
   make_request, make_size, place_fragment, px, resolve_style } from '@gum-jsx/core'
 import type { ArrowBarbSide, Element, LayoutQuery, PathCommand, Placement, PositionValue } from '@gum-jsx/core'
-import { math_metrics, MATH_AXIS } from './metrics'
-import { MathError } from './errors'
+import { math_metrics } from './metrics'
+import { math_fonts } from './font-provider'
+export { STRETCH } from './katex/stretch'
 
 type Point = readonly [number, number]
-type StretchEntry = Readonly<{ height: number; min_width: number; thickness?: number }>
-const STRETCH: Readonly<Record<string, StretchEntry>> = freeze_owned(Object.fromEntries([
-  ...['overrightarrow', 'overleftarrow', 'underrightarrow', 'underleftarrow',
-    'overleftrightarrow', 'underleftrightarrow', 'overleftharpoon', 'overrightharpoon',
-    'overlinesegment', 'underlinesegment'].map(name => [name, { height: 0.522, min_width: 0.888 }]),
-  ['Overrightarrow', { height: 0.56, min_width: 0.888 }],
-  ...['overgroup', 'undergroup'].map(name => [name, { height: 0.26, min_width: 0.888 }]),
-  ...['widehat', 'widecheck', 'widetilde', 'utilde'].map(name => [name, { height: 0.26, min_width: 0 }]),
-  ...['overbrace', 'underbrace'].map(name => [name, { height: 0.548, min_width: 1.6, thickness: 0.1 }]),
-  ['overbracket', { height: 0.44, min_width: 1.6, thickness: 0.12 }],
-  ['underbracket', { height: 0.41, min_width: 1.6, thickness: 0.12 }],
-  ['vec', { height: 0.197, min_width: 0.442 }],
-  ...['xrightarrow', 'xleftarrow'].map(name => [name, { height: 0.522, min_width: 1.469 }]),
-  ['xleftrightarrow', { height: 0.522, min_width: 1.75 }],
-  ...['xRightarrow', 'xLeftarrow'].map(name => [name, { height: 0.56, min_width: 1.526 }]),
-  ['xLeftrightarrow', { height: 0.56, min_width: 1.75 }],
-  ...['xlongequal', 'xtwoheadrightarrow', 'xtwoheadleftarrow'].map(name => [name, { height: 0.334, min_width: 0.888 }]),
-  ...['xrightharpoonup', 'xrightharpoondown', 'xleftharpoonup', 'xleftharpoondown']
-    .map(name => [name, { height: 0.522, min_width: 0.888 }]),
-  ...['xhookrightarrow', 'xhookleftarrow'].map(name => [name, { height: 0.522, min_width: 1.08 }]),
-  ['xmapsto', { height: 0.522, min_width: 1.5 }],
-  ...['xrightleftharpoons', 'xleftrightharpoons', 'xrightequilibrium', 'xleftequilibrium']
-    .map(name => [name, { height: 0.716, min_width: 1.75 }]),
-  ['xrightleftarrows', { height: 0.901, min_width: 1.75 }],
-  ['xtofrom', { height: 0.528, min_width: 1.75 }],
-] as [string, StretchEntry][]))
-
-function stretch_entry(label: string): StretchEntry {
-  const entry = STRETCH[label.replace(/^\\/, '')]
-  if (!entry) throw new MathError('unsupported', `Unknown stretchy decoration '${label}'`)
-  return entry
-}
 
 // Tapered braces need variable-width filled bands. Constant-width decorations
 // and arrows use core elements so joins and caps share the ordinary renderer.
@@ -72,8 +41,8 @@ function brace(width: number, height: number, thick: number): Point[] {
 
 function stretch_fragment(label: string, desired: number, f: number, query: LayoutQuery,
   thickness?: number, height?: number, head_curve = 0.7) {
-  const name = label.replace(/^\\/, ''), entry = stretch_entry(name)
-  const t = thickness ?? (entry.thickness ?? 0.04) * f
+  const name = label.replace(/^\\/, ''), entry = math_fonts(query).stretch_metrics(name)
+  const t = thickness ?? (entry.thickness ?? math_fonts(query).rule_thickness) * f
   if (!Number.isFinite(t) || t < 0) throw new RangeError('Decoration thickness must be nonnegative')
   const w = Math.max(desired, entry.min_width * f, 2 * t)
   // Wide accents grow in height modestly while fitting the actual measured
@@ -173,10 +142,10 @@ function stretch_fragment(label: string, desired: number, f: number, query: Layo
       name.includes('twohead'), name.includes('hook'), name === 'xmapsto')
   }
   return make_fragment({ name: 'StretchShape', size, math: math_metrics(w, 'mrel'), children,
-    guides: { math_axis: h / 2, baseline: h / 2 + MATH_AXIS * f },
+    guides: { math_axis: h / 2, baseline: h / 2 + math_fonts(query).axis_height * f },
     draw: t === 0 || paths.length === 0 ? [] : [draw_path(paths.flatMap(polygon), {
       fill: query.style.color, stroke: 'none', stroke_width: 0, opacity: query.style.opacity,
     })] })
 }
 
-export { stretch_entry, stretch_fragment, STRETCH }
+export { stretch_fragment }

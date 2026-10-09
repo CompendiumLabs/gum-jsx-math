@@ -1,3 +1,4 @@
+import { math_fonts } from '../font-provider'
 import { freeze_owned, make_measure, Element, Text, Span, LayoutError, make_request, make_size, make_point, make_fragment,
   place_fragment, resolve_style, definite_reference, layout_content, resolve_insets,
   resolve_alignment, resolve_length, em } from '@gum-jsx/core'
@@ -17,7 +18,7 @@ import { Accent, Overline, Underline, HorizBrace, XArrow } from './decorations'
 import { Phantom, Smash, Lap, Enclose, RaiseBox, VCenter, Pmb } from './boxes'
 import { style_size } from '../styles'
 import { math_context, math_font_size, math_metrics, atom_metrics, math_axis,
-  finish_math, place_math, MATH_AXIS } from '../metrics'
+  finish_math, place_math } from '../metrics'
 import { is_atom, cancel_binary_atoms, atom_spacing } from '../spacing'
 import { parse_math } from '../parse'
 import type { MathSyntax, ParseOptions } from '../parse'
@@ -81,9 +82,14 @@ function syntax_elements(nodes: readonly MathSyntax[], source: string): Element[
       case 'pmb': return new Pmb({ ...attr, children: syntax_operand(node.body, source), klass: node.klass })
       case 'rule': return new MathRule({ ...attr, klass: 'mord', width_dimension: node.width, height_dimension: node.height, shift_dimension: node.shift })
       case 'verb': return new TextMode({ ...attr, children: node.text, family: 'mono', bold: false, italic: false, style: 'text' })
+      case 'tag': return new MathRow({ ...attr, children: [
+        syntax_operand(node.body, source), new MathSpacer({ advance: 'qquad' }),
+        new MathText({ children: syntax_elements(node.tag, source), style: 'text' }),
+      ] })
       case 'array': return new MathArray({ ...attr, children: node.rows.map(row => row.map(cell => syntax_operand(cell, source))),
         cols: node.cols, stretch: node.stretch, jot: node.jot, outer: node.outer, small: node.small,
-        row_gap_dimensions: node.rowgaps, hlines: node.hlines })
+        row_gap_dimensions: node.rowgaps, hlines: node.hlines,
+        tags: node.tags?.map(tag => tag === null ? null : syntax_operand(tag, source)) })
       case 'bracket': return new Bracket({ ...attr, children: syntax_elements(node.body, source),
         left_delim: node.left, right_delim: node.right, right_color: node.right_color })
       case 'delimiter': return new SizedDelimiter({ ...attr, text: node.text, level: node.level, klass: node.klass })
@@ -181,7 +187,7 @@ function prepare_items(props: MathTextProps, query: LayoutQuery, context: MathCo
       } else result.push({ element: child, style, math })
     }
     collect(props.children, query.style, context, {
-      display: context.style.startsWith('display'), macros: props.macros, warnings: props.warnings,
+      math_fonts: math_fonts(query), display: context.style.startsWith('display'), macros: props.macros, warnings: props.warnings,
     })
     return freeze_owned(result.map(item => freeze_owned(item)))
   })
@@ -195,7 +201,7 @@ function measure_items(items: readonly Item[], query: LayoutQuery) {
     const font_size = math_font_size({ ...query, style: child_style }, math_context(element.props, { ...query, math }))
     // Ordinary text retains its own font size in a math operand. Its first
     // baseline implies an axis using that font, regardless of the TeX style.
-    return { fragment, font_size, axis: math_axis(fragment, fragment.math ? font_size : child_style.font_size), math }
+    return { fragment, font_size, axis: math_axis(query, fragment, fragment.math ? font_size : child_style.font_size), math }
   })
 }
 
@@ -225,13 +231,13 @@ function assemble_row(props: MathTextProps, query: LayoutQuery, context: MathCon
     // Foreign Gum operands honor their own axis; TextMode instead aligns all
     // its children as literal prose, without inserting inter-atom glue.
     return align_baselines && (fragment.math || !spaced)
-      ? { fragment, x, axis: fragment.guides.baseline ?? axis + MATH_AXIS * child_font_size,
-      y: MATH_AXIS * font_size } : { fragment, x, axis }
+      ? { fragment, x, axis: fragment.guides.baseline ?? axis + math_fonts(query).axis_height * child_font_size,
+      y: math_fonts(query).axis_height * font_size } : { fragment, x, axis }
   })
   const atoms = effective.filter(is_atom)
   const left = props.left ?? props.klass ?? (spaced ? atoms[0]?.left ?? 'none' : 'mord')
   const right = props.right ?? props.left ?? props.klass ?? (spaced ? atoms.at(-1)?.right ?? 'none' : 'mord')
-  const result = place_math(placements, advance, font_size, math_metrics(advance, left, { right }), props.strut)
+  const result = place_math(query, placements, advance, font_size, math_metrics(advance, left, { right }), props.strut)
   const source = props.children
   const label = typeof source === 'string' ? source
     : Array.isArray(source) && source.length === 1 && typeof source[0] === 'string' ? source[0] : undefined
@@ -305,7 +311,7 @@ class MathCol extends MathElement<MathColProps> {
     const axis = props.axis === undefined ? height / 2
       : resolve_length(props.axis, measure, height, 'axis')
     return finish_math({ size: make_size(width, height), children,
-      guides: { math_axis: axis, baseline: axis + MATH_AXIS * font_size },
+      guides: { math_axis: axis, baseline: axis + math_fonts(query).axis_height * font_size },
       math: math_metrics(width, props.left ?? props.klass, { right: props.right ?? props.left ?? props.klass ?? 'mord' }),
     }, query)
   }
@@ -323,9 +329,9 @@ class MathBox extends MathElement<MathBoxProps> {
     const insets = resolve_insets(props.padding, measure)
     const { placement, ...layout } = layout_content(items[0]?.element, child_query, insets, props.align)
     const axis = layout.guides.math_axis ?? (layout.guides.baseline === undefined
-      ? layout.size.height / 2 : layout.guides.baseline - MATH_AXIS * font_size)
+      ? layout.size.height / 2 : layout.guides.baseline - math_fonts(query).axis_height * font_size)
     return make_fragment({ ...layout, children: placement ? [placement] : [],
-      guides: { ...layout.guides, math_axis: axis, baseline: layout.guides.baseline ?? axis + MATH_AXIS * font_size },
+      guides: { ...layout.guides, math_axis: axis, baseline: layout.guides.baseline ?? axis + math_fonts(query).axis_height * font_size },
       math: math_metrics(layout.size.width, props.left ?? props.klass,
         { right: props.right ?? props.left ?? props.klass ?? 'mord' }),
     })

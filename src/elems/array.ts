@@ -1,9 +1,10 @@
+import { math_fonts } from '../font-provider'
 import { make_measure, em, resolve_length, resolve_style, make_size, make_point, make_rect,
   make_fragment, place_fragment, draw_rect, draw_path } from '@gum-jsx/core'
-import type { Child, LayoutQuery, Length, Drawing, PathCommand, Placement } from '@gum-jsx/core'
+import type { Child, Element, LayoutQuery, Length, Drawing, PathCommand, Placement, MathContext } from '@gum-jsx/core'
 import { MathElement } from './base'
 import { math_children, operand_source, measure_operand, baseline, advance } from './operands'
-import { math_context, math_font_size, math_metrics, finish_math, dimension_length, MATH_AXIS } from '../metrics'
+import { math_context, math_font_size, math_metrics, finish_math, dimension_length } from '../metrics'
 import type { MathAtomProps, MathDimension, ArrayCol, ArrayAlign } from '../types'
 import type { MathStyle } from '@gum-jsx/core'
 
@@ -19,6 +20,7 @@ type MathArrayProps = MathAtomProps & Readonly<{
   hlines?: readonly (readonly boolean[])[]
   rowgaps?: readonly (Length | null)[]
   thickness?: Length
+  tags?: readonly Child[]
   // The parser retains TeX units: unlike Gum em(), TeX em dimensions in a
   // script refer to the text-size font. Keep that distinction until layout.
   row_gap_dimensions?: readonly (MathDimension | null)[]
@@ -80,15 +82,18 @@ class MathArray extends MathElement<MathArrayProps> {
     const math = math_context(props, query), f = math_font_size(query, math)
     const measure = make_measure(query.measure, { font_size: f })
     const cell_math = { ...math, style: props.cell_style ?? (props.small ? 'script' : math.style) }
+    const tag_math = { ...math, style: 'text' as const }
     const prepared = query.prepare('array-cells', () => {
       const cols = columns(props.cols)
-      return { cols, rows: rows(props, cols).map(row => row.map(cell => operand_source(cell, cell_math))) }
+      return { cols, rows: rows(props, cols).map(row => row.map(cell => operand_source(query, cell, cell_math))),
+        tags: (props.tags ?? []).map(tag => tag == null || typeof tag === 'boolean'
+          ? null : operand_source(query, tag, tag_math)) }
     })
     const length = (value: Length, key: string, vertical = false) => resolve_length(value,
       measure, vertical ? measure.reference.height : measure.reference.width, key)
     const stretch = props.stretch ?? (props.small ? 0.5 : 1)
     if (!Number.isFinite(stretch) || stretch <= 0) throw new RangeError('MathArray.stretch must be positive and finite')
-    const thickness = length(props.thickness ?? em(0.04), 'thickness', true)
+    const thickness = length(props.thickness ?? em(math_fonts(query).rule_thickness), 'thickness', true)
     if (thickness < 0) throw new RangeError('MathArray.thickness must be nonnegative')
     if (props.rowgaps !== undefined && props.row_gap_dimensions !== undefined) {
       throw new TypeError('Use rowgaps or row_gap_dimensions, not both')
@@ -110,20 +115,24 @@ class MathArray extends MathElement<MathArrayProps> {
     if ((props.rowgaps?.length ?? props.row_gap_dimensions?.length ?? 0) > prepared.rows.length) {
       throw new RangeError('MathArray has more row gaps than rows')
     }
+    if (prepared.tags.length > prepared.rows.length) throw new RangeError('MathArray has more tags than rows')
 
     // Measure natural fragments once. A row shares a baseline; a column shares
     // an advance width. Ink overhang remains independent of both measurements.
+    const measure_cell = (source: Element, context: MathContext) => {
+      const fragment = measure_operand(source, query, context, index++)
+      const style = resolve_style(source.props, query.style, query.measure)
+      const font_size = fragment.math ? math_font_size({ ...query, style }, math_context(source.props, { ...query, math: context }))
+        : style.font_size
+      return { fragment, baseline: baseline(query, fragment, font_size), width: Math.max(0, advance(fragment)) }
+    }
     add_rules(props.hlines?.[0])
     const measured = prepared.rows.map((row, r) => {
-      const cells = row.map(source => {
-        const fragment = measure_operand(source, query, cell_math, index++)
-        const style = resolve_style(source.props, query.style, query.measure)
-        const font_size = fragment.math ? math_font_size({ ...query, style }, math_context(source.props, { ...query, math: cell_math }))
-          : style.font_size
-        return { fragment, baseline: baseline(fragment, font_size), width: Math.max(0, advance(fragment)) }
-      })
-      const height = Math.max(strut_height, ...cells.map(cell => cell.baseline))
-      let depth = Math.max(strut_depth, ...cells.map(cell => cell.fragment.size.height - cell.baseline))
+      const cells = row.map(source => measure_cell(source, cell_math))
+      const source = prepared.tags[r], tag = source ? measure_cell(source, tag_math) : null
+      const items = tag ? [...cells, tag] : cells
+      const height = Math.max(strut_height, ...items.map(cell => cell.baseline))
+      let depth = Math.max(strut_depth, ...items.map(cell => cell.fragment.size.height - cell.baseline))
       const dimension = props.row_gap_dimensions?.[r]
       let gap = dimension ? dimension_length(dimension, query, math) : length(props.rowgaps?.[r] ?? em(0), 'rowgaps', true)
       // Positive \\[length] deepens the row's strut, so tall cells can absorb
@@ -134,7 +143,7 @@ class MathArray extends MathElement<MathArrayProps> {
       const pos = total
       total += depth + gap
       add_rules(props.hlines?.[r + 1])
-      return { cells, pos }
+      return { cells, tag, pos }
     })
 
     const ncol = Math.max(0, ...measured.map(row => row.cells.length))
@@ -171,9 +180,19 @@ class MathArray extends MathElement<MathArrayProps> {
         f, props.fill ?? query.style.color, query.style.opacity)),
     ].filter((rule): rule is Drawing => !!rule)
     if (draw.length) children.push(place_fragment(make_fragment({ name: 'ArrayRules', size: make_size(width, height), draw })))
+
+    // Tags share a right edge outside the equation columns and table rules.
+    // Their baselines and extents participate in the corresponding row.
+    if (measured.some(row => row.tag)) {
+      const tag_width = Math.max(...measured.map(row => row.tag?.width ?? 0))
+      x = width + 2 * f + tag_width
+      for (const { tag, pos } of measured) if (tag) {
+        children.push(place_fragment(tag.fragment, make_point(x - tag.width, pos - tag.baseline - top)))
+      }
+    }
     const axis = total / 2 - top
-    return finish_math({ size: make_size(width, height), children,
-      guides: { math_axis: axis, baseline: axis + MATH_AXIS * f },
+    return finish_math({ size: make_size(Math.max(0, x), height), children,
+      guides: { math_axis: axis, baseline: axis + math_fonts(query).axis_height * f },
       math: math_metrics(x, props.left ?? props.klass, { right: props.right ?? props.left ?? props.klass ?? 'mord' }),
     }, query)
   }

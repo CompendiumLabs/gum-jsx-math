@@ -58,6 +58,55 @@ share work and failed loads can be retried. By default, exported SVGs contain pa
 not require page fonts. Notify a reused pass of font replacements with
 `pass.set_resource('fonts', fonts, fonts.version)`.
 
+## Math font providers
+
+`MathFontProvider` supplies math-specific font selection, style scaling, TeX
+metrics, axis height, italic corrections, accent skew, and the variants used for
+operators, delimiters, and stretchy decorations. `KatexMathFontProvider` contains
+the existing KaTeX/Computer Modern behavior. Every layout uses the shared,
+immutable `DEFAULT_MATH_FONTS` unless its pass supplies another provider:
+
+```ts
+import { LayoutPass } from '@gum-jsx/core'
+import { createMathFonts, KatexMathFontProvider, mathToSvg } from '@gum-jsx/math'
+
+const fonts = createMathFonts()
+const math_fonts = new KatexMathFontProvider()
+const pass = new LayoutPass({
+  fonts: { value: fonts, version: fonts.version },
+  math_fonts: { value: math_fonts, version: 0 },
+})
+const svg = mathToSvg(String.raw`\frac{x^2}{\sqrt{y}}`, { pass })
+```
+
+`mathToSvg`, `mathToSvgAsync`, and `mathToElementAsync` also accept a
+`math_fonts` option, which installs the provider on the supplied or newly
+created pass. Nested JSX operands and TeX font commands use that same provider.
+For direct parsing, use `parse_math(source, { math_fonts })`.
+
+The core `FontProvider` still supplies glyph outlines and font loading;
+`createMathFonts` and the existing registration/loading helpers still register
+the bundled KaTeX files. A math provider describes how to use those faces. To
+replace it on a reused pass, call `pass.set_resource('math_fonts', provider, version)`;
+advance the version if its configuration changes. This invalidates both parsed
+content and measured fragments. Existing `MATH_AXIS`, `STYLE_SCALE`, and named
+font exports retain their KaTeX values.
+
+Pass a registered family to `new KatexMathFontProvider('My Math Font')` to use
+its ordinary glyphs with KaTeX's layout parameters. The provider maps math
+italic Latin/Greek letters and double-struck letters/digits to their Unicode
+alphabets. Missing glyphs, other styled alphabets, and large size-font symbols
+retain their bundled KaTeX faces. Glyph advances and outlines come from the
+selected font; custom glyphs use outline overhang for italic correction and
+zero automatic accent skew. OpenType MATH tables are not read yet.
+
+The provider's `glyph_font(face, text, fonts)` method selects the actual font and
+encoded text before shaping. Live output and embedded PDF subsets use that same
+identity; remapped glyph fragments retain their original text as a label.
+The CLI exposes this family selection as `--math-font <family>`, after loading
+the font with `--font <file>`. Ordinary `font-family` and `--default-font`
+continue to control prose separately.
+
 ## Standalone exports
 
 ```ts
@@ -258,6 +307,11 @@ Use Gum lengths for `colsep`, `rowgaps`, and `thickness`. `stretch` changes row
 struts, and `jot` adds leading only between rows. `small` selects the defaults
 for a small matrix. See the [MathArray reference](https://github.com/CompendiumLabs/gum-jsx-docs/blob/master/docs/elements/text/MathArray.md).
 
+`tags` supplies optional labels by row, with `null` for unlabeled rows. Labels
+occupy a right-aligned column separated from the equations by two em and align
+with each row's baseline. Their height participates in row spacing. Direct `MathArray` labels
+are TeX or Gum children; include any desired parentheses in the label itself.
+
 Cells can contain ordinary Gum elements with explicit dimensions. Offers do
 not shrink a table; exact allocations preserve its geometry and report overflow.
 A `Bracket` measures the finished table to select delimiters. Rule intersections
@@ -279,10 +333,16 @@ styles, font resets, relation spacing, and leading. TeX row-gap units remain
 distinct from Gum lengths, including in scripts. Array font resets select the
 automatic math alphabet (`font_family: 'auto'`); local cell commands can override it.
 
-Starred and unstarred display environments currently render without numbers.
-Explicit `\tag` and the entire `CD` environment fail visibly; numbering and
-commutative diagrams remain deferred. Optional positioning arguments on aligned
-environments and general LaTeX column preambles are outside the pinned parser's
+Explicit `\tag{1.16}` renders `(1.16)` beside the equation; `\tag*{A}` renders `A`
+without parentheses. Tags use a two-em gap and are part of the same math fragment
+and exported image. Multiline display environments align explicit tags with
+their corresponding rows in a shared right-aligned column. Tag contents retain
+text formatting, grouping, and embedded math.
+
+Starred and unstarred display environments do not generate automatic numbers;
+only explicit tags are shown. The `CD` environment still fails visibly.
+Optional positioning arguments on aligned environments and general LaTeX column
+preambles are outside the pinned parser's
 supported syntax. See [matrices](https://github.com/CompendiumLabs/gum-jsx-docs/blob/master/docs/gallery/text/math_arrays.md) and
 [aligned equations](https://github.com/CompendiumLabs/gum-jsx-docs/blob/master/docs/gallery/text/aligned_math.md).
 

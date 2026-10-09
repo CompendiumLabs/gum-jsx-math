@@ -1,3 +1,4 @@
+import { math_fonts } from '../font-provider'
 import { make_measure, make_fragment, make_size, make_point, place_fragment, make_request } from '@gum-jsx/core'
 import type { Element, FontProvider, LayoutQuery, MathContext, MathClass, Length, Fragment } from '@gum-jsx/core'
 import { resolve_length, resolve_style } from '@gum-jsx/core'
@@ -5,21 +6,19 @@ import { MathElement } from './base'
 import { MathSpan } from './glyphs'
 import { prepare_items, measure_items, assemble_row } from './composition'
 import { math_children } from './operands'
-import { math_context, math_font_size, math_metrics, atom_metrics, math_axis, finish_math, MATH_AXIS } from '../metrics'
+import { math_context, math_font_size, math_metrics, atom_metrics, math_axis, finish_math } from '../metrics'
 import { MathError } from '../errors'
 import type { MathAtomProps } from '../types'
 import symbols from '../symbols'
 
-const FACES = ['KaTeX_Main', 'KaTeX_Size1', 'KaTeX_Size2', 'KaTeX_Size3', 'KaTeX_Size4']
 const PAIRS = { round: ['(', ')'], square: ['[', ']'], curly: ['\\{', '\\}'], angle: ['\\langle', '\\rangle'] } as const
 const ANGLES: Record<string, string> = { '<': '⟨', '>': '⟩', '\\lt': '⟨', '\\gt': '⟩' }
-const SIZE_HEIGHT = [0, 1.2, 1.8, 2.4, 3]
 
-function stretch_glyph(fragment: Fragment, scale_x: number, scale_y: number, font_size: number): Fragment {
+function stretch_glyph(query: LayoutQuery, fragment: Fragment, scale_x: number, scale_y: number, font_size: number): Fragment {
   const width = atom_metrics(fragment).advance * scale_x, height = fragment.size.height * scale_y
   return make_fragment({ size: make_size(width, height),
     children: [place_fragment(fragment, make_point(), [scale_x, 0, 0, scale_y, 0, 0])],
-    guides: { math_axis: height / 2, baseline: height / 2 + MATH_AXIS * font_size },
+    guides: { math_axis: height / 2, baseline: height / 2 + math_fonts(query).axis_height * font_size },
     math: math_metrics(width, atom_metrics(fragment).left) })
 }
 
@@ -28,29 +27,27 @@ function stretch_glyph(fragment: Fragment, scale_x: number, scale_y: number, fon
 function fit_glyph(query: LayoutQuery, math: MathContext, text: string, target: number,
   klass: MathClass = 'mord', vertical = false): Fragment {
   const value = ANGLES[text] ?? symbols.math[text]?.replace ?? text
-  const sources = query.prepare(`stretch-glyph:${value}:${klass}`, () => {
+  const sources = query.prepare(`stretch-glyph:${value}:${klass}:${JSON.stringify(math)}`, () => {
     const fonts = query.resource<FontProvider>('fonts')
-    return FACES.filter(face => fonts.resolve(face, 400, 'normal').has_glyphs(value)).map(face => ({
-      face, source: new MathSpan({ children: value, font_family: face, center: true, klass }),
+    return math_fonts(query).delimiter_fonts(math)
+      .filter(({ face }) => fonts.resolve(face, 400, 'normal').has_glyphs(value)).map(({ face, styles }) => ({
+      styles, source: new MathSpan({ children: value, font_family: face, center: true, klass }),
     }))
   })
   const f = math_font_size(query, math), text_math = { ...math, style: 'text' as const }
   let largest: Fragment | undefined
-  for (const { source, face } of sources) {
-    const styles = face === 'KaTeX_Main'
-      ? [...new Set([math.style, ...(math.style.startsWith('scriptscript') ? ['script' as const] : []), 'text' as const])]
-      : ['text' as const]
+  for (const { source, styles } of sources) {
     for (const style of styles) {
       const fragment = query.child(source, make_request(), {}, 0, { math: { ...text_math, style }, style: query.style, coordinates: null })
       if (!largest || fragment.size.height > largest.size.height) largest = fragment
       if (fragment.size.height >= target) {
-        return stretch_glyph(fragment, 1, 1, f)
+        return stretch_glyph(query, fragment, 1, 1, f)
       }
     }
   }
   if (!largest || largest.size.height <= 0) throw new MathError('glyph', `No math font contains delimiter '${text}'`)
   const scale = Math.max(1, target / largest.size.height)
-  return stretch_glyph(largest, vertical ? 1 : scale, scale, f)
+  return stretch_glyph(query, largest, vertical ? 1 : scale, scale, f)
 }
 
 function delimiter(query: LayoutQuery, math: MathContext, text: string | null, target: number, klass: MathClass): Fragment {
@@ -59,7 +56,7 @@ function delimiter(query: LayoutQuery, math: MathContext, text: string | null, t
     return fit_glyph(query, math, text, target, klass, ['|', '‖', '∣', '∥'].includes(value))
   }
   const width = text === '.' ? 0.12 * query.style.font_size : 0
-  return make_fragment({ size: make_size(width, 0), guides: { math_axis: 0, baseline: MATH_AXIS * math_font_size(query, math) },
+  return make_fragment({ size: make_size(width, 0), guides: { math_axis: 0, baseline: math_fonts(query).axis_height * math_font_size(query, math) },
     math: math_metrics(width, klass) })
 }
 
@@ -68,7 +65,7 @@ class SizedDelimiter extends MathElement<DelimiterProps> {
   static layout(props: DelimiterProps, query: LayoutQuery) {
     if (!Number.isInteger(props.level) || props.level < 1 || props.level > 4) throw new RangeError('Delimiter level must be 1–4')
     const math = math_context(props, query), text_math = { ...math, style: 'text' as const }
-    const target = (SIZE_HEIGHT[props.level] - 0.01) * math_font_size(query, text_math)
+    const target = math_fonts(query).delimiter_height(props.level) * math_font_size(query, text_math)
     return finish_math(delimiter(query, text_math, props.text === '.' ? null : props.text, target, props.klass ?? 'mord'), query)
   }
 }
@@ -106,7 +103,7 @@ class Bracket extends MathElement<BracketProps> {
       throw new RangeError('Delimiter level must be 1–4')
     }
     if (props.level !== undefined && props.delimiter_height !== undefined) throw new TypeError('Use level or delimiter_height, not both')
-    const target = props.level !== undefined ? (SIZE_HEIGHT[props.level] - 0.01) * math_font_size(query, { ...math, style: 'text' })
+    const target = props.level !== undefined ? math_fonts(query).delimiter_height(props.level) * math_font_size(query, { ...math, style: 'text' })
       : props.delimiter_height === undefined
       ? Math.max(2 * 0.901 * extent, 2 * extent - 0.5 * query.style.font_size)
       : resolve_length(props.delimiter_height, measure, query.measure.reference.height, 'delimiter_height')
@@ -118,12 +115,12 @@ class Bracket extends MathElement<BracketProps> {
       const middle_query = { ...query, style, measure: make_measure(query.measure, { font_size: style.font_size }) }
       const fragment = delimiter(middle_query, item.math, item.element.props.text, target, 'none')
       const font_size = math_font_size(middle_query, item.math)
-      return { fragment, axis: math_axis(fragment, font_size), font_size, math: item.math }
+      return { fragment, axis: math_axis(query, fragment, font_size), font_size, math: item.math }
     })
     const fence = (text: string | null, klass: MathClass, color?: string) => {
       const q = color === undefined ? query : { ...query, style: resolve_style({ color }, query.style, query.measure) }
       const fragment = delimiter(q, math, text, target, klass)
-      return { fragment, axis: math_axis(fragment, f), font_size: f, math }
+      return { fragment, axis: math_axis(query, fragment, f), font_size: f, math }
     }
     return assemble_row({ ...props, klass: props.klass ?? 'minner' }, query, math,
       [fence(left, 'mopen'), ...body, fence(right, 'mclose', props.right_color)], true)
