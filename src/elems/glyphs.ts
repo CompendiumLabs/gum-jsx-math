@@ -21,7 +21,7 @@ function glyph_layout(props: MathSpanProps, query: LayoutQuery, text: string, fa
   const provider = math_fonts(query)
   const { glyph, shape } = query.prepare('math-glyph', () => {
     const fonts = query.resource<FontProvider>('fonts')
-    const glyph = provider.glyph_font(face, text, fonts)
+    const glyph = provider.glyph_font(face, text, fonts, query.style.math_font)
     try { return { glyph, shape: fonts.resolve(glyph.face, 400, 'normal').shape(glyph.text) } }
     catch (error) {
       if (!(error instanceof MissingGlyphError)) throw error
@@ -79,6 +79,7 @@ class MathSymbol extends MathElement<MathSymbolProps> {
     const { face, skew, correct_italic } = math_fonts(query).symbol_font({
       text: value, mode, family, font: entry?.font,
       requested: props.font_family, inherited: query.style.font_family,
+      math_font: query.style.math_font,
     }, query.resource<FontProvider>('fonts'))
     return glyph_layout(props, query, value, face, SYMBOL_CLASS[family], skew, correct_italic)
   }

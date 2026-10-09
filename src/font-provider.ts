@@ -14,7 +14,7 @@ type MathFontMetrics = Readonly<{
 }>
 type MathSymbolRequest = Readonly<{
   text: string; mode: SymbolMode; family: SymbolFamily; font?: SymbolFont
-  requested?: string; inherited: string
+  requested?: string; inherited: string; math_font?: string
 }>
 type MathSymbolFont = Readonly<{ face: string; skew: number; correct_italic: boolean }>
 type MathGlyphFont = Readonly<{ face: string; text: string }>
@@ -35,7 +35,8 @@ interface MathFontProvider {
   font_scale(context: MathContext): number
   metrics(context: MathContext): MathFontMetrics
   font_command(command: string): string | undefined
-  glyph_font(face: string, text: string, fonts: FontProvider): MathGlyphFont
+  // The inherited family overrides the provider's default for this glyph only.
+  glyph_font(face: string, text: string, fonts: FontProvider, family?: string): MathGlyphFont
   span_font(requested: string | undefined, inherited: string): string
   symbol_font(request: MathSymbolRequest, fonts: FontProvider): MathSymbolFont
   text_font(font: Partial<TextFont>, inherited?: string): string

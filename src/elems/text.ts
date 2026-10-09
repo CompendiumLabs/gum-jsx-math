@@ -57,7 +57,7 @@ class TextMode extends MathElement<TextModeProps> {
         const pieces: { face: string; text: string; source: string }[] = []
         for (const char of text ?? '') {
           const fallback = math_fonts(query).text_fallback(char)
-          const glyph = math_fonts(query).glyph_font(face, char, fonts)
+          const glyph = math_fonts(query).glyph_font(face, char, fonts, run.style.math_font)
           const chosen = fonts.resolve(glyph.face, 400, 'normal').has_glyphs(glyph.text) ? glyph
             : fonts.resolve(fallback, 400, 'normal').has_glyphs(char) ? { face: fallback, text: char } : glyph
           const last = pieces.at(-1)

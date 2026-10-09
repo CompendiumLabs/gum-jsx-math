@@ -10,7 +10,7 @@ import type { MathFontProvider } from './font-provider'
 
 type MathSource = string | Element
 type MathElementOptions = Pick<MathTextProps,
-  'font_size' | 'font_family' | 'color' | 'opacity' | 'inline' | 'style' | 'size_index'
+  'font_size' | 'font_family' | 'math_font' | 'color' | 'opacity' | 'inline' | 'style' | 'size_index'
   | 'strut' | 'macros' | 'warnings' | 'on_error'> & FitSpec & Readonly<{
   padding?: InsetSpec
   width?: SvgProps['width']
@@ -51,9 +51,9 @@ function mathToElement(source: MathSource, options: MathElementOptions = {}): Sv
   if (typeof source !== 'string' && !(source instanceof Element)) {
     throw new TypeError('Math source must be a TeX string or an Element')
   }
-  const { font_size = px(24), font_family, color, opacity, width, height, padding,
+  const { font_size = px(24), font_family, math_font, color, opacity, width, height, padding,
     inline, style, size_index, strut, macros, warnings, on_error, fit, fit_align } = options
-  return new Svg({ width, height, font_size, font_family, color, opacity,
+  return new Svg({ width, height, font_size, font_family, math_font, color, opacity,
     children: new MathViewport({ padding, fit, fit_align, children: new Latex({
       inline, style, size_index, strut, macros, warnings, on_error, children: source,
     }) }),

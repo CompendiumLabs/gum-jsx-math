@@ -100,12 +100,26 @@ retain their bundled KaTeX faces. Glyph advances and outlines come from the
 selected font; custom glyphs use outline overhang for italic correction and
 zero automatic accent skew. OpenType MATH tables are not read yet.
 
-The provider's `glyph_font(face, text, fonts)` method selects the actual font and
+Select a registered family in JSX with the inherited `math-font` prop:
+
+```jsx
+<Svg font-family="IBM Plex Sans" math-font="My Math Font">
+  <Text>
+    Prose and a formula: <Tex>x^2 + y^2</Tex>
+  </Text>
+</Svg>
+```
+
+Set `math-font` on a nested element or `Span` to override it locally. In library
+calls, use `math_font`, including `mathToSvg(tex, { fonts, math_font: 'My Math Font' })`.
+The prop overrides the provider's family for those glyphs while retaining its
+metrics and other behavior. With no prop, the provider's family remains the default.
+
+The provider's `glyph_font(face, text, fonts, family?)` method selects the actual font and
 encoded text before shaping. Live output and embedded PDF subsets use that same
 identity; remapped glyph fragments retain their original text as a label.
-The CLI exposes this family selection as `--math-font <family>`, after loading
-the font with `--font <file>`. Ordinary `font-family` and `--default-font`
-continue to control prose separately.
+The CLI loads the font with `--font <file>`; select its family with `math-font`
+on `Svg` or a nested element. Ordinary `font-family` controls prose separately.
 
 ## Standalone exports
 

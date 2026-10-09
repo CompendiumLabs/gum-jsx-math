@@ -32,15 +32,16 @@ class KatexMathFontProvider implements MathFontProvider {
   metrics(context: MathContext) { return tex_metrics(context) }
   font_command(command: string) { return FONT_COMMANDS[command] }
 
+  // A scoped family wins over the provider default without mutating the provider.
   // Substitute only supported ordinary faces, retaining real font/text identities.
-  glyph_font(face: string, text: string, fonts: FontProvider) {
-    if (!this.font_family || !['KaTeX_Main', 'KaTeX_Math', 'KaTeX_AMS'].includes(face)) {
+  glyph_font(face: string, text: string, fonts: FontProvider, font_family = this.font_family) {
+    if (!font_family || !['KaTeX_Main', 'KaTeX_Math', 'KaTeX_AMS'].includes(face)) {
       return { face, text }
     }
     const value = face === 'KaTeX_Math' ? math_alphabet(text, 'italic')
       : face === 'KaTeX_AMS' ? math_alphabet(text, 'double-struck') : text
-    return fonts.resolve(this.font_family, 400, 'normal').has_glyphs(value)
-      ? { face: this.font_family, text: value } : { face, text }
+    return fonts.resolve(font_family, 400, 'normal').has_glyphs(value)
+      ? { face: font_family, text: value } : { face, text }
   }
 
   // Ordinary prose defaults do not override the math font set.
@@ -51,7 +52,7 @@ class KatexMathFontProvider implements MathFontProvider {
 
   // Bold symbols may need Main-Bold; missing variants retain the original face.
   symbol_font(request: MathSymbolRequest, fonts: FontProvider) {
-    const { text, mode, family, font, requested, inherited } = request
+    const { text, mode, family, font, requested, inherited, math_font } = request
     const fallback = font === 'ams' ? 'KaTeX_AMS'
       : family === 'mathord' && mode === 'math' ? 'KaTeX_Math' : this.default_font
     const selected = requested ?? (inherited.startsWith('KaTeX_') ? inherited : undefined)
@@ -61,7 +62,7 @@ class KatexMathFontProvider implements MathFontProvider {
       const candidates = override === 'KaTeX_Math-BoldItalic'
         ? (family === 'mathord' ? [override, 'KaTeX_Main-Bold'] : ['KaTeX_Main-Bold']) : [override]
       face = candidates.find(name => {
-        const glyph = this.glyph_font(name, text, fonts)
+        const glyph = this.glyph_font(name, text, fonts, math_font)
         return fonts.resolve(glyph.face, 400, 'normal').has_glyphs(glyph.text)
       }) ?? fallback
     }
