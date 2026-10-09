@@ -23,7 +23,7 @@ test('math spacing accepts unit strings alongside named spaces and signed advanc
 
 test('math JSX strings resolve rules, arrays, and padding without changing rendered output', () => {
   const strings = evaluate(`
-    <Svg font-size="24px">
+    <Page font-size="24px">
       <MathRow fit={false}>
         <MathBox style="script" padding={{ h: "1em", v: "6px" }}>
           <Rect width="20px" height="10px" />
@@ -38,10 +38,10 @@ test('math JSX strings resolve rules, arrays, and padding without changing rende
           <MathSymbol>y</MathSymbol>
         </MathArray>
       </MathRow>
-    </Svg>
+    </Page>
   `, { scope: math })
   const helpers = evaluate(`
-    <Svg font-size={px(24)}>
+    <Page font-size={px(24)}>
       <MathRow fit={false}>
         <MathBox style="script" padding={{ h: em(1), v: px(6) }}>
           <Rect width={px(20)} height={px(10)} />
@@ -56,7 +56,7 @@ test('math JSX strings resolve rules, arrays, and padding without changing rende
           <MathSymbol>y</MathSymbol>
         </MathArray>
       </MathRow>
-    </Svg>
+    </Page>
   `, { scope: math })
   const engine = pass()
   expect(render_svg(engine.layout(strings))).toBe(render_svg(engine.layout(helpers)))

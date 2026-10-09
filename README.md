@@ -11,21 +11,21 @@ supplies parsing and fonts; Gum lays out the formulas and emits glyph outlines.
 The CLI and editor include the math bindings:
 
 ```jsx
-<Svg font-size={px(36)}>
+<Page font-size={px(36)}>
   <Box padding={em(0.5)}>
     <Latex>{String.raw`\sin x+\cos y=\operatorname{rank}(A)`}</Latex>
   </Box>
-</Svg>
+</Page>
 ```
 
 For library use:
 
 ```ts
-import { Box, Svg, LayoutPass, render_svg, px, em } from '@gum-jsx/core'
+import { Box, Page, LayoutPass, render_svg, px, em } from '@gum-jsx/core'
 import { Latex, createMathFonts } from '@gum-jsx/math'
 
 const fonts = createMathFonts()
-const source = new Svg({
+const source = new Page({
   font_size: px(36),
   children: new Box({
     padding: em(0.5),
@@ -103,11 +103,11 @@ zero automatic accent skew. OpenType MATH tables are not read yet.
 Select a registered family in JSX with the inherited `math-font` prop:
 
 ```jsx
-<Svg font-family="IBM Plex Sans" math-font="My Math Font">
+<Page font-family="IBM Plex Sans" math-font="My Math Font">
   <Text>
     Prose and a formula: <Tex>x^2 + y^2</Tex>
   </Text>
-</Svg>
+</Page>
 ```
 
 Set `math-font` on a nested element or `Span` to override it locally. In library
@@ -119,7 +119,7 @@ The provider's `glyph_font(face, text, fonts, family?)` method selects the actua
 encoded text before shaping. Live output and embedded PDF subsets use that same
 identity; remapped glyph fragments retain their original text as a label.
 The CLI loads the font with `--font <file>`; select its family with `math-font`
-on `Svg` or a nested element. Ordinary `font-family` controls prose separately.
+on `Page` or a nested element. Ordinary `font-family` controls prose separately.
 
 ## Standalone exports
 
@@ -134,7 +134,7 @@ const browserSvg = await mathToSvgAsync(tex, { font_size: px(36) })
 const textSvg = mathToSvg(tex, { font_size: px(36), text_mode: 'live' })
 ```
 
-`mathToElement` returns an immutable `Svg`. Construction performs no parsing or
+`mathToElement` returns an immutable `Page`. Construction performs no parsing or
 font I/O; ordinary layout determines its natural viewport from the union of
 logical size and visible ink. Negative extents are translated before clipping.
 Each natural axis has a one-pixel floor, so empty and all-space formulas have a
@@ -236,7 +236,7 @@ scale. MathSpacer, MathRule, and MathStretch are allocation primitives and do no
 automatically scale. Use explicit `fit` if their complete drawing should scale.
 Percentage-sized Gum operands require a natural design size on the formula, or
 `fit={false}` to use the parent's allocation. Leave padding inside an explicit
-`Svg` viewport when ink extends beyond the advance, or use `mathToElement` for an
+`Page` viewport when ink extends beyond the advance, or use `mathToElement` for an
 ink-safe export. Custom MathElement subclasses inherit automatic fitting.
 
 ## Supported TeX

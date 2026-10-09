@@ -1,7 +1,7 @@
-import { Element, Svg, Fonts, LayoutPass, make_request, make_rect, make_size, make_point,
+import { Element, Page, Fonts, LayoutPass, make_request, make_rect, make_size, make_point,
   make_fragment, place_fragment, union_rects, transform_guides, resolve_insets, finish_size, px,
   render_element } from '@gum-jsx/core'
-import type { ElementProps, FitSpec, LayoutQuery, RenderElementOptions, InsetSpec, SvgProps, SvgOptions,
+import type { ElementProps, FitSpec, LayoutQuery, RenderElementOptions, InsetSpec, PageProps, SvgOptions,
   FontProvider } from '@gum-jsx/core'
 import { Latex } from './elems/composition'
 import type { MathTextProps } from './elems/composition'
@@ -13,8 +13,8 @@ type MathElementOptions = Pick<MathTextProps,
   'font_size' | 'font_family' | 'math_font' | 'color' | 'opacity' | 'inline' | 'style' | 'size_index'
   | 'strut' | 'macros' | 'warnings' | 'on_error'> & FitSpec & Readonly<{
   padding?: InsetSpec
-  width?: SvgProps['width']
-  height?: SvgProps['height']
+  width?: PageProps['width']
+  height?: PageProps['height']
 }>
 type MathResources = Readonly<{ fonts?: Fonts; math_fonts?: MathFontProvider; pass?: LayoutPass }>
 type MathSvgOptions = MathElementOptions & SvgOptions & MathResources & Pick<RenderElementOptions, 'request' | 'text_mode'>
@@ -47,13 +47,13 @@ class MathViewport extends Element<ElementProps & { padding?: InsetSpec }> {
 
 // Construction only snapshots source. Parsing, fonts, natural sizing, and
 // negative-ink translation all happen in the ordinary layout pass.
-function mathToElement(source: MathSource, options: MathElementOptions = {}): Svg {
+function mathToElement(source: MathSource, options: MathElementOptions = {}): Page {
   if (typeof source !== 'string' && !(source instanceof Element)) {
     throw new TypeError('Math source must be a TeX string or an Element')
   }
   const { font_size = px(24), font_family, math_font, color, opacity, width, height, padding,
     inline, style, size_index, strut, macros, warnings, on_error, fit, fit_align } = options
-  return new Svg({ width, height, font_size, font_family, math_font, color, opacity,
+  return new Page({ width, height, font_size, font_family, math_font, color, opacity,
     children: new MathViewport({ padding, fit, fit_align, children: new Latex({
       inline, style, size_index, strut, macros, warnings, on_error, children: source,
     }) }),
@@ -92,7 +92,7 @@ async function preload(options: MathResources) {
   return result
 }
 
-async function mathToElementAsync(source: MathSource, options: MathLoadOptions): Promise<Svg> {
+async function mathToElementAsync(source: MathSource, options: MathLoadOptions): Promise<Page> {
   if (!options?.fonts && !options?.pass) throw new TypeError('mathToElementAsync requires fonts or pass')
   const element = mathToElement(source, options)
   await preload(options)

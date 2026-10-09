@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
-import { LayoutPass, render_svg, Svg, Text, Span, resolve_style, px } from '@gum-jsx/core'
+import { LayoutPass, render_svg, Page, Text, Span, resolve_style, px } from '@gum-jsx/core'
 import type { FontProvider, Fragment } from '@gum-jsx/core'
 import { createMathFonts, KatexMathFontProvider, Latex, MathText, TextMode, MATH_FONT_PATHS,
   mathToSvg, mathToSvgAsync } from '../src'
@@ -79,7 +79,7 @@ test('math-font scopes override the provider family without leaking to prose or 
     text_mode: { value: 'live', version: 0 },
   })
   const shared = new MathText({ children: String.raw`\mathrm{A}`, font_size: px(20) })
-  const source = new Svg({ math_font: 'Math A', font_family: 'IBM Plex Mono', children: new Text({
+  const source = new Page({ math_font: 'Math A', font_family: 'IBM Plex Mono', children: new Text({
     children: ['prose ', shared,
       new Span({ math_font: 'Math B', children: shared }), shared],
   }) })

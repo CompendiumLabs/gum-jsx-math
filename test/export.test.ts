@@ -1,6 +1,6 @@
 import { FREEZE_ENABLED } from '@gum-jsx/core'
 import { describe, test, expect } from 'bun:test'
-import { Svg, Rect, Text, LayoutPass, FontNotLoadedError, px, em, make_request,
+import { Page, Rect, Text, LayoutPass, FontNotLoadedError, px, em, make_request,
   available, exact, layout_element, render_element, render_svg, inspect_fragment } from '@gum-jsx/core'
 import type { Fragment, FontProvider } from '@gum-jsx/core'
 import { Latex, mathToElement, mathToElementAsync, mathToSvg, mathToSvgAsync,
@@ -89,7 +89,7 @@ describe('standalone math exports', () => {
     options.macros['\\f'] = 'y'; options.padding.left = px(100)
     expect(Object.isFrozen(source)).toBe(FREEZE_ENABLED)
     expect(Object.isFrozen(source.props.children)).toBe(FREEZE_ENABLED)
-    expect(source).toBeInstanceOf(Svg)
+    expect(source).toBeInstanceOf(Page)
     const { pass } = setup()
     expect(render_svg(pass.layout(source))).toBe(mathToSvg(String.raw`\f`, { macros: { '\\f': 'x' }, padding: { left: px(3) } }))
     const invalid = mathToElement('{')
@@ -142,8 +142,8 @@ describe('standalone math exports', () => {
   test('source reuse responds to inherited em sizes and automatically fits advisory offers', () => {
     const { pass } = setup()
     const source = mathToElement('x^2', { font_size: em(1) })
-    const small = pass.layout(new Svg({ font_size: px(20), children: source }))
-    const large = pass.layout(new Svg({ font_size: px(40), children: source }))
+    const small = pass.layout(new Page({ font_size: px(20), children: source }))
+    const large = pass.layout(new Page({ font_size: px(40), children: source }))
     near(large.size.width, small.size.width * 2)
     near(large.size.height, small.size.height * 2)
     const natural = pass.layout(source)

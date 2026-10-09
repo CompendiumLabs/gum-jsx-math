@@ -22,18 +22,18 @@ const browserSources = [
   String.raw`x=\frac{-b\pm\sqrt{b^2-4ac}}{2a}`,
   String.raw`\int_{-\infty}^{\infty}e^{-x^2}\,dx=\sqrt{\pi}`,
   String.raw`\left\{x\middle|\frac{1}{x}>0\right\}`,
-].map(text => `<Svg font-size={px(40)}>
+].map(text => `<Page font-size={px(40)}>
   <Box padding={em(0.5)}>
     <Latex>{${JSON.stringify(text)}}</Latex>
   </Box>
-</Svg>`)
+</Page>`)
 browserSources.unshift(...['docs/guides/code/math_export.jsx', 'docs/gallery/code/math_plot_labels.jsx', 'docs/gallery/code/math_slides.jsx',
   'docs/gallery/code/math_decorations.jsx', 'docs/gallery/code/math_boxes.jsx', 'docs/guides/code/math_fonts.jsx',
   'docs/elements/code/MathStretch.jsx', 'docs/elements/code/Phantom.jsx',
   'docs/gallery/code/math_arrays.jsx', 'docs/gallery/code/aligned_math.jsx', 'docs/elements/code/MathArray.jsx',
   'docs/gallery/code/inline_math.jsx', 'docs/gallery/code/math_composition.jsx',
   'docs/elements/code/TextMode.jsx'].map(file => readFileSync(new URL('../../gum-jsx-docs/' + file, import.meta.url), 'utf8')))
-browserSources.push(`<Svg font-size={px(40)} color={blue}>
+browserSources.push(`<Page font-size={px(40)} color={blue}>
   <Box padding={em(0.5)}>
     <MathText style="display">
       <SupSub sub="n=0" sup="∞">
@@ -45,7 +45,7 @@ browserSources.push(`<Svg font-size={px(40)} color={blue}>
       </Frac>
     </MathText>
   </Box>
-</Svg>`)
+</Page>`)
 const exports = [String.raw`\mathllap{f}\int_0^\infty e^{-x^2}\,dx`,
   String.raw`\smash{\widehat{ABC}}`, String.raw`\mathscr{A}+\mathbf{B}`,
   String.raw`x=\frac{1}{2}\tag{1.16}`,

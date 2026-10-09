@@ -25,8 +25,12 @@ class KatexMathFontProvider implements MathFontProvider {
   readonly axis_height: number = 0.25
   readonly x_height: number = 0.431
   readonly rule_thickness: number = 0.04
+  readonly font_family?: string
 
-  constructor(readonly font_family?: string) {}
+  // Keep linked source compatible with hosts that require erasable TypeScript.
+  constructor(font_family?: string) {
+    this.font_family = font_family
+  }
 
   font_scale(context: MathContext) { return font_scale(context) }
   metrics(context: MathContext) { return tex_metrics(context) }

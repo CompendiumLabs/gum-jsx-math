@@ -1,5 +1,5 @@
 import { test, expect } from 'bun:test'
-import { Svg, LayoutPass, evaluate, render_svg, THEMES } from '@gum-jsx/core'
+import { Page, LayoutPass, evaluate, render_svg, THEMES } from '@gum-jsx/core'
 import type { Fragment } from '@gum-jsx/core'
 import * as math from '../src/index'
 
@@ -31,7 +31,7 @@ test('math glyphs, rules, enclosures, and delimiters resolve inherited theme pai
   `, { scope: math })
   const fonts = math.createMathFonts()
   const pass = new LayoutPass({ fonts: { value: fonts, version: fonts.version } })
-  const roots = (['light', 'dark'] as const).map(theme => new Svg({ theme, children: child }))
+  const roots = (['light', 'dark'] as const).map(theme => new Page({ theme, children: child }))
   const fragments = roots.map(root => pass.layout(root))
   for (const [i, theme] of (['light', 'dark'] as const).entries()) {
     const fragment = fragments[i]!, paints = drawings(fragment)
