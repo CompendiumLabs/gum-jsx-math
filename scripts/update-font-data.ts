@@ -8,7 +8,7 @@ import symbols from '../src/symbols'
 
 const root = dirname(fileURLToPath(import.meta.resolve('katex/package.json')))
 const { version } = await Bun.file(join(root, 'package.json')).json()
-if (version !== '0.16.47') throw new Error(`Review the parser/font adapter before updating KaTeX ${version}`)
+if (version !== '0.18.2') throw new Error(`Review the parser/font adapter before updating KaTeX ${version}`)
 const { default: data } = await import(join(root, 'src/fontMetricsData.js')) as {
   default: Record<string, Record<string, number[]>>
 }

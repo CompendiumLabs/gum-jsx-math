@@ -260,7 +260,7 @@ syntax cannot silently vanish. See [decorations](https://github.com/CompendiumLa
 Macros support arguments, declarations, and local scope within the pinned
 parser. A supplied macro dictionary is snapshotted, and even `\gdef` cannot
 leak into another formula. Optional `\newcommand` defaults are not supported
-by KaTeX 0.16.47. Actual line breaks outside arrays are unsupported; a normal
+by KaTeX 0.18.2. Actual line breaks outside arrays are unsupported; a normal
 display-mode `\\` is a no-op. The HTML math branch of `\html@mathml` is used
 without enabling trusted HTML commands. `\phase`, `\angl`, and `\angln` remain
 explicit unsupported enclosures.
@@ -380,7 +380,7 @@ bun run compare 'a\!b' --inline -S 96 -o /tmp/negative-glue.png
 
 The first two commands run the package checks. The browser check additionally
 requires the editor build and Chromium. Use `bun run compare --help` for focused
-comparison suites and output options. KaTeX is pinned to **0.16.47**.
+comparison suites and output options. KaTeX is pinned to **0.18.2**.
 
 The comparison script adapts gum-1's tool. It rasterizes Gum outlines, captures
 KaTeX HTML in Chromium, and runs `pdflatex` plus `pdftoppm`, at the same pixels

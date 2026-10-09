@@ -129,7 +129,7 @@ function parse_math(source: string, options: ParseOptions = {}): readonly MathSy
     tree = parser.__parse(source, settings)
     const operators = operator_nodes(tree)
     if (operators.some(node => node.type === 'operatorname')) {
-      // KaTeX 0.16.47 discards explicit \nolimits on \operatorname*, and both
+      // KaTeX 0.18.2 discards explicit \nolimits on \operatorname*, and both
       // controls on unstarred names. Probe the same expanded input with names
       // represented as \mathop, whose AST retains explicit-control flags.
       // Only copy that policy; keep the original names, typography, and ranges.
