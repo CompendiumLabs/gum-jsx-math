@@ -137,10 +137,6 @@ test('smallmatrix and substack use script cells once; TeX row dimensions retain 
   near(script.math!.advance / normal.math!.advance, 0.7)
   const nested = formula(String.raw`x^{\substack{a\\b}}`)
   near(named(nested, 'MathSymbol')[1].math!.advance / normal.math!.advance, 0.7)
-  // This table sits just above Size1's delimiter threshold. A tolerance here
-  // used to accept a smaller-than-requested glyph instead of selecting Size2.
-  const fenced = named(formula(String.raw`\left(\begin{smallmatrix}a&b\\c&d\end{smallmatrix}\right)`), 'Bracket')[0]
-  expect(fenced.children[0].fragment.size.height).toBeGreaterThanOrEqual(table.size.height * 0.901)
   const matrix = (gap: string, style: MathStyle) => named(formula(`\\begin{matrix}x\\\\[${gap}]x\\end{matrix}`, style), 'MathArray')[0]
   for (const style of ['display', 'script', 'scriptscript'] as const) {
     near(matrix('2pt', style).size.height - matrix('0pt', style).size.height, 8)

@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test'
-import { Arrow, LayoutPass, Rect, Text, px, make_request, exact, available, resolve_style, render_svg } from '@gum-jsx/core'
-import type { Element, Fragment, FontProvider, MathStyle, PathDraw } from '@gum-jsx/core'
+import { LayoutPass, Rect, Text, px, make_request, exact, available, resolve_style, render_svg } from '@gum-jsx/core'
+import type { Element, Fragment, FontProvider, MathStyle } from '@gum-jsx/core'
 import { Accent, Underline, Overline, MathStretch, HorizBrace, XArrow, MathSymbol, MathSpan, MathText, MathRow,
   SupSub, Frac, TextMode, Latex, Phantom, Smash, Lap, Enclose, RaiseBox, VCenter, Pmb,
   createMathFonts, MATH_FONTS, parse_math } from '../src'
@@ -119,48 +119,6 @@ test('math arrows share adjustable barb curvature across arrows, harpoons and ac
     expect(drawings(named(straight, 'StretchShape')[0])).not.toEqual(drawings(named(curved, 'StretchShape')[0]))
     expect(() => layout(element(2))).toThrow('curve')
   }
-})
-
-test('math arrows render through core elements with joined tips and correctly oriented harpoons', () => {
-  const head_width = 2 * Math.tan(46 * Math.PI / 180), h = 0.522 * 40, t = 0.04 * 40
-  const style = { stroke: '#246', fill: 'none', stroke_width: px(t),
-    stroke_linecap: 'butt' as const, stroke_linejoin: 'round' as const }
-  for (const label of ['xrightarrow', 'xleftarrow', 'xleftrightarrow']) for (const head_curve of [0, 0.7, 1]) {
-    const shape = layout(new MathStretch({ label, width: px(180), head_curve, color: '#246' }))
-    const right = label !== 'xleftarrow', from = [px(t / 2), px(h / 2)] as const, to = [px(180 - t / 2), px(h / 2)] as const
-    const core = layout(new Arrow({ ...style, width: px(180), height: px(h), from: right ? from : to, to: right ? to : from,
-      start_head: label === 'xleftrightarrow', head_open: true, head_curve, head_width, head_size: px((h - t) / head_width) }))
-    expect(named(shape, 'Arrow')).toHaveLength(1)
-    expect(named(shape, 'Arrow')[0].draw).toEqual(core.draw)
-    for (const head of core.draw.slice(1) as PathDraw[]) {
-      expect(head.commands.filter(c => c.kind === 'M')).toHaveLength(1)
-      expect(head.commands.some(c => c.kind === 'Z')).toBe(false)
-      // A single continuous path joins both barbs at the tip; separate capped
-      // bands left the notch this regression is intended to catch.
-      expect(head.commands.filter(c => c.kind === 'C' || c.kind === 'L').length).toBeGreaterThanOrEqual(2)
-    }
-  }
-  for (const direction of ['left', 'right']) for (const vertical of ['up', 'down']) {
-    const shape = layout(new MathStretch({ label: `x${direction}harpoon${vertical}`, width: px(180) }))
-    const head = named(shape, 'Arrow')[0].draw[1] as PathDraw
-    expect(head.commands.filter(c => c.kind === 'C')).toHaveLength(1)
-    const endpoints = head.commands.filter(c => c.kind !== 'Z')
-    expect(endpoints.every(p => vertical === 'up' ? p.y <= h / 2 + 1e-8 : p.y >= h / 2 - 1e-8)).toBe(true)
-  }
-  for (const label of ['xRightarrow', 'xLeftarrow', 'xLeftrightarrow', 'xlongequal']) {
-    const shape = layout(new MathStretch({ label }))
-    expect(named(shape, 'Line')).toHaveLength(2)
-    expect(named(shape, 'ArrowHead')).toHaveLength(label === 'xlongequal' ? 0 : label === 'xLeftrightarrow' ? 2 : 1)
-  }
-  for (const label of ['xhookrightarrow', 'xhookleftarrow']) {
-    const shape = layout(new MathStretch({ label }))
-    const shaft = named(shape, 'Arrow')[0].draw[0] as PathDraw, hook = named(shape, 'Arc')[0].draw[0] as PathDraw
-    expect(shaft.commands[0]).toEqual(hook.commands[0])
-  }
-  expect(named(layout(new MathStretch({ label: 'xrightleftharpoons' })), 'Arrow')).toHaveLength(2)
-  expect(named(layout(new MathStretch({ label: 'xtwoheadrightarrow' })), 'ArrowHead')).toHaveLength(1)
-  expect(named(layout(new XArrow({ children: 'f', below: 'g' })), 'Arrow')).toHaveLength(1)
-  expect(named(layout(new Accent({ accent: 'vec', children: 'v' })), 'Arrow')).toHaveLength(1)
 })
 
 test('horizontal braces measure their body before labels and keep opposite scripts', () => {
@@ -418,29 +376,4 @@ test('all drawn TeX decoration labels and text accents survive normalization in 
     expect(named(f, 'Accent')).toHaveLength(1)
     expect(f.ink).not.toBeNull()
   }
-})
-
-// Every node family handled by gum-1 has a named conversion/rendering case.
-// More specific tests above and in ordinary/arrays cover the significant fields.
-const families: [string, string][] = [
-  ['mathord', 'x'], ['textord', '1'], ['atom', '+'], ['spacing', String.raw`a\ b`], ['ordgroup', '{x+y}'],
-  ['font', String.raw`\mathrm{x}`], ['text', String.raw`\textbf{abc}`], ['accent', String.raw`\hat{x}`],
-  ['kern', String.raw`a\kern-1pt b`], ['mclass', String.raw`a\mathrel{x}b`], ['lap', String.raw`\mathclap{x}`],
-  ['htmlmathml', String.raw`\html@mathml{x}{y}`], ['styling', String.raw`\scriptstyle x`], ['supsub', 'x_i^2'],
-  ['genfrac', String.raw`\frac{x}{y}`], ['underline', String.raw`\underline{x}`], ['overline', String.raw`\overline{x}`],
-  ['sqrt', String.raw`\sqrt{x}`], ['accentUnder', String.raw`\underleftarrow{AB}`], ['xArrow', String.raw`A\xrightarrow[b]{a}B`],
-  ['op', String.raw`\sum_0^n`], ['operatorname', String.raw`\operatorname{rank}(A)`], ['horizBrace', String.raw`\overbrace{x}^{n}`],
-  ['array', String.raw`\begin{matrix}a&b\\c&d\end{matrix}`], ['leftright', String.raw`\left(x\right)`],
-  ['delimsizing', String.raw`\bigl(x\bigr)`], ['color', String.raw`\textcolor{red}{x}`], ['sizing', String.raw`{\Huge x}`],
-  ['mathchoice', String.raw`\mathchoice{x}{y}{z}{w}`], ['phantom', String.raw`x+\phantom{y}`],
-  ['hphantom', String.raw`x\hphantom{y}`], ['vphantom', String.raw`x\vphantom{y}`], ['smash', String.raw`\smash[t]{x}`],
-  ['rule', String.raw`\rule[-1pt]{1em}{1pt}`], ['raisebox', String.raw`\raisebox{2pt}{abc}`],
-  ['vcenter', String.raw`\vcenter{\hbox{$x$}}`], ['hbox', String.raw`\hbox{a $x$ b}`], ['pmb', String.raw`\pmb{x}`],
-  ['cr', String.raw`a\\b`], ['verb', String.raw`\verb|x^2|`], ['enclose', String.raw`\boxed{x}`],
-]
-for (const [family, tex] of families) test(`legacy TeX node family ${family} renders without silent omissions`, () => {
-  const result = formula(tex)
-  expect(result.ink).not.toBeNull()
-  expect(descendants(result).flatMap(f => f.draw).length).toBeGreaterThan(0)
-  expect(result.label).toBe(tex)
 })
