@@ -14,7 +14,7 @@
     "compare": "bun scripts/compare.ts"
   },
   "dependencies": {
-    "@gum-jsx/core": "2.1.0-beta.1",
+    "@gum-jsx/core": "2.1.0",
     "katex": "0.18.2"
   },
   "devDependencies": {
@@ -22,10 +22,10 @@
     "mitata": "1.0.34",
     "@types/bun": "latest",
     "commander": "^14.0.3",
-    "@gum-jsx/png": "2.1.0-beta.1",
+    "@gum-jsx/png": "2.1.0",
     "typescript": "^7"
   },
-  "version": "2.1.0-beta.1",
+  "version": "2.1.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/CompendiumLabs/gum-jsx-math.git"
@@ -36,7 +36,7 @@
   },
   "publishConfig": {
     "access": "public",
-    "tag": "beta"
+    "tag": "latest"
   },
   "engines": {
     "node": ">=24",
