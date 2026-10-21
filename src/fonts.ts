@@ -25,6 +25,8 @@ import Typewriter from 'katex/dist/fonts/KaTeX_Typewriter-Regular.ttf'
 // directory names remain part of the filename.
 export function font_url(path: string, base: string): URL {
   const drive = /^([A-Za-z]):[\\/]/.exec(path)
+  // Bun's dev server keeps a file: module URL; browser assets use the page URL.
+  if (base.startsWith('file:') && typeof location !== 'undefined') base = location.href
   if (!drive) return new URL(path, base)
   const segments = path.slice(3).split(/[\\/]/).map(encodeURIComponent).join('/')
   return new URL(`file:///${drive[1]}:/${segments}`)
